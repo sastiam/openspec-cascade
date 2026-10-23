@@ -18,6 +18,12 @@ import { parseArgs } from "node:util";
 import { antigravityEffortArg, antigravityModelArg, runAntigravitySession } from "./antigravity";
 import { openCodeModelArg, runOpenCodeSession } from "./opencode";
 import { normalizePlatformPath, startKeepAlive, type KeepAliveController } from "./platform";
+import {
+  discoverDirectives,
+  discoverSkills,
+  formatDirectivesPrompt,
+  formatSkillsPrompt,
+} from "./skills";
 
 const USAGE_LIMIT_PERCENT = 95;
 const RESET_MARGIN_MS = 2 * 60_000;
@@ -49,7 +55,7 @@ const DENIED_BASH = [
 
 class Fatal extends Error {}
 
-type Task = { id: string; done: boolean; text: string; section: string; line: number };
+export type Task = { id: string; done: boolean; text: string; section: string; line: number };
 type UsageMeter = { kind: string; percent: number; resetsAt: number | null };
 type SessionOutcome =
   | { kind: "done"; sessionId?: string; result: string }
@@ -448,8 +454,14 @@ async function runClaude(prompt: string, resume?: string): Promise<SessionOutcom
   return { kind: "error", sessionId, reason: result?.subtype ?? "unknown" };
 }
 
-function taskPrompt(change: string, task: Task, verify: string[], sectionCommit: boolean) {
-  return [
+export function taskPrompt(
+  change: string,
+  task: Task,
+  verify: string[],
+  sectionCommit: boolean,
+  repoRoot: string = repo,
+): string {
+  const parts = [
     `You are executing the OpenSpec change "${change}" in this repository, one task per session.`,
     `Read openspec/changes/${change}/proposal.md, design.md, tasks.md and specs/ before editing anything.`,
     "",
@@ -468,7 +480,21 @@ function taskPrompt(change: string, task: Task, verify: string[], sectionCommit:
     sectionCommit
       ? `- This task closes section "${task.section}". End your final reply with a line "COMMIT_MESSAGE: <type>(<scope>): <summary of ALL changes in this section>" using Conventional Commits.`
       : `- End your final reply with a line "COMMIT_SUBJECT: <imperative summary of ALL changes in section "${task.section}", max 60 chars>".`,
-  ].join("\n");
+  ];
+
+  const skills = discoverSkills(repoRoot);
+  const skillsCatalog = formatSkillsPrompt(skills);
+  if (skillsCatalog) {
+    parts.push("", skillsCatalog);
+  }
+
+  const directives = discoverDirectives(repoRoot);
+  const directivesPrompt = formatDirectivesPrompt(directives);
+  if (directivesPrompt) {
+    parts.push("", directivesPrompt);
+  }
+
+  return parts.join("\n");
 }
 
 async function runChecks(commands: string[]) {

@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   blockedReason,
   commitsPerSection,
@@ -7,7 +10,9 @@ import {
   isLastOfSection,
   parseTasks,
   resolveEngine,
+  taskPrompt,
   verifyCommands,
+  type Task,
 } from "./cascade";
 
 const numbered = `## 1. Docs
@@ -181,5 +186,128 @@ describe("cascade CLI keep-alive integration", () => {
     ]);
     expect(code).toBe(0);
     expect(out).toContain("keepAlive=disabled");
+  });
+});
+
+describe("taskPrompt", () => {
+  const dummyTask: Task = {
+    id: "1.2",
+    done: false,
+    text: "Implement taskPrompt injection",
+    section: "1. In-Repo Skills Discovery & Context Injection",
+    line: 6,
+  };
+
+  test("generates base task prompt without skills or directives when repo is empty", () => {
+    const tmp = mkdtempSync(join(tmpdir(), "task-prompt-empty-"));
+    try {
+      const prompt = taskPrompt("in-repo-skills", dummyTask, [], false, tmp);
+      expect(prompt).toContain('You are executing the OpenSpec change "in-repo-skills"');
+      expect(prompt).toContain('Implement ONLY task 1.2 (section "1. In-Repo Skills Discovery & Context Injection"):');
+      expect(prompt).toContain("Implement taskPrompt injection");
+      expect(prompt).toContain('COMMIT_SUBJECT: <imperative summary of ALL changes in section "1. In-Repo Skills Discovery & Context Injection", max 60 chars>');
+      expect(prompt).not.toContain("<skills>");
+      expect(prompt).not.toContain("<project-directives>");
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test("injects verification commands and section commit instructions appropriately", () => {
+    const tmp = mkdtempSync(join(tmpdir(), "task-prompt-verify-"));
+    try {
+      const prompt = taskPrompt("in-repo-skills", dummyTask, ["bun test", "bun run lint"], true, tmp);
+      expect(prompt).toContain("This is a verification task. The harness will run: `bun test`, `bun run lint`.");
+      expect(prompt).toContain('COMMIT_MESSAGE: <type>(<scope>): <summary of ALL changes in this section>');
+      expect(prompt).not.toContain("COMMIT_SUBJECT:");
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test("discovers and injects in-repo skills into prompt", () => {
+    const tmp = mkdtempSync(join(tmpdir(), "task-prompt-skills-"));
+    try {
+      const skillDir = join(tmp, ".agents", "skills", "runner-skill");
+      mkdirSync(skillDir, { recursive: true });
+      writeFileSync(
+        join(skillDir, "SKILL.md"),
+        `---
+name: runner-skill
+description: OpenSpec cascade quality runner.
+---
+Skill instructions`,
+      );
+
+      const prompt = taskPrompt("in-repo-skills", dummyTask, [], false, tmp);
+      expect(prompt).toContain("<skills>");
+      expect(prompt).toContain("Repository-specific skills are available to assist with this task:");
+      expect(prompt).toContain("- runner-skill (.agents/skills/runner-skill/SKILL.md): OpenSpec cascade quality runner.");
+      expect(prompt).toContain("Use your file reading tool to inspect any skill file if relevant to the current task.");
+      expect(prompt).toContain("</skills>");
+      expect(prompt).not.toContain("<project-directives>");
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test("discovers and injects project directives (AGENTS.md, CLAUDE.md) into prompt", () => {
+    const tmp = mkdtempSync(join(tmpdir(), "task-prompt-directives-"));
+    try {
+      writeFileSync(join(tmp, "AGENTS.md"), "# Project Agent Standards\nFollow zero magic numbers rule.");
+      writeFileSync(join(tmp, "CLAUDE.md"), "# Claude Guidelines\nEnsure strict typing.");
+
+      const prompt = taskPrompt("in-repo-skills", dummyTask, [], false, tmp);
+      expect(prompt).not.toContain("<skills>");
+      expect(prompt).toContain("<project-directives>");
+      expect(prompt).toContain("Project-wide directives and constraints:");
+      expect(prompt).toContain('<directive file="AGENTS.md">\n# Project Agent Standards\nFollow zero magic numbers rule.\n</directive>');
+      expect(prompt).toContain('<directive file="CLAUDE.md">\n# Claude Guidelines\nEnsure strict typing.\n</directive>');
+      expect(prompt).toContain("</project-directives>");
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test("injects both skills and directives in order when both exist", () => {
+    const tmp = mkdtempSync(join(tmpdir(), "task-prompt-both-"));
+    try {
+      const skillDir = join(tmp, ".claude", "skills", "helper-skill");
+      mkdirSync(skillDir, { recursive: true });
+      writeFileSync(
+        join(skillDir, "SKILL.md"),
+        `---
+name: helper-skill
+description: Helpful skill.
+---
+Helper body`,
+      );
+      writeFileSync(join(tmp, "AGENTS.md"), "# Directive Content");
+
+      const prompt = taskPrompt("in-repo-skills", dummyTask, [], false, tmp);
+      expect(prompt).toContain("<skills>");
+      expect(prompt).toContain("- helper-skill (.claude/skills/helper-skill/SKILL.md): Helpful skill.");
+      expect(prompt).toContain("</skills>");
+
+      expect(prompt).toContain("<project-directives>");
+      expect(prompt).toContain('<directive file="AGENTS.md">\n# Directive Content\n</directive>');
+      expect(prompt).toContain("</project-directives>");
+
+      // Verify skills catalog appears before project directives
+      const skillsIndex = prompt.indexOf("<skills>");
+      const directivesIndex = prompt.indexOf("<project-directives>");
+      expect(skillsIndex).toBeGreaterThan(-1);
+      expect(directivesIndex).toBeGreaterThan(skillsIndex);
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test("uses default repo when repoRoot is omitted and discovers repo skills", () => {
+    const prompt = taskPrompt("in-repo-skills", dummyTask, [], false);
+    expect(prompt).toContain("<skills>");
+    expect(prompt).toContain("openspec-cascade-runner");
+    expect(prompt).toContain(".agents/skills/openspec-cascade-runner/SKILL.md");
+    expect(prompt).toContain("</skills>");
   });
 });

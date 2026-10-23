@@ -20,6 +20,9 @@ Engines: the [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/agent-
   migrations.
 - **Human tasks** (opening a PR, deciding delivery) are skipped and listed at the end. A real
   `BLOCKED: <reason>` from the agent stops the cascade.
+- **In-repo skills & directives:** automatically discovers skills in `.agents/skills/` and `.claude/skills/`,
+  plus root directive files (`AGENTS.md`, `CLAUDE.md`), injecting an indexed catalog and project constraints
+  into initial session prompts across all engines (Claude, OpenCode, Antigravity).
 - **Plan usage guard (Claude only):** before each task it reads `/usage`; at 95% on any meter it sleeps until
   that meter resets. A `rate_limit_event` mid-session aborts, sleeps and resumes the same session.
 - **Cross-platform keep-alive:** automatically prevents system idle sleep during runs (`caffeinate` on macOS,
@@ -82,6 +85,15 @@ Refuses to run on `stable`, `main` or `master`. Logs go to `logs/*.jsonl`.
 - **Graceful fallback**: If `systemd-inhibit` is unavailable or fails permissions (such as in headless Docker containers or WSL), a warning is logged and execution proceeds uninterrupted using a no-op fallback.
 - **Lifecycle cleanup**: Signal listeners (`SIGINT`, `SIGTERM`, and process `exit`) automatically stop background inhibitors cleanly.
 - **Opt-out**: Pass `--no-keep-alive` to disable sleep inhibitors.
+
+## In-repo skills & project directives
+
+`cascade.ts` automatically discovers repository-specific skills and architectural directives, injecting them into initial task prompts to ensure consistent agent behavior and guideline compliance across all execution engines:
+
+- **Skill discovery**: Scans `.agents/skills/*/SKILL.md` and `.claude/skills/*/SKILL.md` in the target repository. Parses YAML frontmatter (`name`, `description`) without external dependencies.
+- **Indexed catalog**: Formats discovered skills into an XML catalog (`<skills>`) containing skill names, relative paths, and descriptions. This preserves context token budget while allowing agents to inspect full skill bodies on demand using file reading tools.
+- **Project directives**: Discovers root `AGENTS.md` and `CLAUDE.md` files and injects their contents under `<project-directives>` as project-wide constraints.
+- **Cross-engine parity**: Centralized in `taskPrompt()`, guaranteeing identical context injection for Claude, OpenCode, and Antigravity.
 
 ## Adapting it
 
