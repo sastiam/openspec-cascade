@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "7fb99857-6bc1-414a-a310-aaafb9f910ce",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/home/sastiam/Workspace/openspec-cascade/.archify/architecture-openspec-cascade/candidate.json",
+  "output": "/home/sastiam/Workspace/openspec-cascade/.archify/architecture-openspec-cascade/openspec-cascade-architecture.html",
+  "specification": {
+    "sha256": "0bebb2f18f3ca7c05447f0aa3b5f48baa10fb6d69315253d62fe9203ae081043",
+    "bytes": 5184
+  },
+  "artifact": {
+    "sha256": "4820aad690056b0474613dfb8f80e9c837aac70021a74e91f08feb3a134dc8d3",
+    "bytes": 827045
+  }
+}

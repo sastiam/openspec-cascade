@@ -9,13 +9,15 @@
  * the runner sleeps until the blocking meters reset.
  *
  * Usage:
- *   caffeinate -i bun run cascade.ts --repo <path> --changes a,b,c [--allow-dirty] [--dry-run]
+ *   bun run cascade.ts --repo <path> --changes a,b,c [--allow-dirty] [--dry-run] [--no-keep-alive]
  */
 import { query, type Options } from "@anthropic-ai/claude-agent-sdk";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
+import { antigravityEffortArg, antigravityModelArg, runAntigravitySession } from "./antigravity";
 import { openCodeModelArg, runOpenCodeSession } from "./opencode";
+import { normalizePlatformPath, startKeepAlive, type KeepAliveController } from "./platform";
 
 const USAGE_LIMIT_PERCENT = 95;
 const RESET_MARGIN_MS = 2 * 60_000;
@@ -64,12 +66,33 @@ const { values: args } = parseArgs({
     // Every task that commits also runs FULL_VERIFY; use for dependency/toolchain changes.
     "full-gate": { type: "boolean", default: false },
     engine: { type: "string", default: "claude" },
+    "no-keep-alive": { type: "boolean", default: false },
+    "keep-alive": { type: "boolean" },
   },
 });
 
-const repo = args.repo ?? process.cwd();
-const engine = args.engine === "opencode" ? "opencode" : "claude";
-if (args.engine !== engine) throw new Error(`--engine must be "claude" or "opencode", got "${args.engine}"`);
+export function isKeepAliveEnabled(options: { "no-keep-alive"?: boolean; "keep-alive"?: boolean }): boolean {
+  if (options["no-keep-alive"]) return false;
+  if (options["keep-alive"] === false) return false;
+  return true;
+}
+
+export function resolveEngine(engineArg: string | undefined): "claude" | "opencode" | "antigravity" {
+  const raw = (engineArg ?? "claude").toLowerCase();
+  if (raw === "antigravity" || raw === "agy") return "antigravity";
+  if (raw === "opencode") return "opencode";
+  if (raw === "claude") return "claude";
+  throw new Error(`--engine must be "claude", "opencode", or "antigravity" (or "agy"), got "${engineArg}"`);
+}
+
+let keepAliveController: KeepAliveController | undefined;
+
+export function getKeepAliveController(): KeepAliveController | undefined {
+  return keepAliveController;
+}
+
+const repo = normalizePlatformPath(args.repo ?? process.cwd());
+const engine = resolveEngine(args.engine);
 const changes = (args.changes ?? "").split(",").map((c) => c.trim()).filter(Boolean);
 const logDir = join(import.meta.dir, "logs");
 mkdirSync(logDir, { recursive: true });
@@ -288,7 +311,40 @@ function agentOptions(abortController: AbortController, resume?: string): Option
 }
 
 async function runSession(prompt: string, resume?: string): Promise<SessionOutcome> {
+  if (engine === "antigravity") return runAntigravity(prompt, resume);
   return engine === "opencode" ? runOpenCode(prompt, resume) : runClaude(prompt, resume);
+}
+
+async function runAntigravity(prompt: string, resume?: string): Promise<SessionOutcome> {
+  const model = antigravityModelArg(process.env.CASCADE_MODEL);
+  const effort = antigravityEffortArg(process.env.CASCADE_EFFORT ?? "high");
+  const displayModel = effort ? `${model} (effort: ${effort})` : model;
+  if (displayModel !== announcedModel) {
+    announcedModel = displayModel;
+    say(`  model: ${displayModel} (antigravity)`);
+  }
+  const outcome = await runAntigravitySession({
+    prompt,
+    cwd: repo,
+    resume,
+    model,
+    effort,
+    hooks: {
+      onTool: (name, input) => {
+        const detail = describeToolInput(input);
+        log("tool", { name, detail });
+        progress(`🔧 ${name}${detail ? ` ${detail}` : ""}`);
+      },
+      onText: (text) => {
+        log("text", { text: text.slice(0, 500) });
+        progress(`💬 ${oneLine(text)}`);
+      },
+      log,
+    },
+  });
+  totalCostUsd += outcome.costUsd;
+  say(`  session ${outcome.kind}: $${outcome.costUsd.toFixed(2)} (cascade total $${totalCostUsd.toFixed(2)})`);
+  return outcome;
 }
 
 async function runOpenCode(prompt: string, resume?: string): Promise<SessionOutcome> {
@@ -542,7 +598,8 @@ async function preflight() {
     if (!args["allow-dirty"] && !args["dry-run"]) throw new Fatal(`${warning}\nClean it or pass --allow-dirty.`);
     say(warning);
   }
-  say(`engine=${engine} repo=${repo} branch=${branch} changes=${changes.join(" → ")} log=${logFile}`);
+  const keepAliveStatus = keepAliveController ? `keepAlive=${keepAliveController.mechanism} ` : "";
+  say(`engine=${engine} ${keepAliveStatus}repo=${repo} branch=${branch} changes=${changes.join(" → ")} log=${logFile}`);
 }
 
 function printPlan() {
@@ -568,22 +625,30 @@ function printPlan() {
 }
 
 async function main() {
-  await preflight();
-  if (args["dry-run"]) {
-    printPlan();
-    const meters = await readUsage();
-    console.log("\nusage:", meters ?? "unavailable (API key or token without user:profile scope)");
-    return;
+  const keepAliveEnabled = isKeepAliveEnabled(args);
+  keepAliveController = startKeepAlive({ enabled: keepAliveEnabled });
+  log("keep_alive", { active: keepAliveController.active, mechanism: keepAliveController.mechanism });
+  try {
+    await preflight();
+    if (args["dry-run"]) {
+      printPlan();
+      const meters = await readUsage();
+      console.log("\nusage:", meters ?? "unavailable (API key or token without user:profile scope)");
+      return;
+    }
+    const report: string[] = [];
+    for (const change of changes) {
+      const skipped = await runChange(change);
+      report.push(`${change}: done${skipped.length ? `, human tasks pending: ${skipped.join(", ")}` : ""}`);
+    }
+    say(`Cascade finished. Estimated cost $${totalCostUsd.toFixed(2)}\n${report.join("\n")}`);
+  } finally {
+    keepAliveController.stop();
   }
-  const report: string[] = [];
-  for (const change of changes) {
-    const skipped = await runChange(change);
-    report.push(`${change}: done${skipped.length ? `, human tasks pending: ${skipped.join(", ")}` : ""}`);
-  }
-  say(`Cascade finished. Estimated cost $${totalCostUsd.toFixed(2)}\n${report.join("\n")}`);
 }
 
 if (import.meta.main) main().catch((error) => {
+  keepAliveController?.stop();
   say(error instanceof Fatal ? `STOPPED: ${error.message}` : `CRASHED: ${error?.stack ?? error}`);
   process.exit(error instanceof Fatal ? 2 : 1);
 });

@@ -1,5 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { blockedReason, commitsPerSection, commitTypeOf, isLastOfSection, parseTasks, verifyCommands } from "./cascade";
+import {
+  blockedReason,
+  commitsPerSection,
+  commitTypeOf,
+  isKeepAliveEnabled,
+  isLastOfSection,
+  parseTasks,
+  resolveEngine,
+  verifyCommands,
+} from "./cascade";
 
 const numbered = `## 1. Docs
 
@@ -108,5 +117,69 @@ describe("blockedReason", () => {
       "smile-ui has no fixed release on the private registry",
     );
     expect(blockedReason("All done.\nCOMMIT_SUBJECT: pin next")).toBeUndefined();
+  });
+});
+
+describe("resolveEngine", () => {
+  test("resolves claude, opencode, antigravity and alias agy", () => {
+    expect(resolveEngine(undefined)).toBe("claude");
+    expect(resolveEngine("claude")).toBe("claude");
+    expect(resolveEngine("opencode")).toBe("opencode");
+    expect(resolveEngine("antigravity")).toBe("antigravity");
+    expect(resolveEngine("agy")).toBe("antigravity");
+    expect(resolveEngine("AGY")).toBe("antigravity");
+  });
+
+  test("throws on invalid engine", () => {
+    expect(() => resolveEngine("invalid")).toThrow(/--engine must be/);
+  });
+});
+
+describe("isKeepAliveEnabled", () => {
+  test("returns true by default when options are empty or undefined", () => {
+    expect(isKeepAliveEnabled({})).toBe(true);
+    expect(isKeepAliveEnabled({ "no-keep-alive": false })).toBe(true);
+  });
+
+  test("returns false when --no-keep-alive flag is passed", () => {
+    expect(isKeepAliveEnabled({ "no-keep-alive": true })).toBe(false);
+  });
+
+  test("returns false when keep-alive is explicitly disabled", () => {
+    expect(isKeepAliveEnabled({ "keep-alive": false })).toBe(false);
+  });
+
+  test("returns true when keep-alive is explicitly enabled", () => {
+    expect(isKeepAliveEnabled({ "keep-alive": true })).toBe(true);
+    expect(isKeepAliveEnabled({ "no-keep-alive": false, "keep-alive": true })).toBe(true);
+  });
+});
+
+describe("cascade CLI keep-alive integration", () => {
+  test("activates keep-alive by default", async () => {
+    const proc = Bun.spawn(["bun", "run", "cascade.ts", "--dry-run", "--changes", "cross-platform-keep-alive"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [out, code] = await Promise.all([
+      new Response(proc.stdout).text(),
+      proc.exited,
+    ]);
+    expect(code).toBe(0);
+    expect(out).toContain("keepAlive=");
+    expect(out).not.toContain("keepAlive=disabled");
+  });
+
+  test("disables keep-alive when --no-keep-alive flag is passed", async () => {
+    const proc = Bun.spawn(["bun", "run", "cascade.ts", "--dry-run", "--changes", "cross-platform-keep-alive", "--no-keep-alive"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [out, code] = await Promise.all([
+      new Response(proc.stdout).text(),
+      proc.exited,
+    ]);
+    expect(code).toBe(0);
+    expect(out).toContain("keepAlive=disabled");
   });
 });

@@ -4,8 +4,8 @@ Runs [OpenSpec](https://github.com/Fission-AI/OpenSpec) changes autonomously, on
 every task in `tasks.md` is done. The harness, not the model, decides whether a task is finished: it runs the
 task's checks itself, feeds failures back for a retry, and commits only verified work.
 
-Engines: the [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/agent-loop) (default) or the
-[OpenCode](https://opencode.ai) CLI.
+Engines: the [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/agent-loop) (default), the
+[OpenCode](https://opencode.ai) CLI, or the Google [Antigravity](https://antigravity.google) CLI (`agy`).
 
 ## How it works
 
@@ -22,12 +22,16 @@ Engines: the [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/agent-
   `BLOCKED: <reason>` from the agent stops the cascade.
 - **Plan usage guard (Claude only):** before each task it reads `/usage`; at 95% on any meter it sleeps until
   that meter resets. A `rate_limit_event` mid-session aborts, sleeps and resumes the same session.
+- **Cross-platform keep-alive:** automatically prevents system idle sleep during runs (`caffeinate` on macOS,
+  `systemd-inhibit` on Linux, with graceful fallback in containers/WSL).
 
 ## Requirements
 
 - [Bun](https://bun.sh) 1.4+
 - Claude engine: a Claude Code login (plan usage meters need a claude.ai credential).
 - OpenCode engine: `opencode` CLI 2.x, authenticated with the provider of the chosen model.
+- Antigravity engine: `agy` CLI installed in PATH and authenticated.
+- Linux keep-alive (optional): `systemd-inhibit` (pre-installed on systemd distributions; gracefully skipped if missing).
 
 ```bash
 bun install
@@ -39,14 +43,20 @@ bun install
 # Preview the plan: pending tasks, detected checks, commit types, current usage
 bun run cascade.ts --repo <path> --changes change-a,change-b --dry-run
 
-# Run (caffeinate keeps macOS awake during long runs)
-caffeinate -i bun run cascade.ts --repo <path> --changes change-a,change-b
+# Run (keep-alive prevents system sleep automatically on macOS and Linux)
+bun run cascade.ts --repo <path> --changes change-a,change-b
 
 # Dependency/toolchain changes: every committing task also runs the full suite
-caffeinate -i bun run cascade.ts --repo <path> --changes upgrade-deps --full-gate
+bun run cascade.ts --repo <path> --changes upgrade-deps --full-gate
 
 # OpenCode engine (default model: opencode/deepseek-v4.1-flash#high)
-caffeinate -i bun run cascade.ts --repo <path> --changes upgrade-deps --engine opencode
+bun run cascade.ts --repo <path> --changes upgrade-deps --engine opencode
+
+# Antigravity engine (default model: gemini-3.8-flash-high)
+bun run cascade.ts --repo <path> --changes upgrade-deps --engine antigravity
+
+# Run without keep-alive
+bun run cascade.ts --repo <path> --changes change-a --no-keep-alive
 ```
 
 | Flag / env | Meaning |
@@ -55,12 +65,23 @@ caffeinate -i bun run cascade.ts --repo <path> --changes upgrade-deps --engine o
 | `--changes` | Comma-separated OpenSpec change names, in cascade order |
 | `--dry-run` | Print the plan and usage; change nothing |
 | `--full-gate` | Committing tasks also run the full verification suite |
-| `--engine` | `claude` (default) or `opencode` |
+| `--engine` | `claude` (default), `opencode`, or `antigravity` (`agy`) |
+| `--no-keep-alive` | Disable automatic OS sleep inhibitor (`caffeinate` / `systemd-inhibit`) |
 | `--allow-dirty` | Start with a dirty tree; those files land in the first commit |
-| `CASCADE_MODEL` | Model alias or ID (OpenCode: `provider/model[#variant]`) |
+| `CASCADE_MODEL` | Model alias or ID (OpenCode: `provider/model[#variant]`, Antigravity: `gemini-3.8-flash-high`) |
 | `CASCADE_EFFORT` | `low`…`max`, or `none` to omit it |
 
 Refuses to run on `stable`, `main` or `master`. Logs go to `logs/*.jsonl`.
+
+## Cross-platform keep-alive
+
+`cascade.ts` includes built-in sleep inhibition to ensure long runs proceed without OS sleep interruption:
+
+- **macOS (`darwin`)**: Spawns `caffeinate -i -w <pid>` bound to the harness process PID (`process.pid`), ensuring caffeinate exits if the harness terminates.
+- **Linux (`linux`)**: Automatically detects and invokes `systemd-inhibit --what=idle:sleep` to block system idle and sleep states.
+- **Graceful fallback**: If `systemd-inhibit` is unavailable or fails permissions (such as in headless Docker containers or WSL), a warning is logged and execution proceeds uninterrupted using a no-op fallback.
+- **Lifecycle cleanup**: Signal listeners (`SIGINT`, `SIGTERM`, and process `exit`) automatically stop background inhibitors cleanly.
+- **Opt-out**: Pass `--no-keep-alive` to disable sleep inhibitors.
 
 ## Adapting it
 
