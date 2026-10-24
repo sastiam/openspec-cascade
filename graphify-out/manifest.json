@@ -174,9 +174,9 @@
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.delivery.json": {
-    "mtime": 1792879454.7649922,
-    "seen": 1792879463.167776,
-    "ast_hash": "87417db61410ec32bb36a06c4ef94ec6",
+    "mtime": 1792879464.2850459,
+    "seen": 1792881900.476487,
+    "ast_hash": "1f98f018b149a80c0b387909f4bc5eee",
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.finalize-summary.json": {
@@ -300,8 +300,8 @@
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.html": {
-    "mtime": 1792879454.4289904,
-    "seen": 1792879463.1683328,
+    "mtime": 1792879463.9500442,
+    "seen": 1792881900.477638,
     "ast_hash": "94db30b43f4a07a3e7ce38af427e41fd",
     "semantic_hash": ""
   },
@@ -972,8 +972,8 @@
     "semantic_hash": ""
   },
   ".archify/workflow-agnostic-looper/agnostic-looper-workflow.html": {
-    "mtime": 1792879455.773998,
-    "seen": 1792879463.1683369,
+    "mtime": 1792879465.3410518,
+    "seen": 1792881900.4776447,
     "ast_hash": "c31685e59ee141da99e47a4901f179c5",
     "semantic_hash": ""
   },
@@ -1362,9 +1362,9 @@
     "semantic_hash": ""
   },
   "openspec/changes/looper-pal-gemini-adapter/tasks.md": {
-    "mtime": 1792865836.0282185,
-    "seen": 1792868132.880278,
-    "ast_hash": "844c6ad25e7c84168e17367d900751c3",
+    "mtime": 1792881874.9836013,
+    "seen": 1792881900.4782884,
+    "ast_hash": "e33cff71440835c7b12b46f8c44fdd8a",
     "semantic_hash": ""
   },
   "openspec/changes/looper-pal-opencode-adapter/.openspec.yaml": {
@@ -1440,9 +1440,9 @@
     "semantic_hash": ""
   },
   ".archify/workflow-agnostic-looper/agnostic-looper-workflow.delivery.json": {
-    "mtime": 1792879456.1179998,
-    "seen": 1792879463.167791,
-    "ast_hash": "17d2516dbb90972e92daa1d885771c1e",
+    "mtime": 1792879465.7110538,
+    "seen": 1792881900.4765143,
+    "ast_hash": "9825b36044893e30b06af6c2f40e1fcf",
     "semantic_hash": ""
   },
   "src/pal/normalizer.ts": {
@@ -1533,6 +1533,18 @@
     "mtime": 1792876241.5179274,
     "seen": 1792876342.59809,
     "ast_hash": "03a679d5913407b6ec898e5472abf4f3",
+    "semantic_hash": ""
+  },
+  "src/pal/adapters/gemini.ts": {
+    "mtime": 1792881711.9586825,
+    "seen": 1792881900.4767933,
+    "ast_hash": "4aa762201826af70ff0768a0f136c8e1",
+    "semantic_hash": ""
+  },
+  "test/pal/gemini.test.ts": {
+    "mtime": 1792881657.7913773,
+    "seen": 1792881900.476864,
+    "ast_hash": "ba86f15659e53e17b78a188b48ea59c4",
     "semantic_hash": ""
   }
 }

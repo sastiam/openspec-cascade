@@ -50,6 +50,100 @@ import {
   type PalToolResultContent,
   type PalTurnNormalizer,
 } from "./types";
+import {
+  REACT_PARSER_CONSTANTS,
+  TOOL_CALL_TAG_REGEX,
+  TOOL_CALL_REGEX,
+  UNCLOSED_TOOL_CALL_TAG_REGEX,
+  MARKDOWN_TOOL_BLOCK_REGEX,
+  REACT_ACTION_REGEX,
+  RECONTINUATION_PROMPT,
+  type ExtractedReActCalls,
+  type TruncatedStreamDetection,
+  normalizeUnescapedStringValues,
+  repairTruncatedJson,
+  repairJsonArguments,
+  extractReActToolCalls,
+  detectTruncatedReActTag,
+  isReActStreamTruncated,
+  stitchTruncatedToolCall,
+  formatReActToolInstructions,
+} from "./react_parser";
+import {
+  MCP_BRIDGE_CONSTANTS,
+  type McpContent,
+  type McpTextContent,
+  type McpImageContent,
+  type McpResourceContent,
+  type McpToolSchema,
+  type McpCallToolResult,
+  type McpServerConfig,
+  type IMcpClient,
+  type McpBridgeOptions,
+  type ValidationResult,
+  type PalToolDispatcherOptions,
+  InMemoryMcpClient,
+  McpToolBridge,
+  PalToolDispatcher,
+  createInMemoryMcpClient,
+  createMcpToolBridge,
+  createPalToolDispatcher,
+  defaultPalToolDispatcher,
+  mcpToolToPalTool,
+  palToolToMcpTool,
+  batchMcpToolsToPalTools,
+  batchPalToolsToMcpTools,
+  validateToolArguments,
+  formatMcpCallToolResult,
+} from "./mcp";
+
+export {
+  MCP_BRIDGE_CONSTANTS,
+  type McpContent,
+  type McpTextContent,
+  type McpImageContent,
+  type McpResourceContent,
+  type McpToolSchema,
+  type McpCallToolResult,
+  type McpServerConfig,
+  type IMcpClient,
+  type McpBridgeOptions,
+  type ValidationResult,
+  type PalToolDispatcherOptions,
+  InMemoryMcpClient,
+  McpToolBridge,
+  PalToolDispatcher,
+  createInMemoryMcpClient,
+  createMcpToolBridge,
+  createPalToolDispatcher,
+  defaultPalToolDispatcher,
+  mcpToolToPalTool,
+  palToolToMcpTool,
+  batchMcpToolsToPalTools,
+  batchPalToolsToMcpTools,
+  validateToolArguments,
+  formatMcpCallToolResult,
+};
+
+export {
+  REACT_PARSER_CONSTANTS,
+  TOOL_CALL_TAG_REGEX,
+  TOOL_CALL_REGEX,
+  UNCLOSED_TOOL_CALL_TAG_REGEX,
+  MARKDOWN_TOOL_BLOCK_REGEX,
+  REACT_ACTION_REGEX,
+  RECONTINUATION_PROMPT,
+  type ExtractedReActCalls,
+  type TruncatedStreamDetection,
+  normalizeUnescapedStringValues,
+  repairTruncatedJson,
+  repairJsonArguments,
+  extractReActToolCalls,
+  detectTruncatedReActTag,
+  isReActStreamTruncated,
+  stitchTruncatedToolCall,
+  formatReActToolInstructions,
+};
 
 /**
  * Standard synthetic prompt for prepending when conversational history begins with an assistant turn.
@@ -61,12 +155,6 @@ export const SYNTHETIC_USER_PROMPT = "Begin session";
  */
 export const SYNTHETIC_TOOL_ERROR_MESSAGE =
   "Error: Tool execution aborted, timed out, or unhandled by runner.";
-
-/**
- * Permissive regex for ReAct fallback tool call parsing.
- * Matches whitespace-tolerant <tool_call>...</tool_call> tags.
- */
-export const TOOL_CALL_REGEX = /<tool_call[\s\S]*?>([\s\S]*?)<\/tool_call>/gi;
 
 /**
  * Provider-specific role literals avoiding magic strings.
@@ -99,158 +187,6 @@ function isSupportedImageMimeType(value: unknown): value is PalImageMimeType {
     typeof value === "string" &&
     Object.values(PAL_IMAGE_MIME_TYPES).includes(value as PalImageMimeType)
   );
-}
-
-/**
- * Repairs commonly observed LLM malformed JSON argument payloads.
- *
- * Resolves:
- * - Markdown code fences (```json ... ``` or ``` ... ```)
- * - Trailing commas in objects and arrays
- * - Unescaped quotes / boundaries
- * - Single-quoted keys and string literals
- * - Surrounding conversational commentary
- */
-export function repairJsonArguments(raw: string): Record<string, unknown> {
-  if (!raw || typeof raw !== "string") {
-    return {};
-  }
-
-  const trimmed = raw.trim();
-  if (trimmed.length === 0) {
-    return {};
-  }
-
-  // 1. Direct parse attempt
-  try {
-    const parsed = JSON.parse(trimmed);
-    if (isRecord(parsed)) {
-      return parsed;
-    }
-    if (typeof parsed === "object" && parsed !== null) {
-      return parsed as Record<string, unknown>;
-    }
-    return { value: parsed };
-  } catch {
-    // Continue through heuristics
-  }
-
-  let cleaned = trimmed;
-
-  // 2. Strip markdown fences
-  const fenceRegex = /^```(?:json)?\s*\n?([\s\S]*?)\n?```$/i;
-  const fenceMatch = cleaned.match(fenceRegex);
-  if (fenceMatch && fenceMatch[1]) {
-    cleaned = fenceMatch[1].trim();
-  } else {
-    cleaned = cleaned.replace(/^```[a-zA-Z]*\n?/, "").replace(/\n?```$/, "").trim();
-  }
-
-  // Try parsing after fence stripping
-  try {
-    const parsed = JSON.parse(cleaned);
-    if (isRecord(parsed)) return parsed;
-  } catch {
-    // Continue
-  }
-
-  // 3. Remove trailing commas before closing braces/brackets
-  cleaned = cleaned.replace(/,\s*([}\]])/g, "$1");
-
-  try {
-    const parsed = JSON.parse(cleaned);
-    if (isRecord(parsed)) return parsed;
-  } catch {
-    // Continue
-  }
-
-  // 4. Handle single quotes for keys/strings: {'key': 'val'} -> {"key": "val"}
-  try {
-    const singleQuotesNormalized = cleaned.replace(
-      /'([^'\\]*(?:\\.[^'\\]*)*)'/g,
-      '"$1"'
-    );
-    const parsed = JSON.parse(singleQuotesNormalized);
-    if (isRecord(parsed)) return parsed;
-  } catch {
-    // Continue
-  }
-
-  // 5. Extract JSON object substring between first '{' and last '}'
-  const firstBrace = cleaned.indexOf("{");
-  const lastBrace = cleaned.lastIndexOf("}");
-  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-    const bracketed = cleaned.substring(firstBrace, lastBrace + 1);
-    try {
-      const parsed = JSON.parse(bracketed);
-      if (isRecord(parsed)) return parsed;
-    } catch {
-      try {
-        const noTrailing = bracketed.replace(/,\s*([}\]])/g, "$1");
-        const parsed = JSON.parse(noTrailing);
-        if (isRecord(parsed)) return parsed;
-      } catch {
-        // Fallback
-      }
-    }
-  }
-
-  return {};
-}
-
-/**
- * Extracted ReAct tool calls result.
- */
-export interface ExtractedReActCalls {
-  toolCalls: PalToolCallContent[];
-  cleanText: string;
-}
-
-/**
- * Parses ReAct-style <tool_call>...</tool_call> tags from conversational text.
- */
-export function extractReActToolCalls(text: string): ExtractedReActCalls {
-  if (!text || typeof text !== "string") {
-    return { toolCalls: [], cleanText: "" };
-  }
-
-  const toolCalls: PalToolCallContent[] = [];
-  const regex = new RegExp(TOOL_CALL_REGEX.source, TOOL_CALL_REGEX.flags);
-  let match: RegExpExecArray | null;
-
-  while ((match = regex.exec(text)) !== null) {
-    const rawPayload = (match[1] ?? "").trim();
-    if (!rawPayload) continue;
-
-    const parsed = repairJsonArguments(rawPayload);
-    const name =
-      typeof parsed.name === "string"
-        ? parsed.name
-        : typeof parsed.tool === "string"
-          ? parsed.tool
-          : typeof parsed.call === "string"
-            ? parsed.call
-            : "";
-
-    if (name.length > 0) {
-      let args: Record<string, unknown> = {};
-      if (isRecord(parsed.arguments)) {
-        args = parsed.arguments;
-      } else if (isRecord(parsed.parameters)) {
-        args = parsed.parameters;
-      } else if (isRecord(parsed.args)) {
-        args = parsed.args;
-      } else {
-        const { name: _n, tool: _t, call: _c, ...rest } = parsed;
-        args = rest;
-      }
-
-      toolCalls.push(createToolCallBlock(randomUUID(), name, args, rawPayload));
-    }
-  }
-
-  const cleanText = text.replace(regex, "").trim();
-  return { toolCalls, cleanText };
 }
 
 /**
@@ -1400,13 +1336,18 @@ export function fromOpenAiResponse(response: unknown): PalMessage {
     }
 
     const hasNativeToolCalls = contentBlocks.some(isPalToolCallContent);
-    if (!hasNativeToolCalls && textToProcess.includes("<tool_call")) {
-      const { toolCalls: extractedCalls, cleanText } = extractReActToolCalls(textToProcess);
-      for (const tc of extractedCalls) {
-        contentBlocks.push(tc);
-      }
-      if (cleanText.length > 0) {
-        contentBlocks.push(createTextBlock(cleanText));
+    if (!hasNativeToolCalls) {
+      const { toolCalls: extractedCalls, cleanText } =
+        extractReActToolCalls(textToProcess);
+      if (extractedCalls.length > 0) {
+        for (const tc of extractedCalls) {
+          contentBlocks.push(tc);
+        }
+        if (cleanText.length > 0) {
+          contentBlocks.push(createTextBlock(cleanText));
+        }
+      } else if (textToProcess.length > 0) {
+        contentBlocks.push(createTextBlock(textToProcess));
       }
     } else if (textToProcess.length > 0) {
       contentBlocks.push(createTextBlock(textToProcess));
