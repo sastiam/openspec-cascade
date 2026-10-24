@@ -174,9 +174,9 @@
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.delivery.json": {
-    "mtime": 1792873867.0824728,
-    "seen": 1792876342.5978992,
-    "ast_hash": "5aacd2190256d3d55abf33b0ca3c42c7",
+    "mtime": 1792879454.7649922,
+    "seen": 1792879463.167776,
+    "ast_hash": "87417db61410ec32bb36a06c4ef94ec6",
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.finalize-summary.json": {
@@ -216,9 +216,9 @@
     "semantic_hash": ""
   },
   "config.ts": {
-    "mtime": 1792808210.9953027,
-    "seen": 1792809630.1642742,
-    "ast_hash": "da736a535486ec70d6a18ddf2aac21c8",
+    "mtime": 1792877644.4508052,
+    "seen": 1792879424.8946402,
+    "ast_hash": "88879c6b5482713a018b8a39a0752c37",
     "semantic_hash": ""
   },
   "diagrams.test.ts": {
@@ -300,8 +300,8 @@
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.html": {
-    "mtime": 1792873866.746471,
-    "seen": 1792876342.598445,
+    "mtime": 1792879454.4289904,
+    "seen": 1792879463.1683328,
     "ast_hash": "94db30b43f4a07a3e7ce38af427e41fd",
     "semantic_hash": ""
   },
@@ -972,8 +972,8 @@
     "semantic_hash": ""
   },
   ".archify/workflow-agnostic-looper/agnostic-looper-workflow.html": {
-    "mtime": 1792873868.2274792,
-    "seen": 1792876342.5984483,
+    "mtime": 1792879455.773998,
+    "seen": 1792879463.1683369,
     "ast_hash": "c31685e59ee141da99e47a4901f179c5",
     "semantic_hash": ""
   },
@@ -1440,9 +1440,9 @@
     "semantic_hash": ""
   },
   ".archify/workflow-agnostic-looper/agnostic-looper-workflow.delivery.json": {
-    "mtime": 1792873868.6624818,
-    "seen": 1792876342.5979137,
-    "ast_hash": "457b5f913b502766befa3202e758444e",
+    "mtime": 1792879456.1179998,
+    "seen": 1792879463.167791,
+    "ast_hash": "17d2516dbb90972e92daa1d885771c1e",
     "semantic_hash": ""
   },
   "src/pal/normalizer.ts": {
