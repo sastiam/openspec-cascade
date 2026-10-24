@@ -7,6 +7,7 @@ import {
   captureGitState,
   commitsPerSection,
   commitTypeOf,
+  describeToolInput,
   discoverArchifyTargets,
   Fatal,
   formatVerificationFeedback,
@@ -405,5 +406,23 @@ describe("24/7 failure resilience and git rollback buffer in cascade", () => {
     expect(err).toBeInstanceOf(Fatal);
     expect(err).toBeInstanceOf(Error);
     expect(err.message).toContain("Task 1.3 of qa-stage failed after 3 attempts; see logs/task.jsonl");
+  });
+});
+
+describe("describeToolInput in cascade", () => {
+  test("formats cmd, path, and args via cascade re-export", () => {
+    expect(describeToolInput({ cmd: "git checkout", args: ["-b", "feat/engine"] })).toBe(
+      "git checkout -b feat/engine",
+    );
+    expect(describeToolInput({ path: "openspec/changes/tasks.md" })).toBe(
+      "openspec/changes/tasks.md",
+    );
+    expect(describeToolInput({ CommandLine: "bun test" })).toBe("bun test");
+  });
+
+  test("formats fallback fields and strings", () => {
+    expect(describeToolInput({ pattern: "antigravity" })).toBe("antigravity");
+    expect(describeToolInput("bun run lint")).toBe("bun run lint");
+    expect(describeToolInput(null)).toBe("");
   });
 });

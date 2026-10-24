@@ -61,13 +61,16 @@ import {
   type RollbackOptions,
   type RollbackResult,
 } from "./resilience";
+import { describeToolInput, oneLine } from "./antigravity";
 
 export {
   captureGitState,
+  describeToolInput,
   discoverArchifyTargets,
   Fatal,
   formatVerificationFeedback,
   isKeepAliveEnabled,
+  oneLine,
   resolveEngine,
   rollbackWorkingTree,
   RollbackStateBuffer,
@@ -116,21 +119,9 @@ function say(message: string) {
   log("say", { message });
 }
 
-function oneLine(text: string, max: number = CONSTANTS.ONE_LINE_MAX_LENGTH) {
-  const flat = text.replace(/\s+/g, " ").trim();
-  return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
-}
-
 /** Agent activity line; kept out of the log file because "tool"/"text" events already record it. */
 function progress(message: string) {
   console.log(`[${new Date().toLocaleTimeString()}]     ${message}`);
-}
-
-function describeToolInput(input: unknown) {
-  if (!input || typeof input !== "object") return "";
-  const fields = input as Record<string, unknown>;
-  const value = fields.command ?? fields.file_path ?? fields.pattern ?? fields.url ?? fields.query ?? fields.description;
-  return typeof value === "string" ? oneLine(value, CONSTANTS.TOOL_INPUT_MAX_LENGTH) : "";
 }
 
 async function sh(cmd: string | string[], timeoutMs = config.commandTimeoutMs) {

@@ -105,6 +105,90 @@ function updateUsage(state: SessionState, raw: Record<string, any>) {
   };
 }
 
+/** Flattens whitespace and truncates string to max characters with ellipsis. */
+export function oneLine(text: string, max: number = CONSTANTS.ONE_LINE_MAX_LENGTH): string {
+  const flat = text.replace(/\s+/g, " ").trim();
+  return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
+}
+
+/**
+ * Formats tool input payload into a concise single-line description for progress display and logs.
+ * Supports path, cmd, command, CommandLine, args, file_path, Path, pattern, url, query, and description.
+ */
+export function describeToolInput(input: unknown): string {
+  if (!input) return "";
+  if (typeof input === "string") {
+    return oneLine(input, CONSTANTS.TOOL_INPUT_MAX_LENGTH);
+  }
+  if (Array.isArray(input)) {
+    return oneLine(input.map(String).join(" "), CONSTANTS.TOOL_INPUT_MAX_LENGTH);
+  }
+  if (typeof input !== "object") return "";
+
+  const fields = input as Record<string, unknown>;
+
+  // Check command / cmd / CommandLine along with optional args
+  const cmd = fields.cmd ?? fields.command ?? fields.CommandLine;
+  const args = fields.args;
+  let argsStr: string | undefined;
+  if (Array.isArray(args)) {
+    argsStr = args.map(String).join(" ");
+  } else if (typeof args === "string" && args.trim()) {
+    argsStr = args.trim();
+  }
+
+  if (typeof cmd === "string" && cmd.trim()) {
+    const full = argsStr ? `${cmd.trim()} ${argsStr}` : cmd.trim();
+    return oneLine(full, CONSTANTS.TOOL_INPUT_MAX_LENGTH);
+  }
+
+  if (argsStr) {
+    return oneLine(argsStr, CONSTANTS.TOOL_INPUT_MAX_LENGTH);
+  }
+
+  // Check path / file_path / Path
+  const path = fields.path ?? fields.file_path ?? fields.Path;
+  if (typeof path === "string" && path.trim()) {
+    return oneLine(path.trim(), CONSTANTS.TOOL_INPUT_MAX_LENGTH);
+  }
+
+  // Check pattern, url, query, description
+  const value = fields.pattern ?? fields.url ?? fields.query ?? fields.description;
+  return typeof value === "string" ? oneLine(value, CONSTANTS.TOOL_INPUT_MAX_LENGTH) : "";
+}
+
+/**
+ * Normalizes and enriches tool parameter payload from `tool_info`
+ * (handling parameters, input, args, or direct properties),
+ * populating common fields such as `path`, `cmd`, and `args`.
+ */
+export function formatToolInput(toolInfo: unknown): Record<string, unknown> | undefined {
+  if (!toolInfo || typeof toolInfo !== "object") return undefined;
+  const info = toolInfo as Record<string, unknown>;
+  const raw = info.parameters ?? info.input ?? info.args ?? toolInfo;
+  if (!raw || typeof raw !== "object") return undefined;
+
+  const params = raw as Record<string, unknown>;
+  const enriched: Record<string, unknown> = { ...params };
+
+  const path = params.path ?? params.Path ?? params.file_path ?? info.path;
+  if (path !== undefined) {
+    enriched.path = path;
+  }
+
+  const cmd = params.cmd ?? params.command ?? params.CommandLine ?? info.cmd;
+  if (cmd !== undefined) {
+    enriched.cmd = cmd;
+  }
+
+  const args = params.args ?? info.args;
+  if (args !== undefined) {
+    enriched.args = args;
+  }
+
+  return enriched;
+}
+
 /** Folds one JSON line from `agy -p ... --output-format stream-json` into the session state. */
 export function reduceAntigravityEvent(
   state: SessionState,
@@ -133,7 +217,7 @@ export function reduceAntigravityEvent(
 
     if (update.step_type === "tool" && update.state === "ACTIVE") {
       const toolName = update.tool_name ?? update.tool_info?.name ?? "tool";
-      const toolInput = update.tool_info?.parameters ?? update.tool_info?.input;
+      const toolInput = formatToolInput(update.tool_info ?? update);
       hooks.onTool(toolName, toolInput);
     } else if (update.step_type === "agent_response" && typeof update.text_delta === "string" && update.text_delta) {
       state.texts.push(update.text_delta);
