@@ -7,24 +7,24 @@
  * - `result`: captures final response, execution status, and token usage.
  */
 
-export const ANTIGRAVITY_DEFAULT_MODEL = "gemini-3.8-flash-high";
-const SESSION_TIMEOUT_MS = 45 * 60_000;
-const RATE_LIMIT_SLEEP_MS = 30 * 60_000;
+import { CONSTANTS } from "./config";
+import type {
+  EngineAdapter,
+  EngineHooks,
+  EngineOutcome,
+  EngineSessionOptions,
+} from "./engine";
+
+export const ANTIGRAVITY_DEFAULT_MODEL = CONSTANTS.DEFAULT_ANTIGRAVITY_MODEL;
+const SESSION_TIMEOUT_MS = CONSTANTS.ANTIGRAVITY_SESSION_TIMEOUT_MS;
+const RATE_LIMIT_SLEEP_MS = CONSTANTS.RATE_LIMIT_SLEEP_MS;
 const RATE_LIMIT = /rate.?limit|\b429\b|quota|usage limit|too many requests|resource_exhausted/i;
 // Waiting or retrying never fixes these: stop the cascade
 const UNRECOVERABLE = /unauthorized|authentication failed|invalid credential|"status":\s*(401|403)\b|model not found|no such file or directory.*agy/i;
 
-export type AntigravityOutcome =
-  | { kind: "done"; sessionId?: string; result: string; costUsd: number }
-  | { kind: "paused"; sessionId?: string; resumeAt: number; costUsd: number }
-  | { kind: "error"; sessionId?: string; reason: string; costUsd: number }
-  | { kind: "fatal"; reason: string; costUsd: number };
+export type AntigravityOutcome = EngineOutcome;
 
-export type Hooks = {
-  onTool: (name: string, input: unknown) => void;
-  onText: (text: string) => void;
-  log: (event: string, data: Record<string, unknown>) => void;
-};
+export type Hooks = EngineHooks;
 
 export type AntigravityTokenUsage = {
   inputTokens: number;
@@ -83,13 +83,13 @@ export function buildAntigravityArgs(options: {
 /** Estimates USD cost from Gemini token usage. */
 export function estimateCostUsd(model: string, usage: AntigravityTokenUsage): number {
   if (model.includes("flash")) {
-    const inputCost = (usage.inputTokens / 1_000_000) * 0.15;
-    const outputCost = (usage.outputTokens / 1_000_000) * 0.60;
+    const inputCost = (usage.inputTokens / CONSTANTS.TOKEN_PRICE_BASE) * CONSTANTS.GEMINI_FLASH_INPUT_COST;
+    const outputCost = (usage.outputTokens / CONSTANTS.TOKEN_PRICE_BASE) * CONSTANTS.GEMINI_FLASH_OUTPUT_COST;
     return inputCost + outputCost;
   }
   if (model.includes("argon") || model.includes("pro")) {
-    const inputCost = (usage.inputTokens / 1_000_000) * 1.25;
-    const outputCost = (usage.outputTokens / 1_000_000) * 5.00;
+    const inputCost = (usage.inputTokens / CONSTANTS.TOKEN_PRICE_BASE) * CONSTANTS.GEMINI_PRO_INPUT_COST;
+    const outputCost = (usage.outputTokens / CONSTANTS.TOKEN_PRICE_BASE) * CONSTANTS.GEMINI_PRO_OUTPUT_COST;
     return inputCost + outputCost;
   }
   return 0;
@@ -110,7 +110,7 @@ export function reduceAntigravityEvent(
   state: SessionState,
   line: string,
   hooks: Pick<Hooks, "onTool" | "onText">,
-) {
+): void {
   let event: Record<string, any>;
   try {
     event = JSON.parse(line);
@@ -182,6 +182,7 @@ export async function runAntigravitySession(options: {
   model: string;
   effort?: string;
   hooks: Hooks;
+  timeoutMs?: number;
 }): Promise<AntigravityOutcome> {
   const argv = buildAntigravityArgs({
     prompt: options.prompt,
@@ -194,7 +195,7 @@ export async function runAntigravitySession(options: {
     cwd: options.cwd,
     stdout: "pipe",
     stderr: "pipe",
-    timeout: SESSION_TIMEOUT_MS,
+    timeout: options.timeoutMs ?? SESSION_TIMEOUT_MS,
   });
 
   const state: SessionState = {
@@ -223,10 +224,10 @@ export async function runAntigravitySession(options: {
     tokens: state.tokens,
     cost: state.costUsd,
     error: state.error,
-    stderr: errText.slice(-500),
+    stderr: errText.slice(-CONSTANTS.STDERR_TAIL_MAX_LENGTH),
   });
 
-  const failure = state.error ?? (code !== 0 ? `exit ${code}: ${errText.slice(-300)}` : undefined);
+  const failure = state.error ?? (code !== CONSTANTS.EXIT_CODE_SUCCESS ? `exit ${code}: ${errText.slice(-CONSTANTS.ERROR_DETAIL_MAX_LENGTH)}` : undefined);
   const kind = failure ? classifyFailure(failure) : undefined;
   if (kind === "fatal") return { kind, reason: `Antigravity: ${failure}`, costUsd: state.costUsd };
   if (kind === "paused") {
@@ -237,3 +238,34 @@ export async function runAntigravitySession(options: {
   const result = state.texts.join("").trim();
   return { kind: "done", sessionId: state.sessionId, result, costUsd: state.costUsd };
 }
+
+/**
+ * Adapter implementing EngineAdapter for Antigravity CLI runner.
+ */
+export class AntigravityAdapter implements EngineAdapter {
+  readonly name = "antigravity" as const;
+
+  getDefaultModel(): string {
+    return antigravityModelArg(undefined);
+  }
+
+  supportsPlanMeters(): boolean {
+    return false;
+  }
+
+  async runSession(options: EngineSessionOptions): Promise<EngineOutcome> {
+    const model = antigravityModelArg(options.model);
+    const effort = antigravityEffortArg(options.effort);
+    return runAntigravitySession({
+      prompt: options.prompt,
+      cwd: options.cwd,
+      resume: options.resume,
+      model,
+      effort,
+      hooks: options.hooks,
+      timeoutMs: options.config?.engineSessionTimeoutMs,
+    });
+  }
+}
+
+export const antigravityAdapter: AntigravityAdapter = new AntigravityAdapter();
