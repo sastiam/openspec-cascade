@@ -174,9 +174,9 @@
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.delivery.json": {
-    "mtime": 1792868134.2620118,
-    "seen": 1792870003.0284927,
-    "ast_hash": "43af696aea5a38015846e5c39a68d099",
+    "mtime": 1792870004.6648173,
+    "seen": 1792871998.6296494,
+    "ast_hash": "57c71c05d4f8486b8c98f9a782c5b7e1",
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.finalize-summary.json": {
@@ -300,8 +300,8 @@
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.html": {
-    "mtime": 1792868133.91001,
-    "seen": 1792870003.0290015,
+    "mtime": 1792870004.2478151,
+    "seen": 1792871998.63018,
     "ast_hash": "94db30b43f4a07a3e7ce38af427e41fd",
     "semantic_hash": ""
   },
@@ -972,8 +972,8 @@
     "semantic_hash": ""
   },
   ".archify/workflow-agnostic-looper/agnostic-looper-workflow.html": {
-    "mtime": 1792868135.3590174,
-    "seen": 1792870003.0290048,
+    "mtime": 1792870005.901824,
+    "seen": 1792871998.6301835,
     "ast_hash": "c31685e59ee141da99e47a4901f179c5",
     "semantic_hash": ""
   },
@@ -1032,9 +1032,9 @@
     "semantic_hash": ""
   },
   "openspec/changes/looper-core-fsm/tasks.md": {
-    "mtime": 1792865836.0262184,
-    "seen": 1792868132.880103,
-    "ast_hash": "c5471c0b2a2c67dce93bc61344be1f94",
+    "mtime": 1792871955.8432436,
+    "seen": 1792871998.630286,
+    "ast_hash": "f70d5272446ee354514bb5d8f87b3954",
     "semantic_hash": ""
   },
   "openspec/changes/looper-core-router-escalation/.openspec.yaml": {
@@ -1440,9 +1440,9 @@
     "semantic_hash": ""
   },
   ".archify/workflow-agnostic-looper/agnostic-looper-workflow.delivery.json": {
-    "mtime": 1792868135.7370193,
-    "seen": 1792870003.0285094,
-    "ast_hash": "198f1be07bf0e2ba28e572953e4b090c",
+    "mtime": 1792870006.2608259,
+    "seen": 1792871998.6296642,
+    "ast_hash": "8b1db78368f76f8b242c4e5b07509a65",
     "semantic_hash": ""
   },
   "src/pal/normalizer.ts": {
@@ -1467,6 +1467,48 @@
     "mtime": 1792868388.3562896,
     "seen": 1792870003.0286345,
     "ast_hash": "05d131905dbeed5e9b49d99161a4f088",
+    "semantic_hash": ""
+  },
+  "src/core/fsm.ts": {
+    "mtime": 1792871499.2704685,
+    "seen": 1792871998.6297715,
+    "ast_hash": "001610fefb967acf1e8d14f0be63b089",
+    "semantic_hash": ""
+  },
+  "src/core/fsm_guards.ts": {
+    "mtime": 1792871521.7686,
+    "seen": 1792871998.6297755,
+    "ast_hash": "d422ff593e6ba22b69defd126a5c90de",
+    "semantic_hash": ""
+  },
+  "src/core/fsm_types.ts": {
+    "mtime": 1792871239.15795,
+    "seen": 1792871998.6297789,
+    "ast_hash": "f779c9c14b959879e8b3bf13c4636703",
+    "semantic_hash": ""
+  },
+  "src/core/victory_livelock.ts": {
+    "mtime": 1792871266.9711123,
+    "seen": 1792871998.6297822,
+    "ast_hash": "45830019293d98cc661d7ad2fb0d0d65",
+    "semantic_hash": ""
+  },
+  "test/core/fsm.test.ts": {
+    "mtime": 1792871897.7638884,
+    "seen": 1792871998.6297977,
+    "ast_hash": "4d4b73b30d2c6616441db0dcd027e5b7",
+    "semantic_hash": ""
+  },
+  "test/core/fsm_guards.test.ts": {
+    "mtime": 1792871583.9819698,
+    "seen": 1792871998.629801,
+    "ast_hash": "88976c1e9b37a68fa88ba7f77e28319b",
+    "semantic_hash": ""
+  },
+  "test/core/fsm_types.test.ts": {
+    "mtime": 1792870398.4580312,
+    "seen": 1792871998.6298044,
+    "ast_hash": "8b5875fa0a2709749222a29cd839640e",
     "semantic_hash": ""
   }
 }
