@@ -174,9 +174,9 @@
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.delivery.json": {
-    "mtime": 1792809630.5346508,
-    "seen": 1792868132.8793435,
-    "ast_hash": "c3eb16b09a66c2bbfe851b77472d4be9",
+    "mtime": 1792868134.2620118,
+    "seen": 1792870003.0284927,
+    "ast_hash": "43af696aea5a38015846e5c39a68d099",
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.finalize-summary.json": {
@@ -300,8 +300,8 @@
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.html": {
-    "mtime": 1792809630.4336503,
-    "seen": 1792868132.8797977,
+    "mtime": 1792868133.91001,
+    "seen": 1792870003.0290015,
     "ast_hash": "94db30b43f4a07a3e7ce38af427e41fd",
     "semantic_hash": ""
   },
@@ -972,8 +972,8 @@
     "semantic_hash": ""
   },
   ".archify/workflow-agnostic-looper/agnostic-looper-workflow.html": {
-    "mtime": 1792865364.959043,
-    "seen": 1792868132.8799973,
+    "mtime": 1792868135.3590174,
+    "seen": 1792870003.0290048,
     "ast_hash": "c31685e59ee141da99e47a4901f179c5",
     "semantic_hash": ""
   },
@@ -1302,9 +1302,9 @@
     "semantic_hash": ""
   },
   "openspec/changes/looper-pal-canonical-schema/tasks.md": {
-    "mtime": 1792865836.0262184,
-    "seen": 1792868132.880246,
-    "ast_hash": "3e8bbb105d1eddc3a15e78d87794fe21",
+    "mtime": 1792869975.2466578,
+    "seen": 1792870003.0292594,
+    "ast_hash": "d7880f6d55ff19e7cbaabea5634d619f",
     "semantic_hash": ""
   },
   "openspec/changes/looper-pal-claude-adapter/.openspec.yaml": {
@@ -1437,6 +1437,36 @@
     "mtime": 1792854998.184256,
     "seen": 1792868132.8803556,
     "ast_hash": "870bfd25b4d176f594387c911ce43082",
+    "semantic_hash": ""
+  },
+  ".archify/workflow-agnostic-looper/agnostic-looper-workflow.delivery.json": {
+    "mtime": 1792868135.7370193,
+    "seen": 1792870003.0285094,
+    "ast_hash": "198f1be07bf0e2ba28e572953e4b090c",
+    "semantic_hash": ""
+  },
+  "src/pal/normalizer.ts": {
+    "mtime": 1792869531.1932511,
+    "seen": 1792870003.0286198,
+    "ast_hash": "146a72f36bbbcaac258b9b12fdd5af06",
+    "semantic_hash": ""
+  },
+  "src/pal/types.ts": {
+    "mtime": 1792869400.199541,
+    "seen": 1792870003.0286233,
+    "ast_hash": "66047f2d934296f8e53b7b228d293368",
+    "semantic_hash": ""
+  },
+  "test/pal/normalizer.test.ts": {
+    "mtime": 1792869916.940342,
+    "seen": 1792870003.028631,
+    "ast_hash": "e1370a18b7c0c80bc448587b96f9bdb2",
+    "semantic_hash": ""
+  },
+  "test/pal/types.test.ts": {
+    "mtime": 1792868388.3562896,
+    "seen": 1792870003.0286345,
+    "ast_hash": "05d131905dbeed5e9b49d99161a4f088",
     "semantic_hash": ""
   }
 }
