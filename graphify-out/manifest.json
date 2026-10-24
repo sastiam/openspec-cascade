@@ -24,15 +24,15 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1792806541.2976203,
-    "seen": 1792807770.0895863,
-    "ast_hash": "25069ec51a92c1ec2395016c76ba3d8d",
+    "mtime": 1792865989.419929,
+    "seen": 1792868132.8794212,
+    "ast_hash": "f8684567efe371b3a8e38fbaa4f84515",
     "semantic_hash": ""
   },
   "tsconfig.json": {
-    "mtime": 1792791372.4444797,
-    "seen": 1792792707.7676027,
-    "ast_hash": "0354ccbf7436b58276391183faa1ffd4",
+    "mtime": 1792866447.078052,
+    "seen": 1792868132.8794718,
+    "ast_hash": "5595f99d4a220699818726d0aa69ba8a",
     "semantic_hash": ""
   },
   ".agents/skills/openspec-apply-change/SKILL.md": {
@@ -174,9 +174,9 @@
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.delivery.json": {
-    "mtime": 1792807770.467011,
-    "seen": 1792809630.16426,
-    "ast_hash": "1c69c95ec5a5589ad491b57745410b0f",
+    "mtime": 1792809630.5346508,
+    "seen": 1792868132.8793435,
+    "ast_hash": "c3eb16b09a66c2bbfe851b77472d4be9",
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.finalize-summary.json": {
@@ -300,8 +300,8 @@
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.html": {
-    "mtime": 1792807770.3610106,
-    "seen": 1792809630.1643133,
+    "mtime": 1792809630.4336503,
+    "seen": 1792868132.8797977,
     "ast_hash": "94db30b43f4a07a3e7ce38af427e41fd",
     "semantic_hash": ""
   },
@@ -435,6 +435,1008 @@
     "mtime": 1792808399.8912804,
     "seen": 1792809630.1642923,
     "ast_hash": "d24b650672e57567ec26d4265102cd53",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/teamwork_preview_victory_auditor_1/independent_audit.ts": {
+    "mtime": 1792855817.2112467,
+    "seen": 1792868132.8792996,
+    "ast_hash": "6edaf92a458c60997550cd39cd3e185a",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/worker_m2_1/populate_tasks.ts": {
+    "mtime": 1792855069.6656063,
+    "seen": 1792868132.879315,
+    "ast_hash": "1a1445e5d8867d953e1e55e6a4fd8191",
+    "semantic_hash": ""
+  },
+  ".archify/workflow-agnostic-looper/candidate.json": {
+    "mtime": 1792865357.8780105,
+    "seen": 1792868132.8793585,
+    "ast_hash": "24bf2c0c2295ec0a318dd9a511adb169",
+    "semantic_hash": ""
+  },
+  "projects/agnostic_looper/tasks_catalog.json": {
+    "mtime": 1792854998.184256,
+    "seen": 1792868132.879432,
+    "ast_hash": "622a9a4dbb1584af216f630f49353491",
+    "semantic_hash": ""
+  },
+  "projects/agnostic_looper/verify_project_items.ts": {
+    "mtime": 1792855059.261556,
+    "seen": 1792868132.8794358,
+    "ast_hash": "47f42b23f418b90a7bfe795b6e196395",
+    "semantic_hash": ""
+  },
+  "run_looper.sh": {
+    "mtime": 1792865996.5739622,
+    "seen": 1792868132.879454,
+    "ast_hash": "4c11e34e11834b4864b1c53767b5244b",
+    "semantic_hash": ""
+  },
+  "src/storage/memory.ts": {
+    "mtime": 1792867659.9777224,
+    "seen": 1792868132.8794649,
+    "ast_hash": "dd77a1da2189a75cb21c2845ab172ff7",
+    "semantic_hash": ""
+  },
+  "test/storage/memory.test.ts": {
+    "mtime": 1792868058.2056293,
+    "seen": 1792868132.8794684,
+    "ast_hash": "703217c95ddca195efa5a1aecf689ea1",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/ORIGINAL_REQUEST.md": {
+    "mtime": 1792851447.870754,
+    "seen": 1792868132.8795044,
+    "ast_hash": "6dafa1a9a3706029c2ac4cae1b0bb3f8",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/auditor_m1_1/BRIEFING.md": {
+    "mtime": 1792852655.4294856,
+    "seen": 1792868132.8795075,
+    "ast_hash": "141add5bf9bddec1d48baf7728b806e4",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/auditor_m1_1/DISPATCH.md": {
+    "mtime": 1792852460.1774795,
+    "seen": 1792868132.879511,
+    "ast_hash": "daac2c5481c6746118a36053e60f263c",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/auditor_m1_1/handoff.md": {
+    "mtime": 1792852684.505633,
+    "seen": 1792868132.8795142,
+    "ast_hash": "7847a99f3f892110d2f86e6435fa9ff9",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/auditor_m1_1/progress.md": {
+    "mtime": 1792852661.3725157,
+    "seen": 1792868132.879517,
+    "ast_hash": "d396896833f6c5081e0d8c24d9c8b28d",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/auditor_m1_2/BRIEFING.md": {
+    "mtime": 1792854416.7323658,
+    "seen": 1792868132.8795247,
+    "ast_hash": "18792caf407e54d6fbbf577bb021f4f3",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/auditor_m1_2/DISPATCH.md": {
+    "mtime": 1792853927.8359282,
+    "seen": 1792868132.8795283,
+    "ast_hash": "555904d51f0ff3a27b24a096c3007137",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/auditor_m1_2/handoff.md": {
+    "mtime": 1792854460.969584,
+    "seen": 1792868132.8795319,
+    "ast_hash": "f7aa60a4818d38a75176c3a3af3a096d",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/auditor_m1_2/progress.md": {
+    "mtime": 1792854422.5053945,
+    "seen": 1792868132.8795354,
+    "ast_hash": "ff8cc3915d3e0bcf72ba5099df22cf41",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/auditor_m2_1/BRIEFING.md": {
+    "mtime": 1792855458.687491,
+    "seen": 1792868132.8795385,
+    "ast_hash": "849caa59f5395a3559833c8ff9c9a425",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/auditor_m2_1/DISPATCH.md": {
+    "mtime": 1792855273.5495942,
+    "seen": 1792868132.8795419,
+    "ast_hash": "4995751bbb18d4d0758e680f028a959d",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/auditor_m2_1/handoff.md": {
+    "mtime": 1792855498.8626857,
+    "seen": 1792868132.8795455,
+    "ast_hash": "3f19b8ad17f468103506c1e412dce3ae",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/auditor_m2_1/progress.md": {
+    "mtime": 1792855464.4205189,
+    "seen": 1792868132.8795493,
+    "ast_hash": "a68075ec7274cf7f1a70e5886a5935f3",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/challenger_m1_1/BRIEFING.md": {
+    "mtime": 1792852801.4782276,
+    "seen": 1792868132.8795528,
+    "ast_hash": "abc0d53d31fec36203b603a05c49178f",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/challenger_m1_1/DISPATCH.md": {
+    "mtime": 1792852464.9805045,
+    "seen": 1792868132.8795567,
+    "ast_hash": "1101ae79d15a4b4a4006ed94c0205448",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/challenger_m1_1/handoff.md": {
+    "mtime": 1792852852.0354857,
+    "seen": 1792868132.879564,
+    "ast_hash": "a8bb2d525d491a2ca2d5698b5244fcbe",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/challenger_m1_1/progress.md": {
+    "mtime": 1792852861.6765354,
+    "seen": 1792868132.8795676,
+    "ast_hash": "7e701dd856751d2a2d7fcca2a549484d",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/challenger_m1_2/BRIEFING.md": {
+    "mtime": 1792852759.7190154,
+    "seen": 1792868132.8795707,
+    "ast_hash": "042e1219892af7a4dafd052b74608d70",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/challenger_m1_2/DISPATCH.md": {
+    "mtime": 1792852460.7814827,
+    "seen": 1792868132.8795743,
+    "ast_hash": "45a72435e725b760a1aedb755e35efde",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/challenger_m1_2/handoff.md": {
+    "mtime": 1792852811.7742798,
+    "seen": 1792868132.8795774,
+    "ast_hash": "315d9d775fcba7beacf8343c4c9476f1",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/challenger_m1_2/openspec-cascade-runner_SKILL.md": {
+    "mtime": 1792852477.766571,
+    "seen": 1792868132.8795807,
+    "ast_hash": "8451c42559ebdb4b56998fefed7becfc",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/challenger_m1_2/progress.md": {
+    "mtime": 1792852774.955093,
+    "seen": 1792868132.8795838,
+    "ast_hash": "6079655c0a2556ee1476bddd2f697618",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/challenger_m1_3/BRIEFING.md": {
+    "mtime": 1792854274.4376647,
+    "seen": 1792868132.8795872,
+    "ast_hash": "8d489a2594a4d06a93d1631b16e9fa31",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/challenger_m1_3/DISPATCH.md": {
+    "mtime": 1792853915.4598663,
+    "seen": 1792868132.8795905,
+    "ast_hash": "63788084f14e67375d835ebdf46c4b1b",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/challenger_m1_3/handoff.md": {
+    "mtime": 1792854316.6128726,
+    "seen": 1792868132.8795936,
+    "ast_hash": "7909680768170a2a94b4034b4b922a9e",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/challenger_m1_3/progress.md": {
+    "mtime": 1792854279.365689,
+    "seen": 1792868132.8795967,
+    "ast_hash": "ea4d283ce1827e7526224495d66f441d",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/challenger_m1_3/skills/openspec-cascade-runner/SKILL.md": {
+    "mtime": 1792853949.4940367,
+    "seen": 1792868132.8795998,
+    "ast_hash": "8451c42559ebdb4b56998fefed7becfc",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/explorer_m1_remediation/BRIEFING.md": {
+    "mtime": 1792853084.305664,
+    "seen": 1792868132.879603,
+    "ast_hash": "baf00b60c37c7d3d0680c93315015979",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/explorer_m1_remediation/DISPATCH.md": {
+    "mtime": 1792852922.0348442,
+    "seen": 1792868132.879606,
+    "ast_hash": "e86bb68a1d3fbd50da98b1498d5120dc",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/explorer_m1_remediation/handoff.md": {
+    "mtime": 1792853159.7020435,
+    "seen": 1792868132.879609,
+    "ast_hash": "2ad1a85e1b298b36ba7f247a9bd73d20",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/explorer_m1_remediation/progress.md": {
+    "mtime": 1792853177.8831348,
+    "seen": 1792868132.8796124,
+    "ast_hash": "0ab5606098a9f348d774f4556e673281",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/explorer_survey_1/BRIEFING.md": {
+    "mtime": 1792851969.1488554,
+    "seen": 1792868132.8796155,
+    "ast_hash": "a9eadbfbdbe3c583806a19d3eb3ed240",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/explorer_survey_1/DISPATCH.md": {
+    "mtime": 1792851642.2669625,
+    "seen": 1792868132.8796186,
+    "ast_hash": "00d8c507c5650c12d2c2e9d4bc7bfe12",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/explorer_survey_1/handoff.md": {
+    "mtime": 1792851931.9526489,
+    "seen": 1792868132.8796222,
+    "ast_hash": "d1152a42f0d75eb4f62dea40fca6f92e",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/explorer_survey_1/progress.md": {
+    "mtime": 1792851989.5569687,
+    "seen": 1792868132.8796256,
+    "ast_hash": "7f0bdc79aab24405e5dd3958e8fcfecf",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/explorer_survey_2/BRIEFING.md": {
+    "mtime": 1792851969.7268586,
+    "seen": 1792868132.879629,
+    "ast_hash": "fca64cc07178279bfcb8fa661e21a6e1",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/explorer_survey_2/DISPATCH.md": {
+    "mtime": 1792851631.8398995,
+    "seen": 1792868132.8796322,
+    "ast_hash": "b8827a0308d36d052ef3e0e7d5f74066",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/explorer_survey_2/handoff.md": {
+    "mtime": 1792851939.6386917,
+    "seen": 1792868132.879635,
+    "ast_hash": "7c336a6e71f677edabb55a0d3407ee49",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/explorer_survey_2/progress.md": {
+    "mtime": 1792851975.8528926,
+    "seen": 1792868132.8796384,
+    "ast_hash": "c96a8915f6a504e4ed52fae7ebdbc589",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/explorer_survey_3/BRIEFING.md": {
+    "mtime": 1792851941.6227026,
+    "seen": 1792868132.8796415,
+    "ast_hash": "ef9d62bb3a38fe15da80d5ec47f48c32",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/explorer_survey_3/DISPATCH.md": {
+    "mtime": 1792851633.261908,
+    "seen": 1792868132.8796449,
+    "ast_hash": "59a6c80f5834745891c2f210f6a0ae0c",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/explorer_survey_3/handoff.md": {
+    "mtime": 1792852009.6750808,
+    "seen": 1792868132.8796482,
+    "ast_hash": "23f935a685794cc504c541cf74b28106",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/explorer_survey_3/progress.md": {
+    "mtime": 1792852046.5982866,
+    "seen": 1792868132.8796513,
+    "ast_hash": "20e30df31273de1134b780370fbb54f7",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/reviewer_m1_1/BRIEFING.md": {
+    "mtime": 1792852624.431328,
+    "seen": 1792868132.8796546,
+    "ast_hash": "8517bd9ac69c23d41a0d2388e40ee125",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/reviewer_m1_1/DISPATCH.md": {
+    "mtime": 1792852465.9305096,
+    "seen": 1792868132.8796577,
+    "ast_hash": "49f6fe211fa2171cb836d5e40abd08b1",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/reviewer_m1_1/handoff.md": {
+    "mtime": 1792852653.2874746,
+    "seen": 1792868132.879661,
+    "ast_hash": "59477f95b6ce5795ecf15b078bf24132",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/reviewer_m1_1/progress.md": {
+    "mtime": 1792852659.5775065,
+    "seen": 1792868132.8796642,
+    "ast_hash": "8c36397ef78be92a58d0fc93f37c8b92",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/reviewer_m1_2/BRIEFING.md": {
+    "mtime": 1792852726.3138456,
+    "seen": 1792868132.8796673,
+    "ast_hash": "863f383b2743adb73a7deff5f7ae7509",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/reviewer_m1_2/DISPATCH.md": {
+    "mtime": 1792852467.764519,
+    "seen": 1792868132.8796704,
+    "ast_hash": "deb066ee96044b1512f512a5194783f2",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/reviewer_m1_2/handoff.md": {
+    "mtime": 1792852784.9011433,
+    "seen": 1792868132.8796735,
+    "ast_hash": "933e1bfd75cab33ee62c12392e5c9e5a",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/reviewer_m1_2/progress.md": {
+    "mtime": 1792852713.6497812,
+    "seen": 1792868132.8796766,
+    "ast_hash": "6ffee631959334a63ccacf4a8e23c2d1",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/reviewer_m1_3/BRIEFING.md": {
+    "mtime": 1792854231.5434506,
+    "seen": 1792868132.8796797,
+    "ast_hash": "8d243149de788abf49d47ad59912638c",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/reviewer_m1_3/DISPATCH.md": {
+    "mtime": 1792853913.6388571,
+    "seen": 1792868132.879683,
+    "ast_hash": "522b3d1632a11903db07afa757ba2aa1",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/reviewer_m1_3/handoff.md": {
+    "mtime": 1792854211.4133494,
+    "seen": 1792868132.879686,
+    "ast_hash": "3bea85737b1bcc2d83671b22e9654fd8",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/reviewer_m1_3/progress.md": {
+    "mtime": 1792854238.0594833,
+    "seen": 1792868132.8796897,
+    "ast_hash": "1f9e817b5ec0b9256ed59c3292598cf0",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/sentinel/BRIEFING.md": {
+    "mtime": 1792856027.2672791,
+    "seen": 1792868132.8796928,
+    "ast_hash": "d06b55171da56cca29071fa9a3070bb6",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/sentinel/handoff.md": {
+    "mtime": 1792856041.1443472,
+    "seen": 1792868132.879696,
+    "ast_hash": "e6a6e6fd6cd1265e72289d12e951eb47",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/teamwork_preview_orchestrator_1/BRIEFING.md": {
+    "mtime": 1792855580.404083,
+    "seen": 1792868132.879699,
+    "ast_hash": "b4009882930004ad12080be3d4f3c9a0",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/teamwork_preview_orchestrator_1/DISPATCH.md": {
+    "mtime": 1792851513.1991656,
+    "seen": 1792868132.8797023,
+    "ast_hash": "dac4e376c5fe37adec1e27779129b78d",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/teamwork_preview_orchestrator_1/GATE_STATUS.md": {
+    "mtime": 1792855527.4798243,
+    "seen": 1792868132.8797054,
+    "ast_hash": "3d7222e31ce4e4f1ecfc393053a640e8",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/teamwork_preview_orchestrator_1/PROJECT.md": {
+    "mtime": 1792855548.5539265,
+    "seen": 1792868132.8797085,
+    "ast_hash": "ef57960f9fa6f206fb9dd24ed72ca0e2",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/teamwork_preview_orchestrator_1/handoff.md": {
+    "mtime": 1792855599.742178,
+    "seen": 1792868132.8797116,
+    "ast_hash": "718ef0130ea2ca0e136d2395a0a37ca2",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/teamwork_preview_orchestrator_1/plan.md": {
+    "mtime": 1792851569.704518,
+    "seen": 1792868132.879715,
+    "ast_hash": "ced612cc9d549e6314e917001a0c3363",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/teamwork_preview_orchestrator_1/progress.md": {
+    "mtime": 1792855559.4389799,
+    "seen": 1792868132.8797183,
+    "ast_hash": "a6ce3e747e4a7cd029dd41c930764534",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/teamwork_preview_victory_auditor_1/BRIEFING.md": {
+    "mtime": 1792855925.0457766,
+    "seen": 1792868132.8797216,
+    "ast_hash": "02974e06d2d7a55b9798d8b8d6428fae",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/teamwork_preview_victory_auditor_1/DISPATCH.md": {
+    "mtime": 1792855675.9775527,
+    "seen": 1792868132.8797247,
+    "ast_hash": "c03d703322bed25f470146226c8ebe1b",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/teamwork_preview_victory_auditor_1/handoff.md": {
+    "mtime": 1792855968.3109894,
+    "seen": 1792868132.879728,
+    "ast_hash": "e3ddf5b8a301aace668643b46b3f71b7",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/teamwork_preview_victory_auditor_1/progress.md": {
+    "mtime": 1792855943.2248662,
+    "seen": 1792868132.8797314,
+    "ast_hash": "d6dd9361dc26525d7d183ce8cee37d3f",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/worker_m1_1/BRIEFING.md": {
+    "mtime": 1792852340.5858524,
+    "seen": 1792868132.8797345,
+    "ast_hash": "97493c105e541d37ca0737cfeb150371",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/worker_m1_1/DISPATCH.md": {
+    "mtime": 1792852174.7089825,
+    "seen": 1792868132.8797376,
+    "ast_hash": "d0465a51edc8a1639d4c4a38616e53ab",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/worker_m1_1/handoff.md": {
+    "mtime": 1792852360.5729573,
+    "seen": 1792868132.879741,
+    "ast_hash": "ea30f8c66d51d99040560604e54d733e",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/worker_m1_1/progress.md": {
+    "mtime": 1792852330.9198017,
+    "seen": 1792868132.879744,
+    "ast_hash": "fb90391552b20dd74cdfccbeb8afb4f4",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/worker_m1_2/BRIEFING.md": {
+    "mtime": 1792853797.4042757,
+    "seen": 1792868132.8797472,
+    "ast_hash": "2fa260277b092769356cee776317a1e0",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/worker_m1_2/DISPATCH.md": {
+    "mtime": 1792853231.4584045,
+    "seen": 1792868132.8797505,
+    "ast_hash": "eafd9ebf9be02535184b97088d5cfe9d",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/worker_m1_2/handoff.md": {
+    "mtime": 1792853841.3244953,
+    "seen": 1792868132.879753,
+    "ast_hash": "78a41372c1d28d1e89bd0a9016c7371a",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/worker_m1_2/openspec-cascade-runner.md": {
+    "mtime": 1792853257.6375363,
+    "seen": 1792868132.8797565,
+    "ast_hash": "8451c42559ebdb4b56998fefed7becfc",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/worker_m1_2/progress.md": {
+    "mtime": 1792853805.890318,
+    "seen": 1792868132.87976,
+    "ast_hash": "e7ca8461c78b7f9d884844df1ba18928",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/worker_m2_1/BRIEFING.md": {
+    "mtime": 1792855133.1199138,
+    "seen": 1792868132.8797631,
+    "ast_hash": "49c1e63c9815c1e338eca812da23a987",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/worker_m2_1/DISPATCH.md": {
+    "mtime": 1792854555.807054,
+    "seen": 1792868132.8797662,
+    "ast_hash": "79c9f001e6d1488c4c624a8b75a0376c",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/worker_m2_1/handoff.md": {
+    "mtime": 1792855176.5891242,
+    "seen": 1792868132.8797696,
+    "ast_hash": "a13765d21dceb767d5f7d214916f70a5",
+    "semantic_hash": ""
+  },
+  ".agents/teamwork/worker_m2_1/progress.md": {
+    "mtime": 1792855139.5639448,
+    "seen": 1792868132.8797727,
+    "ast_hash": "a9e6d5569459ac27c50dd9d879013e36",
+    "semantic_hash": ""
+  },
+  ".archify/workflow-agnostic-looper/agnostic-looper-workflow.html": {
+    "mtime": 1792865364.959043,
+    "seen": 1792868132.8799973,
+    "ast_hash": "c31685e59ee141da99e47a4901f179c5",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-core-dag-scheduler/.openspec.yaml": {
+    "mtime": 1792865836.0262184,
+    "seen": 1792868132.8800683,
+    "ast_hash": "5b97b9a47c1b7f856873488213a09145",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-core-dag-scheduler/design.md": {
+    "mtime": 1792865836.0272183,
+    "seen": 1792868132.8800719,
+    "ast_hash": "cb32adac9463cd6574e63699fc225a6f",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-core-dag-scheduler/proposal.md": {
+    "mtime": 1792865836.0262184,
+    "seen": 1792868132.8800752,
+    "ast_hash": "db561a74121cb058a468fa445098cf53",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-core-dag-scheduler/specs/core-dag-scheduler/spec.md": {
+    "mtime": 1792865836.0272183,
+    "seen": 1792868132.8800786,
+    "ast_hash": "5601a8183ebc8a6f3d0ff889ac0c5f04",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-core-dag-scheduler/tasks.md": {
+    "mtime": 1792865836.0272183,
+    "seen": 1792868132.8800817,
+    "ast_hash": "364f84f3ce39ad7e30b2f138dc64a889",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-core-fsm/.openspec.yaml": {
+    "mtime": 1792865836.0262184,
+    "seen": 1792868132.8800855,
+    "ast_hash": "5b97b9a47c1b7f856873488213a09145",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-core-fsm/design.md": {
+    "mtime": 1792865836.0262184,
+    "seen": 1792868132.8800888,
+    "ast_hash": "7dcca01680a6161aa2e2dbb1893e58b3",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-core-fsm/proposal.md": {
+    "mtime": 1792865836.0262184,
+    "seen": 1792868132.8800924,
+    "ast_hash": "6fa35fba4eebd79de0960fdf284e8dad",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-core-fsm/specs/core-fsm/spec.md": {
+    "mtime": 1792865836.0262184,
+    "seen": 1792868132.8800998,
+    "ast_hash": "c5a959a113ba56bdf3be6e462dd911aa",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-core-fsm/tasks.md": {
+    "mtime": 1792865836.0262184,
+    "seen": 1792868132.880103,
+    "ast_hash": "c5471c0b2a2c67dce93bc61344be1f94",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-core-router-escalation/.openspec.yaml": {
+    "mtime": 1792865836.0292184,
+    "seen": 1792868132.8801062,
+    "ast_hash": "5b97b9a47c1b7f856873488213a09145",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-core-router-escalation/design.md": {
+    "mtime": 1792865836.0292184,
+    "seen": 1792868132.8801095,
+    "ast_hash": "3573a887096625e70580104c415f0f41",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-core-router-escalation/proposal.md": {
+    "mtime": 1792865836.0292184,
+    "seen": 1792868132.8801126,
+    "ast_hash": "ad75ce9cdc116d5d576ccf0379669a9f",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-core-router-escalation/specs/core-router-escalation/spec.md": {
+    "mtime": 1792865836.0292184,
+    "seen": 1792868132.880116,
+    "ast_hash": "ce8d5730abe9bdb91cba2ee9ce75cd40",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-core-router-escalation/tasks.md": {
+    "mtime": 1792865836.0292184,
+    "seen": 1792868132.8801193,
+    "ast_hash": "10f935e070008dcd2e5e07a408820a43",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-core-subagent-dispatcher/.openspec.yaml": {
+    "mtime": 1792865836.0282185,
+    "seen": 1792868132.8801224,
+    "ast_hash": "5b97b9a47c1b7f856873488213a09145",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-core-subagent-dispatcher/design.md": {
+    "mtime": 1792865836.0282185,
+    "seen": 1792868132.8801258,
+    "ast_hash": "dd6b1a9f7494ee57d7450e30c5b4381b",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-core-subagent-dispatcher/proposal.md": {
+    "mtime": 1792865836.0282185,
+    "seen": 1792868132.8801289,
+    "ast_hash": "05c7dc3de5a86867e70251e77e51ba18",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-core-subagent-dispatcher/specs/core-subagent-dispatcher/spec.md": {
+    "mtime": 1792865836.0282185,
+    "seen": 1792868132.8801324,
+    "ast_hash": "f901628c4fd4be1e2837de166561584c",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-core-subagent-dispatcher/tasks.md": {
+    "mtime": 1792865836.0282185,
+    "seen": 1792868132.8801355,
+    "ast_hash": "cb6795391bfaa92ac40b2972075fed2e",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-gate0-mechanical-qa/.openspec.yaml": {
+    "mtime": 1792865836.0292184,
+    "seen": 1792868132.8801386,
+    "ast_hash": "5b97b9a47c1b7f856873488213a09145",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-gate0-mechanical-qa/design.md": {
+    "mtime": 1792865836.0292184,
+    "seen": 1792868132.880142,
+    "ast_hash": "e62065dc633a1749f17df7307cefcaba",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-gate0-mechanical-qa/proposal.md": {
+    "mtime": 1792865836.0292184,
+    "seen": 1792868132.880145,
+    "ast_hash": "0d6c2c9e419fcbdb07528c228dad835d",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-gate0-mechanical-qa/specs/gate0-mechanical-qa/spec.md": {
+    "mtime": 1792865836.0292184,
+    "seen": 1792868132.8801484,
+    "ast_hash": "48e1ae3d9c8a66ec089f1913bc822662",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-gate0-mechanical-qa/tasks.md": {
+    "mtime": 1792865836.0292184,
+    "seen": 1792868132.8801515,
+    "ast_hash": "e5cc20842ed6ded57946749fb636df51",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-gate1-semantic-review/.openspec.yaml": {
+    "mtime": 1792865836.0292184,
+    "seen": 1792868132.8801546,
+    "ast_hash": "5b97b9a47c1b7f856873488213a09145",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-gate1-semantic-review/design.md": {
+    "mtime": 1792865836.0302184,
+    "seen": 1792868132.8801577,
+    "ast_hash": "51b6bbb58472f037a38a648e12d406fc",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-gate1-semantic-review/proposal.md": {
+    "mtime": 1792865836.0292184,
+    "seen": 1792868132.880161,
+    "ast_hash": "b1f51dccbdcef118dc36e53df8ca385c",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-gate1-semantic-review/specs/gate1-semantic-review/spec.md": {
+    "mtime": 1792865836.0302184,
+    "seen": 1792868132.8801641,
+    "ast_hash": "b65c9a94e886717bd64a87ed6587b3c8",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-gate1-semantic-review/tasks.md": {
+    "mtime": 1792865836.0302184,
+    "seen": 1792868132.8801675,
+    "ast_hash": "3fb5df9d15f58a5d1003ae7cd397eff8",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-gate2-adversarial-challenger/.openspec.yaml": {
+    "mtime": 1792865836.0302184,
+    "seen": 1792868132.8801706,
+    "ast_hash": "5b97b9a47c1b7f856873488213a09145",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-gate2-adversarial-challenger/design.md": {
+    "mtime": 1792865836.0302184,
+    "seen": 1792868132.880174,
+    "ast_hash": "699992ad0240f567a56be9947cbd6509",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-gate2-adversarial-challenger/proposal.md": {
+    "mtime": 1792865836.0302184,
+    "seen": 1792868132.8801765,
+    "ast_hash": "931dcd397a6635cde12f15c19614112c",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-gate2-adversarial-challenger/specs/gate2-adversarial-challenger/spec.md": {
+    "mtime": 1792865836.0302184,
+    "seen": 1792868132.8801796,
+    "ast_hash": "2a78e7b7388baaefeb53dadb46c35eeb",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-gate2-adversarial-challenger/tasks.md": {
+    "mtime": 1792865836.0302184,
+    "seen": 1792868132.880183,
+    "ast_hash": "59fe00f3c797625e09405b2f807184bc",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-gate3-forensic-audit/.openspec.yaml": {
+    "mtime": 1792865836.0302184,
+    "seen": 1792868132.880186,
+    "ast_hash": "5b97b9a47c1b7f856873488213a09145",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-gate3-forensic-audit/design.md": {
+    "mtime": 1792865836.0302184,
+    "seen": 1792868132.8801892,
+    "ast_hash": "e38833ac45f636e0df59fdee2caad252",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-gate3-forensic-audit/proposal.md": {
+    "mtime": 1792865836.0302184,
+    "seen": 1792868132.8801923,
+    "ast_hash": "08e49de85a4386c32f6ace8d034cf93f",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-gate3-forensic-audit/specs/gate3-forensic-audit/spec.md": {
+    "mtime": 1792865836.0302184,
+    "seen": 1792868132.8801954,
+    "ast_hash": "71c62bca4cbb54a056b15d042e335be2",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-gate3-forensic-audit/tasks.md": {
+    "mtime": 1792865836.0302184,
+    "seen": 1792868132.8801982,
+    "ast_hash": "89300fec9d492762209aecfa80534395",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-integration-catalog-sync/.openspec.yaml": {
+    "mtime": 1792865836.0312185,
+    "seen": 1792868132.8802016,
+    "ast_hash": "5b97b9a47c1b7f856873488213a09145",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-integration-catalog-sync/design.md": {
+    "mtime": 1792865836.0312185,
+    "seen": 1792868132.8802044,
+    "ast_hash": "9c0f2684dfc807425d49b5d9a03cef34",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-integration-catalog-sync/proposal.md": {
+    "mtime": 1792865836.0312185,
+    "seen": 1792868132.8802075,
+    "ast_hash": "c096bc908dddf773c86908cf6a19f3d6",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-integration-catalog-sync/specs/integration-catalog-sync/spec.md": {
+    "mtime": 1792865836.0312185,
+    "seen": 1792868132.8802106,
+    "ast_hash": "a477813029ce9a452407b0b32f2028b9",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-integration-catalog-sync/tasks.md": {
+    "mtime": 1792865836.0312185,
+    "seen": 1792868132.8802137,
+    "ast_hash": "015e01b6c641166bce62c8160208c39d",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-integration-github-project/.openspec.yaml": {
+    "mtime": 1792865836.0312185,
+    "seen": 1792868132.8802168,
+    "ast_hash": "5b97b9a47c1b7f856873488213a09145",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-integration-github-project/design.md": {
+    "mtime": 1792865836.0312185,
+    "seen": 1792868132.88022,
+    "ast_hash": "767cb6ab12db8bb746c9160aac511904",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-integration-github-project/proposal.md": {
+    "mtime": 1792865836.0312185,
+    "seen": 1792868132.880223,
+    "ast_hash": "aa69629c3c6d425766072cb59a0c1eea",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-integration-github-project/specs/integration-github-project/spec.md": {
+    "mtime": 1792865836.0312185,
+    "seen": 1792868132.8802261,
+    "ast_hash": "f62008f8fdc5c1ccd952d2e7a33b78d3",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-integration-github-project/tasks.md": {
+    "mtime": 1792865836.0312185,
+    "seen": 1792868132.8802297,
+    "ast_hash": "319dcebe8d6eeaab5c46b971393ed630",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-pal-canonical-schema/.openspec.yaml": {
+    "mtime": 1792865836.0252185,
+    "seen": 1792868132.880233,
+    "ast_hash": "5b97b9a47c1b7f856873488213a09145",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-pal-canonical-schema/design.md": {
+    "mtime": 1792865836.0262184,
+    "seen": 1792868132.8802364,
+    "ast_hash": "c2034b9a9122f74c49cf0a45d3304bd2",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-pal-canonical-schema/proposal.md": {
+    "mtime": 1792865836.0262184,
+    "seen": 1792868132.8802397,
+    "ast_hash": "17d3c71570ec88436b29f44c00308b26",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-pal-canonical-schema/specs/pal-canonical-schema/spec.md": {
+    "mtime": 1792865836.0262184,
+    "seen": 1792868132.8802426,
+    "ast_hash": "27f32c18a6e8698d5c434221c435d461",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-pal-canonical-schema/tasks.md": {
+    "mtime": 1792865836.0262184,
+    "seen": 1792868132.880246,
+    "ast_hash": "3e8bbb105d1eddc3a15e78d87794fe21",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-pal-claude-adapter/.openspec.yaml": {
+    "mtime": 1792865836.0272183,
+    "seen": 1792868132.8802493,
+    "ast_hash": "5b97b9a47c1b7f856873488213a09145",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-pal-claude-adapter/design.md": {
+    "mtime": 1792865836.0272183,
+    "seen": 1792868132.8802521,
+    "ast_hash": "0c5873f2491b2c3a124e0f559d3945f0",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-pal-claude-adapter/proposal.md": {
+    "mtime": 1792865836.0272183,
+    "seen": 1792868132.8802552,
+    "ast_hash": "1919a68c591dfc0c1a0a14836ee25918",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-pal-claude-adapter/specs/pal-claude-adapter/spec.md": {
+    "mtime": 1792865836.0272183,
+    "seen": 1792868132.8802586,
+    "ast_hash": "e3ff4f225090881c1a9f1cdd003d3062",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-pal-claude-adapter/tasks.md": {
+    "mtime": 1792865836.0272183,
+    "seen": 1792868132.8802617,
+    "ast_hash": "faf8dc6586698a950c86697a160d5ef0",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-pal-gemini-adapter/.openspec.yaml": {
+    "mtime": 1792865836.0272183,
+    "seen": 1792868132.880265,
+    "ast_hash": "5b97b9a47c1b7f856873488213a09145",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-pal-gemini-adapter/design.md": {
+    "mtime": 1792865836.0272183,
+    "seen": 1792868132.8802683,
+    "ast_hash": "e69a7693ef3bd58f963730359f3d3eb1",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-pal-gemini-adapter/proposal.md": {
+    "mtime": 1792865836.0272183,
+    "seen": 1792868132.8802714,
+    "ast_hash": "12a80e61d77a5092644ea14e92507a50",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-pal-gemini-adapter/specs/pal-gemini-adapter/spec.md": {
+    "mtime": 1792865836.0282185,
+    "seen": 1792868132.8802748,
+    "ast_hash": "efd927937c23e9ab6fe9d2fbeca8fc05",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-pal-gemini-adapter/tasks.md": {
+    "mtime": 1792865836.0282185,
+    "seen": 1792868132.880278,
+    "ast_hash": "844c6ad25e7c84168e17367d900751c3",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-pal-opencode-adapter/.openspec.yaml": {
+    "mtime": 1792865836.0282185,
+    "seen": 1792868132.880281,
+    "ast_hash": "5b97b9a47c1b7f856873488213a09145",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-pal-opencode-adapter/design.md": {
+    "mtime": 1792865836.0282185,
+    "seen": 1792868132.880284,
+    "ast_hash": "e1dbe34aa1e189293551e0deaab33790",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-pal-opencode-adapter/proposal.md": {
+    "mtime": 1792865836.0282185,
+    "seen": 1792868132.8802872,
+    "ast_hash": "f9dc168afde9a7b06d944d0a1cd8ae42",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-pal-opencode-adapter/specs/pal-opencode-adapter/spec.md": {
+    "mtime": 1792865836.0282185,
+    "seen": 1792868132.8802905,
+    "ast_hash": "526e2434eb1bb4eb14d652297e73fdde",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-pal-opencode-adapter/tasks.md": {
+    "mtime": 1792865836.0282185,
+    "seen": 1792868132.8802936,
+    "ast_hash": "0793d1f2f12f8f781c22b0257dd00a92",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-storage-memory/.openspec.yaml": {
+    "mtime": 1792865836.0252185,
+    "seen": 1792868132.8802967,
+    "ast_hash": "5b97b9a47c1b7f856873488213a09145",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-storage-memory/design.md": {
+    "mtime": 1792865836.0252185,
+    "seen": 1792868132.8803,
+    "ast_hash": "95d448fcef28731abb3ecbf54d81dd47",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-storage-memory/proposal.md": {
+    "mtime": 1792865836.0252185,
+    "seen": 1792868132.8803034,
+    "ast_hash": "422e859897e33eeeeb98e561838c54ed",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-storage-memory/specs/storage-memory/spec.md": {
+    "mtime": 1792865836.0252185,
+    "seen": 1792868132.8803065,
+    "ast_hash": "61f78c20e0b772157f7acdccb69a02bf",
+    "semantic_hash": ""
+  },
+  "openspec/changes/looper-storage-memory/tasks.md": {
+    "mtime": 1792868097.2788258,
+    "seen": 1792868132.8803098,
+    "ast_hash": "3abe5499dc10d77691d41a9ad8cc7ddd",
+    "semantic_hash": ""
+  },
+  "projects/agnostic_looper/SPECIFICATION.md": {
+    "mtime": 1792854609.401322,
+    "seen": 1792868132.8803523,
+    "ast_hash": "aad2b5823346c75945d88cf11eaec1c4",
+    "semantic_hash": ""
+  },
+  "projects/agnostic_looper/tasks_catalog.md": {
+    "mtime": 1792854998.184256,
+    "seen": 1792868132.8803556,
+    "ast_hash": "870bfd25b4d176f594387c911ce43082",
     "semantic_hash": ""
   }
 }
