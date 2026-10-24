@@ -1,0 +1,82 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Agnostic Looper Autonomous Execution Workflow",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "quality_profile": "showcase",
+    "output": "agnostic-looper-workflow.html"
+  },
+  "lanes": [
+    { "id": "orchestration", "label": "Orchestrator & Core Engine" },
+    { "id": "providers", "label": "Provider Abstraction Layer (PAL)" },
+    { "id": "execution", "label": "Agent Execution & Sandbox" },
+    { "id": "governance", "label": "Verification Gates & Resilience", "variant": "exception" }
+  ],
+  "phases": [
+    { "id": "planning", "label": "1. Schedule & State", "fromCol": 0, "toCol": 0 },
+    { "id": "dispatch", "label": "2. Normalize & Route", "fromCol": 1, "toCol": 2, "variant": "emphasis" },
+    { "id": "execution_phase", "label": "3. Execute & QA", "fromCol": 3, "toCol": 3, "variant": "dashed" },
+    { "id": "finalize", "label": "4. Audit & Sync", "fromCol": 4, "toCol": 4 }
+  ],
+  "groups": [
+    { "id": "core_group", "label": "Core FSM Lifecycle (#16-#19)", "lane": "orchestration", "fromCol": 0, "toCol": 2, "variant": "emphasis" },
+    { "id": "pal_group", "label": "Unified PAL Adapters (#20-#23)", "lane": "providers", "fromCol": 1, "toCol": 2, "variant": "emphasis" },
+    { "id": "gates_group", "label": "4-Tier Objective Gates (#24-#27)", "lane": "governance", "fromCol": 2, "toCol": 4, "variant": "security" },
+    { "id": "sync_group", "label": "GitHub Project #4 Sync (#29, #30)", "lane": "orchestration", "fromCol": 4, "toCol": 4, "variant": "dashed" }
+  ],
+  "mainPath": [
+    "dag_scheduler",
+    "fsm_engine",
+    "pal_normalizer",
+    "provider_adapter",
+    "subagent_sandbox",
+    "tool_execution",
+    "gate0_qa",
+    "gate3_forensic",
+    "github_sync"
+  ],
+  "nodes": [
+    { "id": "dag_scheduler", "lane": "orchestration", "col": 0, "type": "backend", "label": "DAG Scheduler", "sublabel": "#17 Topo Sort", "width": 115 },
+    { "id": "fsm_engine", "lane": "orchestration", "col": 1, "type": "backend", "label": "Core FSM", "sublabel": "#16 FSM & #19", "tag": "16 States", "width": 115 },
+    { "id": "fs_memory", "lane": "orchestration", "col": 2, "type": "database", "label": "FS Memory", "sublabel": "#28 Watchdog", "width": 115 },
+
+    { "id": "pal_normalizer", "lane": "providers", "col": 1, "type": "backend", "label": "PAL Normalizer", "sublabel": "#20 Schema", "width": 115 },
+    { "id": "provider_adapter", "lane": "providers", "col": 2, "type": "cloud", "label": "PAL Adapters", "sublabel": "#21-#23 Models", "tag": "Agnostic", "width": 115 },
+
+    { "id": "subagent_sandbox", "lane": "execution", "col": 2, "type": "frontend", "label": "Subagents", "sublabel": "#18 Sandbox", "width": 115 },
+    { "id": "tool_execution", "lane": "execution", "col": 3, "type": "messagebus", "label": "Tool Exec", "sublabel": "FS, Bash, Git", "width": 115 },
+
+    { "id": "rollback_buffer", "lane": "governance", "col": 2, "type": "database", "label": "Rollback Buffer", "sublabel": "#27 Git Reset", "width": 115 },
+    { "id": "gate0_qa", "lane": "governance", "col": 3, "type": "security", "label": "Gate 0-1 QA", "sublabel": "#24 QA + #25", "tag": "Mechanical", "width": 115 },
+    { "id": "gate3_forensic", "lane": "governance", "col": 4, "type": "security", "label": "Gate 2-3 Audit", "sublabel": "#26 + #27 Veto", "tag": "Binary Veto", "width": 115 },
+
+    { "id": "github_sync", "lane": "orchestration", "col": 4, "type": "external", "label": "GitHub Sync", "sublabel": "#29 & #30 Sync", "tag": "Mark Done", "width": 115 }
+  ],
+  "edges": [
+    { "id": "e_sched_fsm", "from": "dag_scheduler", "to": "fsm_engine", "label": "next task batch", "variant": "emphasis" },
+    { "id": "e_fsm_mem", "from": "fsm_engine", "to": "fs_memory", "label": "state snapshot", "variant": "dashed" },
+    { "id": "e_fsm_pal", "from": "fsm_engine", "to": "pal_normalizer", "label": "dispatch task", "variant": "default" },
+    { "id": "e_pal_adapter", "from": "pal_normalizer", "to": "provider_adapter", "label": "normalized turn", "variant": "emphasis" },
+    { "id": "e_adapter_subagent", "from": "provider_adapter", "to": "subagent_sandbox", "label": "stream prompt", "variant": "default" },
+    { "id": "e_subagent_tool", "from": "subagent_sandbox", "to": "tool_execution", "label": "mutate code", "variant": "emphasis" },
+    { "id": "e_tool_gate0", "from": "tool_execution", "to": "gate0_qa", "label": "verify code", "variant": "security" },
+    { "id": "e_gate0_gate3", "from": "gate0_qa", "to": "gate3_forensic", "label": "pass QA & review", "variant": "emphasis" },
+    { "id": "e_gate3_veto", "from": "gate3_forensic", "to": "rollback_buffer", "label": "veto / failure", "variant": "security", "role": "error" },
+    { "id": "e_rollback_subagent", "from": "rollback_buffer", "to": "subagent_sandbox", "label": "restore & retry", "variant": "dashed" },
+    { "id": "e_gate3_sync", "from": "gate3_forensic", "to": "github_sync", "label": "VICTORY CONFIRMED", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Agnostic Looper Contract",
+      "items": [
+        "Hexagonal PAL layer unifies Claude, Gemini, and OpenCode interfaces.",
+        "4-Tier Verification: Mechanical QA -> Semantic Review -> Challenger -> Forensic Audit.",
+        "Automated Git rollback buffer eliminates polluted workspace states on failure.",
+        "Autonomous sync to GitHub Project #4 with structured Definition of Done validation."
+      ]
+    }
+  ]
+}

@@ -1,14 +1,14 @@
 {
   "cascade.test.ts": {
-    "mtime": 1792807711.4647026,
-    "seen": 1792807770.0895667,
-    "ast_hash": "ceab7ebacee7fd55517f3b8d33d237bd",
+    "mtime": 1792809553.9762545,
+    "seen": 1792809630.164269,
+    "ast_hash": "729f4ba9e7a360af407e9631de994772",
     "semantic_hash": ""
   },
   "cascade.ts": {
-    "mtime": 1792807653.420399,
-    "seen": 1792807770.0895689,
-    "ast_hash": "cfa371fd7d99743a0b47ec6b1c718b20",
+    "mtime": 1792809478.4508636,
+    "seen": 1792809630.1642702,
+    "ast_hash": "d5d853daebc936ef79de5826942b47f7",
     "semantic_hash": ""
   },
   "opencode.test.ts": {
@@ -150,9 +150,9 @@
     "semantic_hash": ""
   },
   "openspec/changes/add-antigravity-engine/tasks.md": {
-    "mtime": 1792793856.4044554,
-    "seen": 1792807770.0896232,
-    "ast_hash": "c0ef806e3e6f65f0d07adea1b99a540c",
+    "mtime": 1792809595.9154716,
+    "seen": 1792809630.1643226,
+    "ast_hash": "4fb37f470dd07074fc5c44ff8f0d9f40",
     "semantic_hash": ""
   },
   "openspec/config.yaml": {
@@ -174,9 +174,9 @@
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.delivery.json": {
-    "mtime": 1792807338.664753,
-    "seen": 1792807770.089559,
-    "ast_hash": "77d56c3f523608d8974c9c7577ddc064",
+    "mtime": 1792807770.467011,
+    "seen": 1792809630.16426,
+    "ast_hash": "1c69c95ec5a5589ad491b57745410b0f",
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.finalize-summary.json": {
@@ -192,15 +192,15 @@
     "semantic_hash": ""
   },
   "antigravity.test.ts": {
-    "mtime": 1792793613.716145,
-    "seen": 1792807770.0895631,
-    "ast_hash": "d056be6c8a4e926ce5d4f123d102bf0c",
+    "mtime": 1792809537.6591702,
+    "seen": 1792809630.1642666,
+    "ast_hash": "61f30f9553395266b702459475cd64a0",
     "semantic_hash": ""
   },
   "antigravity.ts": {
-    "mtime": 1792806445.158126,
-    "seen": 1792807770.089564,
-    "ast_hash": "31c82d507e18165652bee9ba9d5bd310",
+    "mtime": 1792809441.3496716,
+    "seen": 1792809630.1642678,
+    "ast_hash": "8c3ebb3d11bed387e0e422d6fb00594a",
     "semantic_hash": ""
   },
   "claude.ts": {
@@ -210,15 +210,15 @@
     "semantic_hash": ""
   },
   "config.test.ts": {
-    "mtime": 1792807746.7018867,
-    "seen": 1792807770.0895712,
-    "ast_hash": "c39fa0c23f8c735ca452f9f451504c3a",
+    "mtime": 1792808316.76585,
+    "seen": 1792809630.1642728,
+    "ast_hash": "6160c2bf03abbe86bdf6ad33d9fa7df4",
     "semantic_hash": ""
   },
   "config.ts": {
-    "mtime": 1792807606.1711519,
-    "seen": 1792807770.0895727,
-    "ast_hash": "ea45849011ac118dfd251ba6feef82f0",
+    "mtime": 1792808210.9953027,
+    "seen": 1792809630.1642742,
+    "ast_hash": "da736a535486ec70d6a18ddf2aac21c8",
     "semantic_hash": ""
   },
   "diagrams.test.ts": {
@@ -300,8 +300,8 @@
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.html": {
-    "mtime": 1792807330.9087124,
-    "seen": 1792807770.0896132,
+    "mtime": 1792807770.3610106,
+    "seen": 1792809630.1643133,
     "ast_hash": "94db30b43f4a07a3e7ce38af427e41fd",
     "semantic_hash": ""
   },
@@ -384,15 +384,15 @@
     "semantic_hash": ""
   },
   "openspec/changes/qa-stage-and-diagrams/specs/qa-verification-stage/spec.md": {
-    "mtime": 1792793386.2804534,
-    "seen": 1792807770.089639,
-    "ast_hash": "cf0896a382e35b667a3a44cd30d30f23",
+    "mtime": 1792808381.9521875,
+    "seen": 1792809630.1643403,
+    "ast_hash": "c2a02599f9e041e95c84e9b6bf1d21e8",
     "semantic_hash": ""
   },
   "openspec/changes/qa-stage-and-diagrams/tasks.md": {
-    "mtime": 1792807122.958625,
-    "seen": 1792807770.0896401,
-    "ast_hash": "5299e83c15105005ae65002e7eb36036",
+    "mtime": 1792808427.810425,
+    "seen": 1792809630.1643414,
+    "ast_hash": "a3f76e9dd8d29f24a8ee8a1023cce65d",
     "semantic_hash": ""
   },
   "openspec/changes/well-architecture-config/.openspec.yaml": {
@@ -423,6 +423,18 @@
     "mtime": 1792806636.185108,
     "seen": 1792807770.089646,
     "ast_hash": "35bdc5e3c6328e125be76c7c206753a4",
+    "semantic_hash": ""
+  },
+  "resilience.test.ts": {
+    "mtime": 1792808342.9109855,
+    "seen": 1792809630.1642911,
+    "ast_hash": "6550cd205d51878a0a7123a5c2e39c3a",
+    "semantic_hash": ""
+  },
+  "resilience.ts": {
+    "mtime": 1792808399.8912804,
+    "seen": 1792809630.1642923,
+    "ast_hash": "d24b650672e57567ec26d4265102cd53",
     "semantic_hash": ""
   }
 }

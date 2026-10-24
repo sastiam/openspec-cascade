@@ -22,7 +22,7 @@
   "20": "opsx-sync.md",
   "21": "opsx-update.md",
   "22": "skills.ts",
-  "23": "diagrams.ts",
+  "23": "qa.ts",
   "24": "antigravity.ts",
   "25": "config.ts",
   "26": "Decisions",
@@ -31,7 +31,7 @@
   "29": "Proposal: Cross-Platform Keep-Alive and Engine Integration",
   "30": "Proposal: In-Repo Skills & Context Engine",
   "31": "ADDED Requirements",
-  "32": "Proposal: QA Verification Stage, Auto-Diagrams & 24/7 Resilience",
+  "32": "Design: Centralized Configuration & Engine Adapters",
   "33": "ADDED Requirements",
   "34": "ADDED Requirements",
   "35": "Design: QA Stage, Auto-Diagrams & 24/7 Resilience"
