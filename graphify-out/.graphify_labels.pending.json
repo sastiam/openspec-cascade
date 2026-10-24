@@ -1,6 +1,6 @@
 {
   "0": "cascade.ts",
-  "1": "opencode.ts",
+  "1": "engine.ts",
   "2": "ADDED Requirements",
   "3": "package.json",
   "4": "openspec-explore/SKILL.md",
@@ -8,7 +8,7 @@
   "6": "compilerOptions",
   "7": "Análisis de Arquitectura y Funcionamiento del CLI (`openspec-cascade`)",
   "8": "Decisions",
-  "9": "printPlan",
+  "9": "platform.ts",
   "10": "Proposal: Add Antigravity CLI Engine",
   "11": "openspec-cascade",
   "12": "openspec-apply-change/SKILL.md",
@@ -20,5 +20,19 @@
   "18": "opsx-archive.md",
   "19": "opsx-propose.md",
   "20": "opsx-sync.md",
-  "21": "opsx-update.md"
+  "21": "opsx-update.md",
+  "22": "skills.ts",
+  "23": "diagrams.ts",
+  "24": "antigravity.ts",
+  "25": "config.ts",
+  "26": "Decisions",
+  "27": "OpenSpec Cascade Agent Guidelines & Quality Standards",
+  "28": "Requirement: Cross-Platform Process Keep-Alive",
+  "29": "Proposal: Cross-Platform Keep-Alive and Engine Integration",
+  "30": "Proposal: In-Repo Skills & Context Engine",
+  "31": "ADDED Requirements",
+  "32": "Proposal: QA Verification Stage, Auto-Diagrams & 24/7 Resilience",
+  "33": "ADDED Requirements",
+  "34": "ADDED Requirements",
+  "35": "Design: QA Stage, Auto-Diagrams & 24/7 Resilience"
 }

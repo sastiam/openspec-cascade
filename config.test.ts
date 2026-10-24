@@ -119,6 +119,11 @@ describe("loadConfig", () => {
     expect(config.fullVerify).toEqual(FULL_VERIFY);
     expect(config.defaultAntigravityModel).toBe(CONSTANTS.DEFAULT_ANTIGRAVITY_MODEL);
     expect(config.defaultOpenCodeModel).toBe(CONSTANTS.DEFAULT_OPENCODE_MODEL);
+    expect(config.autoDiagrams).toBe(true);
+    expect(config.graphifyCommand).toBe(CONSTANTS.GRAPHIFY_COMMAND);
+    expect(config.archifyAction).toBe(CONSTANTS.ARCHIFY_ACTION);
+    expect(config.archifyQuality).toBe(CONSTANTS.ARCHIFY_DEFAULT_QUALITY);
+    expect(config.archifyBin).toBeUndefined();
   });
 
   test("loads configuration overrides from environment variables", () => {
@@ -143,6 +148,11 @@ describe("loadConfig", () => {
       CASCADE_MIN_PAUSE_MS: "30000",
       CASCADE_ENGINE_TIMEOUT_MS: "1200000",
       CASCADE_RATE_LIMIT_SLEEP_MS: "600000",
+      CASCADE_AUTO_DIAGRAMS: "false",
+      CASCADE_GRAPHIFY_COMMAND: "custom-graphify",
+      CASCADE_ARCHIFY_ACTION: "render",
+      CASCADE_ARCHIFY_QUALITY: "standard",
+      CASCADE_ARCHIFY_BIN: "/custom/archify",
     };
 
     const config = loadConfig({ argv: [], env, cwd: "/mock/repo" });
@@ -167,6 +177,11 @@ describe("loadConfig", () => {
     expect(config.minPauseMs).toBe(30000);
     expect(config.engineSessionTimeoutMs).toBe(1200000);
     expect(config.rateLimitSleepMs).toBe(600000);
+    expect(config.autoDiagrams).toBe(false);
+    expect(config.graphifyCommand).toBe("custom-graphify");
+    expect(config.archifyAction).toBe("render");
+    expect(config.archifyQuality).toBe("standard");
+    expect(config.archifyBin).toBe("/custom/archify");
   });
 
   test("CLI arguments take precedence over environment variables", () => {
@@ -217,6 +232,40 @@ describe("loadConfig", () => {
     expect(config.keepAlive).toBe(false);
   });
 
+  test("handles rollback configuration and CLI flags", () => {
+    const def = loadConfig({ argv: [], env: {}, cwd: "/mock/repo" });
+    expect(def.rollbackOnFailure).toBe(true);
+
+    const disabled = loadConfig({ argv: ["--no-rollback"], env: {}, cwd: "/mock/repo" });
+    expect(disabled.rollbackOnFailure).toBe(false);
+
+    const enabled = loadConfig({ argv: ["--rollback"], env: {}, cwd: "/mock/repo" });
+    expect(enabled.rollbackOnFailure).toBe(true);
+
+    const envDisabled = loadConfig({ argv: [], env: { CASCADE_ROLLBACK_ON_FAILURE: "false" } });
+    expect(envDisabled.rollbackOnFailure).toBe(false);
+
+    const envGitRollback = loadConfig({ argv: [], env: { CASCADE_GIT_ROLLBACK: "true" } });
+    expect(envGitRollback.rollbackOnFailure).toBe(true);
+  });
+
+  test("handles 24/7 resilience configuration and CLI flags", () => {
+    const def = loadConfig({ argv: [], env: {}, cwd: "/mock/repo" });
+    expect(def.resilient).toBe(false);
+
+    const flagResilient = loadConfig({ argv: ["--resilient"], env: {}, cwd: "/mock/repo" });
+    expect(flagResilient.resilient).toBe(true);
+
+    const flagContinue = loadConfig({ argv: ["--continue-on-failure"], env: {}, cwd: "/mock/repo" });
+    expect(flagContinue.resilient).toBe(true);
+
+    const envResilient = loadConfig({ argv: [], env: { CASCADE_RESILIENT: "true" } });
+    expect(envResilient.resilient).toBe(true);
+
+    const envContinue = loadConfig({ argv: [], env: { CASCADE_CONTINUE_ON_FAILURE: "true" } });
+    expect(envContinue.resilient).toBe(true);
+  });
+
   test("getDefaultConfig returns defaults for current cwd", () => {
     const def = getDefaultConfig("/mock/cwd");
     expect(def.repo).toBe("/mock/cwd");
@@ -241,5 +290,20 @@ describe("CONSTANTS integrity", () => {
     expect(CONSTANTS.TOKEN_PRICE_BASE).toBe(1_000_000);
     expect(CONSTANTS.DECIMAL_PLACES_USD).toBe(2);
     expect(CONSTANTS.ARGV_START_INDEX).toBe(2);
+    expect(CONSTANTS.GRAPHIFY_COMMAND).toBe("graphify update .");
+    expect(CONSTANTS.ARCHIFY_ACTION).toBe("deliver");
+    expect(CONSTANTS.ARCHIFY_DEFAULT_QUALITY).toBe("showcase");
+    expect(CONSTANTS.ARCHIFY_DIR_NAME).toBe(".archify");
+    expect(CONSTANTS.ARCHIFY_CANDIDATE_JSON).toBe("candidate.json");
+    expect(CONSTANTS.ARCHIFY_CANDIDATE_MD).toBe("candidate.archify.md");
+    expect(CONSTANTS.ARCHIFY_DEFAULT_TYPE).toBe("architecture");
+    expect(CONSTANTS.ARCHIFY_EXPLAINER_TYPE).toBe("explainer");
+    expect(CONSTANTS.ARCHIFY_FALLBACK_EXT).toBe(".html");
+    expect(CONSTANTS.DIAGRAM_SYNC_TIMEOUT_MS).toBe(300_000);
+    expect(CONSTANTS.GIT_RESET_CMD).toBe("git reset --hard");
+    expect(CONSTANTS.GIT_CLEAN_CMD).toBe("git clean -fd");
+    expect(CONSTANTS.GIT_HEAD_REF).toBe("HEAD");
+    expect(CONSTANTS.ROLLBACK_ON_FAILURE).toBe(true);
+    expect(CONSTANTS.RESILIENT_MODE).toBe(false);
   });
 });

@@ -30,17 +30,64 @@ import {
 } from "./engine";
 import { startKeepAlive, type KeepAliveController } from "./platform";
 import {
+  formatVerificationFeedback,
+  runVerificationPhase,
+  type VerificationFailure,
+  type VerificationResult,
+} from "./qa";
+import {
+  discoverArchifyTargets,
+  syncDiagrams,
+  type ArchifyTarget,
+  type DiagramStepResult,
+  type DiagramSyncOptions,
+  type DiagramSyncResult,
+} from "./diagrams";
+import {
   discoverDirectives,
   discoverSkills,
   formatDirectivesPrompt,
   formatSkillsPrompt,
 } from "./skills";
+import {
+  captureGitState,
+  Fatal,
+  rollbackWorkingTree,
+  RollbackStateBuffer,
+  TaskFailureError,
+  type CaptureGitStateOptions,
+  type GitWorkingTreeState,
+  type RollbackBufferOptions,
+  type RollbackOptions,
+  type RollbackResult,
+} from "./resilience";
 
-export { isKeepAliveEnabled, resolveEngine };
+export {
+  captureGitState,
+  discoverArchifyTargets,
+  Fatal,
+  formatVerificationFeedback,
+  isKeepAliveEnabled,
+  resolveEngine,
+  rollbackWorkingTree,
+  RollbackStateBuffer,
+  runVerificationPhase,
+  syncDiagrams,
+  TaskFailureError,
+  type ArchifyTarget,
+  type CaptureGitStateOptions,
+  type DiagramStepResult,
+  type DiagramSyncOptions,
+  type DiagramSyncResult,
+  type GitWorkingTreeState,
+  type RollbackBufferOptions,
+  type RollbackOptions,
+  type RollbackResult,
+  type VerificationFailure,
+  type VerificationResult,
+};
 
 export const config: CascadeConfig = loadConfig();
-
-class Fatal extends Error {}
 
 export type Task = { id: string; done: boolean; text: string; section: string; line: number };
 type SessionOutcome = EngineOutcome;
@@ -339,20 +386,16 @@ export function taskPrompt(
   return parts.join("\n");
 }
 
-async function runChecks(commands: string[]) {
-  const failures: string[] = [];
-  for (const command of commands) {
-    say(`  check: ${command}`);
-    const { code, output } = await sh(command);
-    log("check", { command, code });
-    say(`  ${code === 0 ? "✅" : "❌"} ${command}`);
-    if (code !== 0) {
-      console.log(output.split("\n").slice(-CONSTANTS.CHECK_FAILURE_TAIL_LINES).join("\n"));
-      failures.push(`$ ${command} (exit ${code})\n${output.slice(-CONSTANTS.CHECK_FAILURE_OUTPUT_MAX_LENGTH)}`);
-      break; // later checks usually fail for the same reason; keep feedback focused
-    }
-  }
-  return failures;
+export async function runChecks(commands: string[]): Promise<string[]> {
+  const result = await runVerificationPhase({
+    commands,
+    cwd: repo,
+    timeoutMs: config.commandTimeoutMs,
+    hooks: { say, log },
+  });
+  return result.failures.map(
+    (f) => `$ ${f.command} (exit ${f.exitCode})\n${f.output.slice(-CONSTANTS.CHECK_FAILURE_OUTPUT_MAX_LENGTH)}`,
+  );
 }
 
 async function commit(message: string) {
@@ -378,6 +421,14 @@ async function runTask(change: string, tasksPath: string, task: Task, sectionCom
   let subject: string | undefined;
   let header: string | undefined;
   let attempts = 0;
+
+  const rollbackBuffer = new RollbackStateBuffer({
+    cwd: repo,
+    excludes: config.neverCommit,
+    timeoutMs: config.commandTimeoutMs,
+    hooks: { say, log },
+  });
+  await rollbackBuffer.snapshot();
 
   while (attempts < config.maxAttemptsPerTask) {
     if (totalCostUsd >= config.maxTotalBudgetUsd) throw new Fatal(`Total budget of $${config.maxTotalBudgetUsd} reached`);
@@ -407,10 +458,18 @@ async function runTask(change: string, tasksPath: string, task: Task, sectionCom
     if (blocked) throw new Fatal(`Task ${task.id} needs a human decision: ${blocked}`);
 
     if (verify.length) {
-      const failures = await runChecks(verify);
-      if (failures.length) {
+      const verification = await runVerificationPhase({
+        commands: verify,
+        cwd: repo,
+        taskId: task.id,
+        attempt: attempts,
+        maxAttempts: config.maxAttemptsPerTask,
+        timeoutMs: config.commandTimeoutMs,
+        hooks: { say, log },
+      });
+      if (!verification.success) {
         say(`  checks failed (attempt ${attempts}/${config.maxAttemptsPerTask})`);
-        prompt = `Task ${task.id} is not done; this check fails:\n\n${failures.join("\n\n")}\n\nFix it and finish the task.`;
+        prompt = verification.feedbackPrompt!;
         continue;
       }
       markDone(tasksPath, task.id); // the checks are the oracle
@@ -428,7 +487,18 @@ async function runTask(change: string, tasksPath: string, task: Task, sectionCom
     }
     return;
   }
-  throw new Fatal(`Task ${task.id} of ${change} failed after ${config.maxAttemptsPerTask} attempts; see ${logFile}`);
+
+  if (config.rollbackOnFailure) {
+    say(`  ⚠️ Task ${task.id} failed after ${attempts} attempts; executing git rollback buffer...`);
+    const rollbackRes = await rollbackBuffer.rollback();
+    if (rollbackRes.success) {
+      say(`  ✅ Working tree rolled back to clean baseline (${rollbackRes.targetRef})`);
+    } else {
+      say(`  ❌ Working tree rollback failed: ${rollbackRes.error}`);
+    }
+  }
+
+  throw new TaskFailureError(task.id, change, attempts, logFile);
 }
 
 async function runChange(change: string) {
@@ -440,7 +510,26 @@ async function runChange(change: string) {
 
   for (;;) {
     const task = readTasks(tasksPath).find((t) => !t.done && !skipped.has(t.id));
-    if (!task) return [...skipped];
+    if (!task) {
+      if (config.autoDiagrams) {
+        say(`🔄 Synchronizing diagrams for completed change: ${change}...`);
+        const diagResult = await syncDiagrams({
+          cwd: repo,
+          graphifyCommand: config.graphifyCommand,
+          archifyBin: config.archifyBin,
+          archifyAction: config.archifyAction,
+          archifyQuality: config.archifyQuality,
+          timeoutMs: CONSTANTS.DIAGRAM_SYNC_TIMEOUT_MS,
+          hooks: { say, log },
+        });
+        if (diagResult.success) {
+          say(`✅ Diagrams synchronized for ${change}`);
+        } else {
+          say(`⚠️ Diagram synchronization encountered warnings or failures for ${change}`);
+        }
+      }
+      return [...skipped];
+    }
     if (CONSTANTS.HUMAN_TASK_REGEX.test(task.text)) {
       skipped.add(task.id);
       say(`  skipping ${task.id} (human task): ${task.text.slice(0, CONSTANTS.TASK_SUMMARY_MAX_LENGTH)}`);
@@ -448,7 +537,17 @@ async function runChange(change: string) {
     }
     say(`▶ ${change} ${task.id}: ${task.text.slice(0, CONSTANTS.TASK_SUMMARY_MAX_LENGTH)}`);
     log("task_start", { change, id: task.id });
-    await runTask(change, tasksPath, task, perSection && isLastOfSection(readTasks(tasksPath), task));
+    try {
+      await runTask(change, tasksPath, task, perSection && isLastOfSection(readTasks(tasksPath), task));
+    } catch (error) {
+      if (error instanceof TaskFailureError && config.resilient) {
+        skipped.add(task.id);
+        say(`  ⚠️ Resilient 24/7 mode: task ${task.id} failed after ${error.attempts} attempts and was rolled back; continuing.`);
+        log("task_failure_resilient", { change, taskId: task.id, attempts: error.attempts, error: error.message });
+        continue;
+      }
+      throw error;
+    }
   }
 }
 

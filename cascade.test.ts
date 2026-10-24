@@ -4,12 +4,22 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   blockedReason,
+  captureGitState,
   commitsPerSection,
   commitTypeOf,
+  discoverArchifyTargets,
+  Fatal,
+  formatVerificationFeedback,
   isKeepAliveEnabled,
   isLastOfSection,
   parseTasks,
   resolveEngine,
+  rollbackWorkingTree,
+  RollbackStateBuffer,
+  runChecks,
+  runVerificationPhase,
+  syncDiagrams,
+  TaskFailureError,
   taskPrompt,
   verifyCommands,
   type Task,
@@ -309,5 +319,91 @@ Helper body`,
     expect(prompt).toContain("openspec-cascade-runner");
     expect(prompt).toContain(".agents/skills/openspec-cascade-runner/SKILL.md");
     expect(prompt).toContain("</skills>");
+  });
+});
+
+describe("runVerificationPhase & runChecks in cascade", () => {
+  test("re-exports runVerificationPhase and formatVerificationFeedback", () => {
+    expect(typeof runVerificationPhase).toBe("function");
+    expect(typeof formatVerificationFeedback).toBe("function");
+    expect(typeof runChecks).toBe("function");
+  });
+
+  test("runVerificationPhase executes and returns structured results", async () => {
+    const result = await runVerificationPhase(["echo test-ok"], {
+      runner: async () => ({ code: 0, stdout: "test-ok", stderr: "", output: "test-ok" }),
+    });
+    expect(result.success).toBe(true);
+    expect(result.failures).toEqual([]);
+  });
+});
+
+describe("diagram synchronization in cascade", () => {
+  test("re-exports syncDiagrams and discoverArchifyTargets", () => {
+    expect(typeof syncDiagrams).toBe("function");
+    expect(typeof discoverArchifyTargets).toBe("function");
+  });
+
+  test("syncDiagrams executes via cascade re-export", async () => {
+    const executed: string[] = [];
+    const result = await syncDiagrams({
+      cwd: process.cwd(),
+      runArchify: false,
+      runner: async (cmd) => {
+        executed.push(cmd);
+        return { code: 0, stdout: "ok", stderr: "", output: "ok" };
+      },
+    });
+    expect(result.success).toBe(true);
+    expect(executed).toContain("graphify update .");
+  });
+});
+
+describe("24/7 failure resilience and git rollback buffer in cascade", () => {
+  test("re-exports rollback, buffer, and error utilities", () => {
+    expect(typeof captureGitState).toBe("function");
+    expect(typeof rollbackWorkingTree).toBe("function");
+    expect(typeof RollbackStateBuffer).toBe("function");
+    expect(typeof TaskFailureError).toBe("function");
+    expect(typeof Fatal).toBe("function");
+  });
+
+  test("rollbackWorkingTree executes via cascade re-export", async () => {
+    const executed: string[] = [];
+    const result = await rollbackWorkingTree({
+      targetRef: "HEAD",
+      cleanUntracked: true,
+      runner: async (cmd) => {
+        executed.push(cmd);
+        return { code: 0, stdout: "ok", stderr: "", output: "ok" };
+      },
+    });
+
+    expect(result.success).toBe(true);
+    expect(executed).toContain("git reset --hard HEAD");
+  });
+
+  test("RollbackStateBuffer functions via cascade re-export", async () => {
+    const executed: string[] = [];
+    const buffer = new RollbackStateBuffer({
+      runner: async (cmd) => {
+        executed.push(cmd);
+        if (cmd.includes("rev-parse")) {
+          return { code: 0, stdout: "cascade-sha-123", stderr: "", output: "cascade-sha-123" };
+        }
+        return { code: 0, stdout: "", stderr: "", output: "" };
+      },
+    });
+
+    const sha = await buffer.snapshot();
+    expect(sha).toBe("cascade-sha-123");
+    expect(buffer.getBaselineSha()).toBe("cascade-sha-123");
+  });
+
+  test("TaskFailureError is an instance of Fatal and Error", () => {
+    const err = new TaskFailureError("1.3", "qa-stage", 3, "logs/task.jsonl");
+    expect(err).toBeInstanceOf(Fatal);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.message).toContain("Task 1.3 of qa-stage failed after 3 attempts; see logs/task.jsonl");
   });
 });

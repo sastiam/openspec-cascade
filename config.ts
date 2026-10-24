@@ -74,6 +74,12 @@ export const CONSTANTS = {
 
   // Verification commands
   DEFAULT_VERIFY: ["bun test", "bun run lint"] as const,
+  QA_VERIFY_COMMANDS: [
+    "bun test",
+    "bunx tsc --noEmit",
+    "bun run lint",
+    "bun run build",
+  ] as const,
   TSC_SERVER: "bunx tsc --noEmit -p .nuxt/tsconfig.server.json",
   TSC_APP: "bunx tsc --noEmit -p .nuxt/tsconfig.app.json",
   NO_NEW_MIGRATION:
@@ -95,6 +101,7 @@ export const CONSTANTS = {
   ERROR_DETAIL_MAX_LENGTH: 300,
   TASK_SUMMARY_MAX_LENGTH: 100,
   GIT_STATUS_PREFIX_LENGTH: 3,
+  GIT_STATUS_CODE_LENGTH: 2,
   CHECK_FAILURE_TAIL_LINES: 15,
   CHECK_FAILURE_OUTPUT_MAX_LENGTH: 3000,
   COMMIT_ERROR_OUTPUT_MAX_LENGTH: 2000,
@@ -115,6 +122,28 @@ export const CONSTANTS = {
   GEMINI_FLASH_OUTPUT_COST: 0.60,
   GEMINI_PRO_INPUT_COST: 1.25,
   GEMINI_PRO_OUTPUT_COST: 5.00,
+
+  // Diagram synchronization
+  GRAPHIFY_COMMAND: "graphify update .",
+  ARCHIFY_ACTION: "deliver",
+  ARCHIFY_DEFAULT_QUALITY: "showcase",
+  ARCHIFY_DIR_NAME: ".archify",
+  ARCHIFY_CANDIDATE_JSON: "candidate.json",
+  ARCHIFY_CANDIDATE_MD: "candidate.archify.md",
+  ARCHIFY_DEFAULT_TYPE: "architecture",
+  ARCHIFY_EXPLAINER_TYPE: "explainer",
+  ARCHIFY_FALLBACK_EXT: ".html",
+  DIAGRAM_SYNC_TIMEOUT_MS: 300_000,
+  DIAGRAM_LOG_TAIL_LINES: 10,
+
+  // 24/7 Failure resilience and git rollback state buffer
+  GIT_RESET_CMD: "git reset --hard",
+  GIT_CLEAN_CMD: "git clean -fd",
+  GIT_HEAD_REF: "HEAD",
+  GIT_REV_PARSE_HEAD: "git rev-parse HEAD",
+  GIT_STATUS_PORCELAIN: "git status --porcelain",
+  ROLLBACK_ON_FAILURE: true,
+  RESILIENT_MODE: false,
 } as const;
 
 export const FULL_VERIFY: readonly string[] = [
@@ -124,6 +153,8 @@ export const FULL_VERIFY: readonly string[] = [
   "bun run build",
   "bun run test:e2e",
 ];
+
+export const QA_VERIFY_COMMANDS: readonly string[] = CONSTANTS.QA_VERIFY_COMMANDS;
 
 export interface CascadeConfig {
   /** Root directory of target repository */
@@ -194,6 +225,22 @@ export interface CascadeConfig {
   defaultAntigravityModel: string;
   /** Default model for OpenCode engine */
   defaultOpenCodeModel: string;
+
+  /** Command to update Graphify knowledge graph */
+  graphifyCommand: string;
+  /** Action for Archify CLI rendering (e.g. "deliver" or "render") */
+  archifyAction: string;
+  /** Default quality profile for Archify */
+  archifyQuality: string;
+  /** Custom Archify binary or command prefix */
+  archifyBin?: string;
+  /** Whether automatic diagram synchronization is enabled */
+  autoDiagrams: boolean;
+
+  /** Whether to roll back working tree on task failure after exhausting attempts */
+  rollbackOnFailure: boolean;
+  /** Whether to continue to next task on task failure in 24/7 resilience mode */
+  resilient: boolean;
 }
 
 export interface ParsedCliOptions {
@@ -207,6 +254,16 @@ export interface ParsedCliOptions {
   "keep-alive"?: boolean;
   model?: string;
   effort?: string;
+  "no-diagrams"?: boolean;
+  diagrams?: boolean;
+  "graphify-command"?: string;
+  "archify-action"?: string;
+  "archify-quality"?: string;
+  "archify-bin"?: string;
+  "no-rollback"?: boolean;
+  rollback?: boolean;
+  resilient?: boolean;
+  "continue-on-failure"?: boolean;
   [key: string]: unknown;
 }
 
@@ -249,6 +306,16 @@ export function parseCliArgs(argv: string[] = process.argv.slice(CONSTANTS.ARGV_
         "keep-alive": { type: "boolean" },
         model: { type: "string" },
         effort: { type: "string" },
+        "no-diagrams": { type: "boolean", default: false },
+        diagrams: { type: "boolean" },
+        "graphify-command": { type: "string" },
+        "archify-action": { type: "string" },
+        "archify-quality": { type: "string" },
+        "archify-bin": { type: "string" },
+        "no-rollback": { type: "boolean", default: false },
+        rollback: { type: "boolean" },
+        resilient: { type: "boolean", default: false },
+        "continue-on-failure": { type: "boolean" },
       },
       strict: false,
       allowPositionals: true,
@@ -377,6 +444,76 @@ export function loadConfig(options: LoadConfigOptions = {}): CascadeConfig {
     overrides.rateLimitSleepMs ??
     parseNumber(env.CASCADE_RATE_LIMIT_SLEEP_MS, CONSTANTS.RATE_LIMIT_SLEEP_MS);
 
+  // 8. Diagram Synchronization
+  let autoDiagrams: boolean;
+  if (overrides.autoDiagrams !== undefined) {
+    autoDiagrams = overrides.autoDiagrams;
+  } else if (cliOpts["no-diagrams"]) {
+    autoDiagrams = false;
+  } else if (cliOpts.diagrams !== undefined) {
+    autoDiagrams = Boolean(cliOpts.diagrams);
+  } else if (env.CASCADE_AUTO_DIAGRAMS !== undefined) {
+    autoDiagrams = parseBoolean(env.CASCADE_AUTO_DIAGRAMS, true);
+  } else {
+    autoDiagrams = true;
+  }
+
+  const graphifyCommand =
+    overrides.graphifyCommand ??
+    (typeof cliOpts["graphify-command"] === "string" ? cliOpts["graphify-command"] : undefined) ??
+    env.CASCADE_GRAPHIFY_COMMAND ??
+    CONSTANTS.GRAPHIFY_COMMAND;
+
+  const archifyAction =
+    overrides.archifyAction ??
+    (typeof cliOpts["archify-action"] === "string" ? cliOpts["archify-action"] : undefined) ??
+    env.CASCADE_ARCHIFY_ACTION ??
+    CONSTANTS.ARCHIFY_ACTION;
+
+  const archifyQuality =
+    overrides.archifyQuality ??
+    (typeof cliOpts["archify-quality"] === "string" ? cliOpts["archify-quality"] : undefined) ??
+    env.CASCADE_ARCHIFY_QUALITY ??
+    CONSTANTS.ARCHIFY_DEFAULT_QUALITY;
+
+  const archifyBin =
+    overrides.archifyBin ??
+    (typeof cliOpts["archify-bin"] === "string" ? cliOpts["archify-bin"] : undefined) ??
+    env.ARCHIFY_BIN ??
+    env.CASCADE_ARCHIFY_BIN ??
+    undefined;
+
+  // 9. Failure Resilience & Rollback Buffer
+  let rollbackOnFailure: boolean;
+  if (overrides.rollbackOnFailure !== undefined) {
+    rollbackOnFailure = overrides.rollbackOnFailure;
+  } else if (cliOpts["no-rollback"]) {
+    rollbackOnFailure = false;
+  } else if (cliOpts.rollback !== undefined) {
+    rollbackOnFailure = Boolean(cliOpts.rollback);
+  } else if (env.CASCADE_ROLLBACK_ON_FAILURE !== undefined) {
+    rollbackOnFailure = parseBoolean(env.CASCADE_ROLLBACK_ON_FAILURE, CONSTANTS.ROLLBACK_ON_FAILURE);
+  } else if (env.CASCADE_GIT_ROLLBACK !== undefined) {
+    rollbackOnFailure = parseBoolean(env.CASCADE_GIT_ROLLBACK, CONSTANTS.ROLLBACK_ON_FAILURE);
+  } else {
+    rollbackOnFailure = CONSTANTS.ROLLBACK_ON_FAILURE;
+  }
+
+  let resilient: boolean;
+  if (overrides.resilient !== undefined) {
+    resilient = overrides.resilient;
+  } else if (cliOpts.resilient) {
+    resilient = true;
+  } else if (cliOpts["continue-on-failure"]) {
+    resilient = true;
+  } else if (env.CASCADE_RESILIENT !== undefined) {
+    resilient = parseBoolean(env.CASCADE_RESILIENT, CONSTANTS.RESILIENT_MODE);
+  } else if (env.CASCADE_CONTINUE_ON_FAILURE !== undefined) {
+    resilient = parseBoolean(env.CASCADE_CONTINUE_ON_FAILURE, CONSTANTS.RESILIENT_MODE);
+  } else {
+    resilient = CONSTANTS.RESILIENT_MODE;
+  }
+
   return {
     repo,
     changes,
@@ -398,6 +535,13 @@ export function loadConfig(options: LoadConfigOptions = {}): CascadeConfig {
     commandTimeoutMs,
     engineSessionTimeoutMs,
     rateLimitSleepMs,
+    graphifyCommand,
+    archifyAction,
+    archifyQuality,
+    archifyBin,
+    autoDiagrams,
+    rollbackOnFailure,
+    resilient,
     protectedBranches: overrides.protectedBranches ?? CONSTANTS.PROTECTED_BRANCHES,
     neverCommit: overrides.neverCommit ?? CONSTANTS.NEVER_COMMIT,
     deniedBash: overrides.deniedBash ?? CONSTANTS.DENIED_BASH,
