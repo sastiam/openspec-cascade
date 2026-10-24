@@ -401,6 +401,7 @@ export interface PalToolDefinition {
   source: "native" | "mcp";
   mcpServerName?: string;
   timeoutMs?: number;
+  cacheControl?: { type: "ephemeral" };
 }
 
 /**
@@ -432,6 +433,13 @@ export type PalToolHandler = (
 ) => Promise<string | Record<string, unknown>>;
 
 /**
+ * Prompt caching configuration options.
+ */
+export interface PalPromptCachingOptions {
+  enabled?: boolean;
+}
+
+/**
  * Options passed to each turn execution.
  */
 export interface PalSessionOptions {
@@ -443,6 +451,7 @@ export interface PalSessionOptions {
   temperature?: number;
   maxTokens?: number;
   thinking?: PalThinkingOptions;
+  promptCaching?: boolean | PalPromptCachingOptions;
   abortSignal?: AbortSignal;
 }
 
@@ -454,6 +463,7 @@ export interface PalTokenUsage {
   completionTokens: number;
   totalTokens: number;
   cachedPromptTokens?: number;
+  cacheCreationInputTokens?: number;
   thinkingTokens?: number;
 }
 
@@ -483,7 +493,7 @@ export interface PalOutcome {
  */
 export type PalStreamEvent =
   | { type: "text_delta"; text: string }
-  | { type: "thought_delta"; thought: string }
+  | { type: "thought_delta"; thought: string; signature?: string }
   | { type: "tool_call_delta"; id: string; name?: string; argumentsDelta: string }
   | { type: "tool_call_end"; id: string; name: string; arguments: Record<string, unknown> }
   | { type: "turn_complete"; finishReason: PalFinishReason; usage: PalTokenUsage }
@@ -531,6 +541,11 @@ export interface IPalProvider {
    */
   getRateLimitState(): PalRateLimitInfo;
 }
+
+/**
+ * Standard ProviderAdapter alias adhering to Hexagonal Architecture Port.
+ */
+export type ProviderAdapter = IPalProvider;
 
 /**
  * Claude tool use content block.

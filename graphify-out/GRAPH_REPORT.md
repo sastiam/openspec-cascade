@@ -1,17 +1,17 @@
 # Graph Report - openspec-cascade  (2026-10-24)
 
 ## Corpus Check
-- 229 files · ~307,182 words
+- 231 files · ~316,492 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 5 file(s) not represented in the graph (top: (none) 4, .lock 1)
 
 ## Summary
-- 2101 nodes · 3312 edges · 200 communities (156 shown, 44 thin omitted)
-- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 375 edges (avg confidence: 0.94)
+- 2218 nodes · 3567 edges · 206 communities (158 shown, 48 thin omitted)
+- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 379 edges (avg confidence: 0.94)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `1d279c72`
+- Built from commit: `460fccd8`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -31,8 +31,15 @@
 - fsm.ts
 - VictoryAuditLivelockPrevention
 - fsm_types.ts
+- DirectedAcyclicGraph
+- DagLevelBatchResolver
+- dag.ts
+- resilience.ts
+- LooperEvent
+- openspec-cascade
+- DfsState
 - skills.ts
-- qa.ts
+- cascade.test.ts
 - antigravity.ts
 - config.ts
 - 3. Comprehensive PAL Specification & Interface Contracts
@@ -63,7 +70,7 @@
 - 1. Observation
 - Handoff Report — Challenger M1.2: Provider Invariants & Resilience Challenger
 - DISPATCH — Worker M1.1: Technical Architecture Specification Author
-- inspectAgentHeartbeat
+- .fileExists
 - 5. Verification Method
 - 1. Observation
 - BRIEFING — 2026-10-24T14:38:00Z
@@ -87,14 +94,14 @@
 - Master Technical Architecture Specification: Provider-Agnostic Multi-Agent Looper ("Agnostic Looper")
 - Handoff Report — Auditor M1.1: Forensic Integrity Auditor
 - BRIEFING — 2026-10-24T14:44:40Z
-- BRIEFING — 2026-10-24T14:26:00Z
+- .reset
 - BRIEFING — 2026-10-24T14:26:00Z
 - BRIEFING — 2026-10-24T14:26:00Z
 - BRIEFING — 2026-10-24T15:33:30Z
 - Phases
 - ADDED Requirements
+- DagValidationError
 - Progress Log
-- Handoff Report — Independent Victory Audit
 - DISPATCH — Worker M1.2: Specification Remediation Specialist
 - DISPATCH — Worker M2.1: GitHub Project #4 Task Breakdown & Population Specialist
 - Design: Planificador de Tareas DAG y Resolutor Topológico de Dependencias
@@ -214,20 +221,19 @@
 - run_looper.sh
 - types.ts
 - PalMessage
-- StorageError
 - Adversarial Challenge Report
 
 ## God Nodes (most connected - your core abstractions)
 1. `LooperFSM` - 70 edges
 2. `Catálogo de Tareas — Agnostic Multi-Agent Looper` - 68 edges
-3. `RollbackStateBuffer` - 32 edges
-4. `LooperState` - 30 edges
-5. `MemoryStorage` - 29 edges
-6. `LooperEvent` - 27 edges
-7. `IPalProvider` - 27 edges
-8. `HeartbeatWatchdog` - 27 edges
-9. `EngineAdapter` - 26 edges
-10. `PalTurnNormalizer` - 25 edges
+3. `DirectedAcyclicGraph` - 45 edges
+4. `DagLevelBatchResolver` - 37 edges
+5. `RollbackStateBuffer` - 32 edges
+6. `LooperState` - 30 edges
+7. `MemoryStorage` - 29 edges
+8. `LooperEvent` - 27 edges
+9. `IPalProvider` - 27 edges
+10. `HeartbeatWatchdog` - 27 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `Goals / Non-Goals` --references--> `runAntigravitySession()`  [INFERRED]
@@ -244,15 +250,15 @@
 ## Import Cycles
 - None detected.
 
-## Communities (200 total, 44 thin omitted)
+## Communities (206 total, 48 thin omitted)
 
 ### Community 0 - "cascade.ts"
 Cohesion: 0.16
-Nodes (34): describeToolInput(), oneLine(), blockedReason(), blockingMeters(), commit(), commitsPerSection(), commitTypeOf(), config (+26 more)
+Nodes (33): describeToolInput(), oneLine(), blockedReason(), blockingMeters(), commit(), commitsPerSection(), commitTypeOf(), config (+25 more)
 
 ### Community 1 - "engine.ts"
-Cohesion: 0.19
-Nodes (14): antigravityAdapter, claudeAdapter, claudeAgentOptions(), readClaudeUsage(), runClaudeSession(), toEpochMs(), CascadeConfig, CONSTANTS (+6 more)
+Cohesion: 0.21
+Nodes (12): antigravityAdapter, claudeAdapter, claudeAgentOptions(), readClaudeUsage(), runClaudeSession(), toEpochMs(), CascadeConfig, engineAdapters (+4 more)
 
 ### Community 2 - "ADDED Requirements"
 Cohesion: 0.12
@@ -265,10 +271,6 @@ Nodes (22): dependencies, @anthropic-ai/claude-agent-sdk, devDependencies, eslin
 ### Community 4 - ".context"
 Cohesion: 0.07
 Nodes (21): Check for context, Ending Discovery, Guardrails, Handling Different Entry Points, OpenSpec Awareness, Planning a Change, The Stance, What You Don't Have To Do (+13 more)
-
-### Community 5 - "LooperEvent"
-Cohesion: 0.14
-Nodes (5): TransitionGuardError, FsmSnapshot, FsmTransitionRule, LooperEvent, LooperFsmContext
 
 ### Community 6 - "compilerOptions"
 Cohesion: 0.18
@@ -295,24 +297,48 @@ Cohesion: 0.04
 Nodes (52): 1. Propósito de la tarea, 1. Propósito de la tarea, 1. Propósito de la tarea, 1. Propósito de la tarea, 1. Propósito de la tarea, 1. Propósito de la tarea, 1. Propósito de la tarea, 1. Propósito de la tarea (+44 more)
 
 ### Community 12 - "fsm.ts"
-Cohesion: 0.26
-Nodes (21): FSM_ENGINE_CONSTANTS, allTasksDoneGuard, createGate0ExhaustedGuard(), createGate0RetryGuard(), createGate1RejectGuard(), createGate1ReviseGuard(), createGate2BreakGuard(), createGate2ExhaustedGuard() (+13 more)
+Cohesion: 0.30
+Nodes (16): allTasksDoneGuard, createGate0ExhaustedGuard(), createGate0RetryGuard(), createGate1RejectGuard(), createGate1ReviseGuard(), createGate2BreakGuard(), createGate2ExhaustedGuard(), createSpawnLimitGuard() (+8 more)
 
 ### Community 13 - "VictoryAuditLivelockPrevention"
 Cohesion: 0.13
 Nodes (6): CircuitBreakerState, TriageEvaluationOptions, TriageEvaluationResult, VictoryAuditFailureRecord, VictoryAuditLivelockOptions, VictoryAuditLivelockPrevention
 
 ### Community 14 - "fsm_types.ts"
-Cohesion: 0.19
-Nodes (18): canTransition(), findTransitionRule(), FSM_ALLOWED_EVENTS, FSM_STATE_ADJACENCY, FSM_TRANSITION_MATRIX, FSM_TRANSITION_RULES, getAllowedEvents(), getAllowedNextStates() (+10 more)
+Cohesion: 0.20
+Nodes (24): FSM_ENGINE_CONSTANTS, canTransition(), CIRCUIT_BREAKER_STATES, findTransitionRule(), FSM_ALLOWED_EVENTS, FSM_CONSTANTS, FSM_STATE_ADJACENCY, FSM_TRANSITION_MATRIX (+16 more)
+
+### Community 16 - "DagLevelBatchResolver"
+Cohesion: 0.10
+Nodes (3): DagExecutionError, DagLevelBatchResolver, DagNodeNotFoundError
+
+### Community 17 - "dag.ts"
+Cohesion: 0.12
+Nodes (24): assertAcyclic(), createLevelBatchResolver(), DAG_CONSTANTS, DagExecutionResult, DagExecutionSnapshot, DagExecutionSummary, DagLevelBatch, DagNode (+16 more)
+
+### Community 18 - "resilience.ts"
+Cohesion: 0.16
+Nodes (17): CONSTANTS, QA_VERIFY_COMMANDS, DiagramSyncOptions, CommandRunner, CommandRunnerResult, defaultCommandRunner(), VerificationFailure, VerificationFeedbackOptions (+9 more)
+
+### Community 19 - "LooperEvent"
+Cohesion: 0.27
+Nodes (3): TransitionGuardError, FsmTransitionRule, LooperEvent
+
+### Community 20 - "openspec-cascade"
+Cohesion: 0.20
+Nodes (9): Adapting it, Cross-platform keep-alive, How it works, In-repo skills & project directives, Known limits, openspec-cascade, Requirements, Tests (+1 more)
+
+### Community 21 - "DfsState"
+Cohesion: 0.50
+Nodes (4): DfsState, UNVISITED, VISITED, VISITING
 
 ### Community 22 - "skills.ts"
-Cohesion: 0.08
-Nodes (32): taskPrompt(), 1. Skill Discovery & Data Model, 2. Prompt Injection Format (Indexed Catalog), 3. Centralized Injection Point in `cascade.ts`, Context, Decisions, Design: In-Repo Skills & Context Engine, 1. In-Repo Skills Discovery & Context Injection (+24 more)
-
-### Community 23 - "qa.ts"
 Cohesion: 0.13
-Nodes (16): Investigation State, QA_VERIFY_COMMANDS, Definition of Done, Proposal: QA Verification Stage, Auto-Diagrams & 24/7 Resilience, What Changes, Why, 1. QA Stage, Auto-Diagrams & 24/7 Resilience, Tasks (+8 more)
+Nodes (23): taskPrompt(), 1. Skill Discovery & Data Model, 2. Prompt Injection Format (Indexed Catalog), 3. Centralized Injection Point in `cascade.ts`, Context, Decisions, Design: In-Repo Skills & Context Engine, 1. In-Repo Skills Discovery & Context Injection (+15 more)
+
+### Community 23 - "cascade.test.ts"
+Cohesion: 0.17
+Nodes (9): Task, Definition of Done, Proposal: QA Verification Stage, Auto-Diagrams & 24/7 Resilience, What Changes, Why, 1. QA Stage, Auto-Diagrams & 24/7 Resilience, Tasks, formatVerificationFeedback() (+1 more)
 
 ### Community 24 - "antigravity.ts"
 Cohesion: 0.15
@@ -348,7 +374,7 @@ Nodes (4): ADDED Requirements, In-Repo Skills Specification, Requirement: In-Rep
 
 ### Community 32 - "EngineAdapter"
 Cohesion: 0.12
-Nodes (10): EngineAdapter, Context, Decisions, Design: Centralized Configuration & Engine Adapters, Definition of Done, Proposal: Well-Architected Centralized Configuration & Engine Adapters, What Changes, Why (+2 more)
+Nodes (11): EngineType, EngineAdapter, Context, Decisions, Design: Centralized Configuration & Engine Adapters, Definition of Done, Proposal: Well-Architected Centralized Configuration & Engine Adapters, What Changes (+3 more)
 
 ### Community 33 - "ADDED Requirements"
 Cohesion: 0.25
@@ -367,8 +393,8 @@ Cohesion: 0.06
 Nodes (33): 1.1 Document Metadata & Integrity (Reviewer M1.2), 1.1 Status Header Update (Replace lines 3–4), 1.2 FSM Lifecycle & Escalation Deficiencies (Challenger M1.1), 1.2 Git Clean Invariant Update (Update Section 1.2 Axiom 4, Section 2.2.1, Section 5.2), 1.4 Provider Invariants & Fallbacks (Challenger M1.2 & Reviewer M1.2), 1. Observation, 2.1 State Definitions Update (Section 2.2.1), 2.2 Updated State Transition Matrix (Section 2.2.2) (+25 more)
 
 ### Community 37 - "RollbackStateBuffer"
-Cohesion: 0.09
-Nodes (21): 1.2 Observed Limitations of the Single-Agent Looper, 1.3 Teamwork Multi-Agent Architecture in Practice, 1. Observation, 2.1 The Need for an Orchestrated Multi-Agent Looper, 2.2 Core Engine State Machine & Looper Lifecycle, 2.3.1 Cognitive Role Specialization Matrix, 2.3.2 Autonomous Routing Decision Engine, 2.3 Autonomous Routing & Role Transitions (+13 more)
+Cohesion: 0.12
+Nodes (15): 1.2 Observed Limitations of the Single-Agent Looper, 2.1 The Need for an Orchestrated Multi-Agent Looper, 2.3.1 Cognitive Role Specialization Matrix, 2.3.2 Autonomous Routing Decision Engine, 2.3 Autonomous Routing & Role Transitions, 2.4 Objective Verification Loops: The 4-Tier Gate Architecture, 2.5.1 The File-Based Persistent Memory Hierarchy, 2.5.2 Idempotent Crash Recovery Workflow (+7 more)
 
 ### Community 38 - "PalTurnNormalizer"
 Cohesion: 0.10
@@ -376,7 +402,7 @@ Nodes (14): 3. Caveats, 4. Conclusion, [Critical] Challenge 1 — Cross-Provider
 
 ### Community 40 - "memory.ts"
 Cohesion: 0.09
-Nodes (21): AgentRegistrationOptions, AgentWorkspaceInfo, HeartbeatInspectionResult, HeartbeatRecoveryEvent, HeartbeatStalenessEvent, HeartbeatStatus, HeartbeatWatchdogOptions, InspectAgentHeartbeatOptions (+13 more)
+Nodes (27): AgentRegistrationOptions, AgentWorkspaceInfo, extractSignificantLines(), HeartbeatInspectionResult, HeartbeatRecoveryEvent, HeartbeatStalenessEvent, HeartbeatStatus, HeartbeatWatchdogOptions (+19 more)
 
 ### Community 41 - "GitHub Project #4 Environment & Item Creation Specification"
 Cohesion: 0.09
@@ -387,8 +413,8 @@ Cohesion: 0.10
 Nodes (19): 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, Adversarial Challenge Report, Challenge Summary, Challenges, Coverage Gaps (+11 more)
 
 ### Community 43 - "MemoryStorage"
-Cohesion: 0.17
-Nodes (4): formatHeartbeatContent(), MemoryStorage, touchAgentHeartbeat(), writeBriefingAtomic()
+Cohesion: 0.14
+Nodes (5): createMemoryStorage(), MemoryStorage, readAtomic(), scaffoldDirectories(), StorageError
 
 ### Community 44 - "populate_tasks.ts"
 Cohesion: 0.13
@@ -399,8 +425,8 @@ Cohesion: 0.16
 Nodes (13): classifyFailure(), Hooks, OPENCODE_DEFAULT_MODEL, openCodeAdapter, openCodeModelArg(), OpenCodeOutcome, openCodePermission(), reduceOpenCodeEvent() (+5 more)
 
 ### Community 46 - "memory.test.ts"
-Cohesion: 0.20
-Nodes (13): createHeartbeatWatchdog(), createMemoryStorage(), extractSignificantLines(), fileExists(), isSectionProtected(), mergeProtectedSections(), normalizeSectionTitle(), parseMarkdownSections() (+5 more)
+Cohesion: 0.21
+Nodes (10): assertProtectedSectionsPreserved(), fileExists(), formatHeartbeatContent(), PROTECTED_VIOLATION_TYPES, ProtectedSectionError, STORAGE_CONSTANTS, STORAGE_ERROR_CODES, touchAgentHeartbeat() (+2 more)
 
 ### Community 47 - "normalizer.ts"
 Cohesion: 0.13
@@ -411,8 +437,8 @@ Cohesion: 0.12
 Nodes (15): 1. Observation, 3. Adversarial Challenge & Stress-Testing, 4. Findings & Quality Review Matrix, 5. Verified Claims Table, 6. Coverage Gaps & Unverified Items, 7. Caveats, 8. Conclusion, 9. Verification Method (+7 more)
 
 ### Community 49 - "3. Adversarial Challenges & Mitigations"
-Cohesion: 0.10
-Nodes (17): 1. Observation, 2. Logic Chain, 3. Adversarial Challenges & Mitigations, 4. Empirical Stress Test Results, 5. Caveats, 6. Conclusion, 7. Verification Method, [CRITICAL] Challenge 1: Data-Wiping Rollback Command (+9 more)
+Cohesion: 0.12
+Nodes (15): 1. Observation, 2. Logic Chain, 3. Adversarial Challenges & Mitigations, 4. Empirical Stress Test Results, 5. Caveats, 6. Conclusion, 7. Verification Method, [CRITICAL] Challenge 1: Data-Wiping Rollback Command (+7 more)
 
 ### Community 50 - "auditor_m1_2/handoff.md"
 Cohesion: 0.15
@@ -430,17 +456,17 @@ Nodes (14): 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion & Adversar
 Cohesion: 0.29
 Nodes (6): 2026-10-24T14:28:29Z, DISPATCH — Worker M1.1: Technical Architecture Specification Author, Exclusive Write Ownership, Identity, Mandatory Inputs, Mandatory Integrity Warning
 
-### Community 54 - "inspectAgentHeartbeat"
-Cohesion: 0.40
-Nodes (3): inspectAgentHeartbeat(), parseHeartbeatTimestamp(), readAgentHeartbeat()
+### Community 54 - ".fileExists"
+Cohesion: 0.23
+Nodes (4): inspectAgentHeartbeat(), parseHeartbeatTimestamp(), readAgentHeartbeat(), writeBriefingAtomic()
 
 ### Community 55 - "5. Verification Method"
 Cohesion: 0.15
 Nodes (12): 1.1 Direct File Observations, 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion & Verdict, 5.1 Rollback Exclusion Verification, 5.2 FSM Graph Topology & Transition Completeness, 5.3 Provider Invariants Empirical Simulation Suite (+4 more)
 
 ### Community 56 - "1. Observation"
-Cohesion: 0.15
-Nodes (12): 1.1 Line 768 Formatting Defect in `SPECIFICATION.md`, 1.2 Target Project #4 Schema & Pre-Existing Items, 1.3 Modular Engineering Task Breakdown & Population, 1.4 Generated Local Catalog Files, 1.5 Verification Harness Execution, 1.6 Workspace Build, Test & Lint Health, 1. Observation, 2. Logic Chain (+4 more)
+Cohesion: 0.10
+Nodes (18): 1. Observation, 3. Caveats, 4. Conclusion, 5. Verification Method, Direct Observations & File Artifacts:, Handoff Report — Independent Victory Audit, 1.1 Line 768 Formatting Defect in `SPECIFICATION.md`, 1.2 Target Project #4 Schema & Pre-Existing Items (+10 more)
 
 ### Community 57 - "BRIEFING — 2026-10-24T14:38:00Z"
 Cohesion: 0.17
@@ -515,8 +541,8 @@ Cohesion: 0.22
 Nodes (8): 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5.1 Verification Commands, 5.2 Invalidation Conditions, 5. Verification Method, Handoff Report — Worker M1.2: Specification Remediation Specialist
 
 ### Community 75 - "Master Technical Architecture Specification: Provider-Agnostic Multi-Agent Looper ("Agnostic Looper")"
-Cohesion: 0.05
-Nodes (42): 1.1 Core Objectives & Problem Statement, 1.2 Design Philosophy & Invariants, 1.3 Inspiration from Antigravity Teamwork, 1.4 High-Level System Architecture, 1. Executive Summary & System Vision, 2.1 Event-Driven Finite State Machine (FSM), 2.2.1 State Definitions, 2.2.2 State Transition Matrix (+34 more)
+Cohesion: 0.04
+Nodes (48): 1.1 Core Objectives & Problem Statement, 1.2 Design Philosophy & Invariants, 1.3 Inspiration from Antigravity Teamwork, 1.4 High-Level System Architecture, 1. Executive Summary & System Vision, 2.1 Event-Driven Finite State Machine (FSM), 2.2.1 State Definitions, 2.2.2 State Transition Matrix (+40 more)
 
 ### Community 76 - "Handoff Report — Auditor M1.1: Forensic Integrity Auditor"
 Cohesion: 0.25
@@ -525,10 +551,6 @@ Nodes (7): 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, Fo
 ### Community 77 - "BRIEFING — 2026-10-24T14:44:40Z"
 Cohesion: 0.22
 Nodes (8): Artifact Index, BRIEFING — 2026-10-24T14:44:40Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
-
-### Community 78 - "BRIEFING — 2026-10-24T14:26:00Z"
-Cohesion: 0.25
-Nodes (7): Artifact Index, BRIEFING — 2026-10-24T14:26:00Z, Current Parent, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
 
 ### Community 79 - "BRIEFING — 2026-10-24T14:26:00Z"
 Cohesion: 0.25
@@ -553,10 +575,6 @@ Nodes (8): ADDED Requirements, Purpose, Requirement: Heartbeat Watchdog, Require
 ### Community 85 - "Progress Log"
 Cohesion: 0.25
 Nodes (7): Checklist, Current Status, Iteration Status, Lessons Learned & Process Improvements:, Progress Log, Retrospective Notes, What Worked Well:
-
-### Community 86 - "Handoff Report — Independent Victory Audit"
-Cohesion: 0.29
-Nodes (6): 1. Observation, 3. Caveats, 4. Conclusion, 5. Verification Method, Direct Observations & File Artifacts:, Handoff Report — Independent Victory Audit
 
 ### Community 87 - "DISPATCH — Worker M1.2: Specification Remediation Specialist"
 Cohesion: 0.29
@@ -723,8 +741,8 @@ Cohesion: 0.29
 Nodes (6): ADDED Requirements, Purpose, Requirement: Canonical Schema Normalization, Scenario: Provider emits consecutive assistant or tool turns, Scenario: Thinking blocks are present, Spec Delta: Esquema Canónico de Mensajes y Normalizador Bidireccional
 
 ### Community 129 - "RollbackStateBuffer"
-Cohesion: 0.10
-Nodes (22): 1.1 Existing Single-Agent Looper in `openspec-cascade`, 2.5.2 Idempotent Crash Recovery Workflow, Detailed State Definitions:, DiagramSyncOptions, 5.1 File-Based Memory Hierarchy in `.agents/teamwork/`, 5.2 Working Tree Isolation, Git Snapshotting & Atomic Rollback, 5.3 Context Succession Pattern (The 16-Spawn Rule), 5.4 Idempotent Crash Recovery & Stale Agent Detection (+14 more)
+Cohesion: 0.08
+Nodes (21): Artifact Index, BRIEFING — 2026-10-24T14:26:00Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity (+13 more)
 
 ### Community 130 - "DISPATCH — Auditor M1.1: Forensic Integrity Auditor"
 Cohesion: 0.33
@@ -851,7 +869,7 @@ Cohesion: 0.24
 Nodes (33): 1.1 Direct Empirical Verifications, Phase Results, Objectives, 1.3 PAL Core Interface Contracts & Error Taxonomy (Reviewer M1.2), Key Decisions Made, 1. Observation, 2. Logic Chain, 5. Verification Method (+25 more)
 
 ### Community 173 - "LooperFSM"
-Cohesion: 0.10
+Cohesion: 0.09
 Nodes (10): 1. Implementation & Verification, Tasks: Máquina de Estados Finita (FSM) del Motor Central y Livelock Prevention, StandardGuardOptions, TransitionGuardEntry, LooperFSM, LooperFsmOptions, FsmTransitionGuard, FsmTransitionHook (+2 more)
 
 ### Community 209 - "types.ts"
@@ -862,32 +880,28 @@ Nodes (29): ClaudeContentBlock, ClaudeToolResultBlock, ClaudeToolResultImagePart
 Cohesion: 0.12
 Nodes (23): 1. Observation, Investigation State, 1. Propósito de la tarea, 2. Logic Chain, 2. Logic Chain, Verified Claims, Architectural Pillars:, 2. Logic Chain (+15 more)
 
-### Community 211 - "StorageError"
-Cohesion: 0.18
-Nodes (6): assertProtectedSectionsPreserved(), ProtectedSectionError, readAtomic(), scaffoldDirectories(), StorageError, writeAtomic()
-
 ### Community 213 - "Adversarial Challenge Report"
 Cohesion: 0.25
 Nodes (8): Adversarial Challenge Report, Challenge Summary, Challenges, [High] Challenge 2 — Gemini Tool Call ID Desynchronization in Multi-Tool Turns, [High] Challenge 3 — Thundering Herd 429 Cascade on Rate Limiter Reset, [Medium] Challenge 4 — Context Compaction Tool-Result Orphan Invariant Violation, Stress Test Results, Unchallenged Areas
 
 ## Knowledge Gaps
-- **3 isolated node(s):** `@eslint/js`, `@types/bun`, `typescript`
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1170 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **44 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **6 isolated node(s):** `@eslint/js`, `@types/bun`, `typescript`, `UNVISITED`, `VISITING` (+1 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1194 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **48 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `LooperFSM` connect `LooperFSM` to `.context`, `LooperEvent`, `fsm.ts`, `VictoryAuditLivelockPrevention`, `fsm_types.ts`, `3. Adversarial Challenges & Mitigations`, `Proposal: Máquina de Estados Finita (FSM) del Motor Central y Livelock Prevention`?**
-  _High betweenness centrality (0.045) - this node is a cross-community bridge._
+- **Why does `RollbackStateBuffer` connect `RollbackStateBuffer` to `cascade.ts`, `RollbackStateBuffer`, `IPalProvider`, `Handoff Report — Auditor M1.1: Forensic Integrity Auditor`, `Master Technical Architecture Specification: Provider-Agnostic Multi-Agent Looper ("Agnostic Looper")`, `Handoff Report — Reviewer M1.1: Specification & Architecture Review`, `PalMessage`, `resilience.ts`, `Adversarial Challenge Report`, `cascade.test.ts`?**
+  _High betweenness centrality (0.054) - this node is a cross-community bridge._
 - **Are the 2 inferred relationships involving `LooperFSM` (e.g. with `What Changes` and `1. Implementation & Verification`) actually correct?**
   _`LooperFSM` has 2 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `@eslint/js`, `@types/bun`, `typescript` to the rest of the system?**
-  _3 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _6 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `ADDED Requirements` be split into smaller, more focused modules?**
   _Cohesion score 0.11764705882352941 - nodes in this community are weakly interconnected._
-- **Why does `RollbackStateBuffer` connect `RollbackStateBuffer` to `cascade.ts`, `RollbackStateBuffer`, `IPalProvider`, `Handoff Report — Auditor M1.1: Forensic Integrity Auditor`, `Master Technical Architecture Specification: Provider-Agnostic Multi-Agent Looper ("Agnostic Looper")`, `Handoff Report — Reviewer M1.1: Specification & Architecture Review`, `PalMessage`, `Adversarial Challenge Report`, `qa.ts`?**
-  _High betweenness centrality (0.039) - this node is a cross-community bridge._
+- **Why does `EngineAdapter` connect `EngineAdapter` to `cascade.ts`, `RollbackStateBuffer`, `engine.ts`, `OpenSpec Cascade Agent Guidelines & Quality Standards`, `opencode.ts`, `PalMessage`, `OpenSpec Cascade Agent Guidelines & Quality Standards`, `OpenSpec Cascade Agent Guidelines & Quality Standards`, `antigravity.ts`, `3. Comprehensive PAL Specification & Interface Contracts`, `OpenSpec Cascade Agent Guidelines & Quality Standards`?**
+  _High betweenness centrality (0.041) - this node is a cross-community bridge._
 - **Are the 19 inferred relationships involving `RollbackStateBuffer` (e.g. with `1. Observation` and `Phase Results`) actually correct?**
   _`RollbackStateBuffer` has 19 INFERRED edges - model-reasoned connections that need verification._
 - **Should `package.json` be split into smaller, more focused modules?**
