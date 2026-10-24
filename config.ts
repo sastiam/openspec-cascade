@@ -357,9 +357,9 @@ export function loadConfig(options: LoadConfigOptions = {}): CascadeConfig {
   if (overrides.changes) {
     changes = [...overrides.changes];
   } else if (cliOpts.changes !== undefined) {
-    changes = cliOpts.changes.split(",").map((c) => c.trim()).filter(Boolean);
+    changes = cliOpts.changes.split(",").map((c) => c.replace(/\s+/g, "")).filter(Boolean);
   } else if (env.CASCADE_CHANGES !== undefined) {
-    changes = env.CASCADE_CHANGES.split(",").map((c) => c.trim()).filter(Boolean);
+    changes = env.CASCADE_CHANGES.split(",").map((c) => c.replace(/\s+/g, "")).filter(Boolean);
   } else {
     changes = [];
   }
