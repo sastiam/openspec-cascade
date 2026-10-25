@@ -1,23 +1,23 @@
 # Graph Report - openspec-cascade  (2026-10-24)
 
 ## Corpus Check
-- 259 files · ~417,179 words
+- 272 files · ~439,901 words
 - Verdict: corpus is large enough that graph structure adds value.
-- Unclassified: 5 file(s) not represented in the graph (top: (none) 4, .lock 1)
+- Unclassified: 6 file(s) not represented in the graph (top: (none) 4, .xml 1, .lock 1)
 
 ## Summary
-- 2995 nodes · 6001 edges · 245 communities (196 shown, 49 thin omitted)
-- Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 404 edges (avg confidence: 0.94)
+- 3151 nodes · 6499 edges · 229 communities (182 shown, 47 thin omitted)
+- Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 408 edges (avg confidence: 0.94)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `8b61c938`
+- Built from commit: `03863f7b`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - cascade.ts
-- engine.ts
+- gate2_challenger.ts
 - ADDED Requirements
 - package.json
 - .context
@@ -35,25 +35,25 @@
 - DagLevelBatchResolver
 - dag.ts
 - gemini.ts
-- GeminiNdjsonStreamReducer
+- gate2_synthesis.ts
 - roles.ts
-- DfsState
+- Gate2AssertionInjector
 - skills.ts
-- cascade.test.ts
+- resilience.ts
 - antigravity.ts
-- DispatcherError
+- openspec-cascade
 - 3. Comprehensive PAL Specification & Interface Contracts
 - escalation.ts
 - Requirement: Cross-Platform Process Keep-Alive
 - Proposal: Cross-Platform Keep-Alive and Engine Integration
 - Proposal: In-Repo Skills & Context Engine
 - ADDED Requirements
-- adapters/opencode.ts
+- normalizer.ts
 - ADDED Requirements
 - ADDED Requirements
 - Design: QA Stage, Auto-Diagrams & 24/7 Resilience
 - Blueprint 2: Looper FSM Architecture, State Machine & Escalation Ladder
-- BRIEFING — 2026-10-24T14:26:00Z
+- RollbackStateBuffer
 - PalToolDefinition
 - HeartbeatWatchdog
 - memory.ts
@@ -63,14 +63,14 @@
 - populate_tasks.ts
 - 1. Implementation & Verification
 - memory.test.ts
-- normalizer.ts
+- gate2_injector.ts
 - Handoff Report — Reviewer M1.1: Specification & Architecture Review
 - 3. Adversarial Challenges & Mitigations
 - auditor_m1_2/handoff.md
 - 1. Observation
 - Handoff Report — Challenger M1.2: Provider Invariants & Resilience Challenger
 - DISPATCH — Worker M1.1: Technical Architecture Specification Author
-- inspectAgentHeartbeat
+- .fileExists
 - 5. Verification Method
 - 1. Observation
 - BRIEFING — 2026-10-24T14:38:00Z
@@ -94,15 +94,15 @@
 - 4. Provider Abstraction Layer (PAL) Interface Contracts
 - Handoff Report — Auditor M1.1: Forensic Integrity Auditor
 - BRIEFING — 2026-10-24T14:44:40Z
-- adapters/claude.ts
+- types.ts
 - BRIEFING — 2026-10-24T14:26:00Z
 - BRIEFING — 2026-10-24T14:26:00Z
 - BRIEFING — 2026-10-24T15:33:30Z
 - Phases
 - ADDED Requirements
-- DagValidationError
+- .addEdge
 - Progress Log
-- PalStreamEvent
+- Dispatch Manifest: reviewer_INTEG-RUN-001
 - DISPATCH — Worker M1.2: Specification Remediation Specialist
 - DISPATCH — Worker M2.1: GitHub Project #4 Task Breakdown & Population Specialist
 - Design: Planificador de Tareas DAG y Resolutor Topológico de Dependencias
@@ -136,7 +136,7 @@
 - Design: Jerarquía de Memoria Persistente en FS y Watchdog de Heartbeats
 - Proposal: Jerarquía de Memoria Persistente en FS y Watchdog de Heartbeats
 - OpenSpec Cascade Agent Guidelines & Quality Standards
-- 2. Looper Engine Architecture & Lifecycle
+- DagNodeNotFoundError
 - Sentinel Handoff Report: Agnostic Multi-Agent Looper
 - Hard Handoff Report: Provider-Agnostic Multi-Agent Looper Orchestration
 - OpenCodeAdapter
@@ -169,9 +169,9 @@
 - Spec Delta: Adaptador de Proveedor Anthropic Claude con Extended Thinking
 - Spec Delta: Adaptador Google Gemini y Antigravity con Streaming NDJSON
 - Spec Delta: Adaptador OpenCode / Modelos Locales, Puente MCP y Parser ReAct
-- PalError
+- normalizer.test.ts
 - Gate Status
-- 3. Comprehensive PAL Specification & Interface Contracts
+- Agent Briefing: reviewer_INTEG-RUN-001
 - Progress — Auditor M1.1 (Forensic Integrity Auditor)
 - Progress — Auditor M1.2
 - Progress — Auditor M2.1
@@ -193,13 +193,13 @@
 - Tasks: Enrutador Autónomo, Escalera de 6 Peldaños y Sucesión
 - SubagentDispatcher
 - Tasks: Gate 0: Ejecutor de QA Mecánico Automatizado y Formateador de Trazas
-- Gate1Reviewer
-- Tasks: Gate 2: Motor de Fuzzing y Desafío Adversarial Red-Team
+- Gate 1 Semantic Code Review Report
+- Gate2Challenger
 - Tasks: Gate 3: Auditoría Forense de Integridad, Anti-Cheat y Buffer de Rollback
 - Tasks: Generador de Catálogo Local de Tareas y Sincronizador Bidireccional
 - Tasks: Servicio de Integración con GitHub Project #4 vía GraphQL y gh CLI
 - Tasks: Esquema Canónico de Mensajes y Normalizador Bidireccional
-- PalTurnNormalizer
+- Gate 1 Semantic Code Review Report
 - GeminiAdapter
 - Tasks: Jerarquía de Memoria Persistente en FS y Watchdog de Heartbeats
 - challenger_m1_3/progress.md
@@ -226,53 +226,37 @@
 - 4. Criterios de completitud / Definition of Done
 - run_looper.sh
 - EngineAdapter
-- PalMessage
+- Handoff Report — Worker M1.1: Technical Architecture Specification Author
 - OpenSpec Cascade Agent Guidelines & Quality Standards
 - OpenSpec Cascade Agent Guidelines & Quality Standards
 - Adversarial Challenge Report
 - OpenSpec Cascade Agent Guidelines & Quality Standards
-- .processParsedJson
-- GeminiStreamChunkParser
+- Progress Telemetry: reviewer_INTEG-RUN-001
 - DynamicEscalationLadder
-- Findings
-- gate1_feedback.ts
 - gate1_review.ts
 - FailureClassifier
-- gate1_rubric.ts
 - .handleFailure
-- types.ts
 - config.ts
 - Decisions
 - ProcessSignalTarget
 - EscalationBlockedError
-- resilience.ts
+- diagrams.ts
 - KeepAliveChildProcess
-- opencode.ts
-- InMemoryMcpClient
-- repairJsonArguments
-- AgentContextSnapshot
-- 5. State Persistence, Resilience & Fault Tolerance
-- StorageError
-- auditor_m1_2/handoff.md
-- captureContextSnapshot
-- Proposal: QA Verification Stage, Auto-Diagrams & 24/7 Resilience
-- 2.6 Fault Tolerance, Liveness & Context Succession
+- engine.ts
+- snapshot.ts
 - 1. Implementation & Verification
-- 1. Implementation & Verification
-- 1. Implementation & Verification
-- Gate1BoundaryCheckResult
 
 ## God Nodes (most connected - your core abstractions)
 1. `LooperFSM` - 70 edges
 2. `Catálogo de Tareas — Agnostic Multi-Agent Looper` - 68 edges
 3. `PalStreamEvent` - 55 edges
-4. `SubagentDispatcher` - 50 edges
+4. `SubagentDispatcher` - 52 edges
 5. `DirectedAcyclicGraph` - 45 edges
 6. `PalError` - 41 edges
 7. `DynamicEscalationLadder` - 39 edges
-8. `DagLevelBatchResolver` - 37 edges
-9. `LooperState` - 37 edges
-10. `PalSessionOptions` - 37 edges
+8. `LooperState` - 39 edges
+9. `PalSessionOptions` - 39 edges
+10. `IPalProvider` - 39 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `Goals / Non-Goals` --references--> `runAntigravitySession()`  [INFERRED]
@@ -289,15 +273,15 @@
 ## Import Cycles
 - 3-file cycle: `src/gates/gate1_feedback.ts -> src/gates/gate1_rubric.ts -> src/gates/gate1_review.ts -> src/gates/gate1_feedback.ts`
 
-## Communities (245 total, 49 thin omitted)
+## Communities (229 total, 47 thin omitted)
 
 ### Community 0 - "cascade.ts"
-Cohesion: 0.16
-Nodes (34): describeToolInput(), oneLine(), blockedReason(), blockingMeters(), commit(), commitsPerSection(), commitTypeOf(), config (+26 more)
+Cohesion: 0.14
+Nodes (35): 1.2 Observed Limitations of the Single-Agent Looper, describeToolInput(), oneLine(), blockedReason(), blockingMeters(), commit(), commitsPerSection(), commitTypeOf() (+27 more)
 
-### Community 1 - "engine.ts"
-Cohesion: 0.21
-Nodes (12): antigravityAdapter, claudeAdapter, claudeAgentOptions(), readClaudeUsage(), runClaudeSession(), toEpochMs(), CascadeConfig, engineAdapters (+4 more)
+### Community 1 - "gate2_challenger.ts"
+Cohesion: 0.13
+Nodes (26): createGate2Challenger(), defaultProbeRunner(), escapeXml(), extractProbeErrorTrace(), formatChallengeReportMarkdown(), formatChallengerPrompt(), GATE2_CONSTANTS, Gate2ChallengeReport (+18 more)
 
 ### Community 2 - "ADDED Requirements"
 Cohesion: 0.12
@@ -312,8 +296,8 @@ Cohesion: 0.07
 Nodes (21): Check for context, Ending Discovery, Guardrails, Handling Different Entry Points, OpenSpec Awareness, Planning a Change, The Stance, What You Don't Have To Do (+13 more)
 
 ### Community 5 - "LooperEvent"
-Cohesion: 0.14
-Nodes (5): TransitionGuardError, FsmSnapshot, FsmTransitionRule, LooperEvent, LooperFsmContext
+Cohesion: 0.13
+Nodes (7): TransitionGuardError, FsmSnapshot, FsmTransitionRule, isTerminalState(), LooperEvent, LooperFsmContext, Gate2StructuredFeedback
 
 ### Community 6 - "compilerOptions"
 Cohesion: 0.18
@@ -344,56 +328,52 @@ Cohesion: 0.25
 Nodes (23): createDefaultFsmContext(), FSM_ENGINE_CONSTANTS, allTasksDoneGuard, createGate0ExhaustedGuard(), createGate0RetryGuard(), createGate1RejectGuard(), createGate1ReviseGuard(), createGate2BreakGuard() (+15 more)
 
 ### Community 13 - "VictoryAuditLivelockPrevention"
-Cohesion: 0.14
-Nodes (5): CircuitBreakerState, TriageEvaluationResult, VictoryAuditFailureRecord, VictoryAuditLivelockOptions, VictoryAuditLivelockPrevention
+Cohesion: 0.12
+Nodes (6): CircuitBreakerState, TriageEvaluationOptions, TriageEvaluationResult, VictoryAuditFailureRecord, VictoryAuditLivelockOptions, VictoryAuditLivelockPrevention
 
 ### Community 14 - "fsm_types.ts"
-Cohesion: 0.18
-Nodes (18): canTransition(), findTransitionRule(), FSM_ALLOWED_EVENTS, FSM_STATE_ADJACENCY, FSM_TRANSITION_MATRIX, FSM_TRANSITION_RULES, getAllowedEvents(), getAllowedNextStates() (+10 more)
-
-### Community 16 - "DagLevelBatchResolver"
-Cohesion: 0.10
-Nodes (3): DagExecutionError, DagLevelBatchResolver, DagNodeNotFoundError
+Cohesion: 0.19
+Nodes (17): canTransition(), findTransitionRule(), FSM_ALLOWED_EVENTS, FSM_STATE_ADJACENCY, FSM_TRANSITION_MATRIX, FSM_TRANSITION_RULES, getAllowedEvents(), getAllowedNextStates() (+9 more)
 
 ### Community 17 - "dag.ts"
-Cohesion: 0.12
-Nodes (24): assertAcyclic(), createLevelBatchResolver(), DAG_CONSTANTS, DagExecutionResult, DagExecutionSnapshot, DagExecutionSummary, DagLevelBatch, DagNode (+16 more)
+Cohesion: 0.10
+Nodes (28): assertAcyclic(), createLevelBatchResolver(), DAG_CONSTANTS, DagExecutionResult, DagExecutionSnapshot, DagExecutionSummary, DagLevelBatch, DagNode (+20 more)
 
 ### Community 18 - "gemini.ts"
-Cohesion: 0.10
-Nodes (29): ANTIGRAVITY_RATE_LIMIT_REGEX, ANTIGRAVITY_UNRECOVERABLE_REGEX, AntigravityCliArgsOptions, antigravityEffortArg(), antigravityModelArg(), AntigravitySpawnedProcess, AntigravitySubprocessOptions, AntigravitySubprocessSpawnFn (+21 more)
+Cohesion: 0.05
+Nodes (53): accumulateNdjsonTokenUsage(), ANTIGRAVITY_RATE_LIMIT_REGEX, ANTIGRAVITY_UNRECOVERABLE_REGEX, AntigravityCliArgsOptions, antigravityEffortArg(), antigravityModelArg(), AntigravitySpawnedProcess, AntigravitySubprocessOptions (+45 more)
 
-### Community 19 - "GeminiNdjsonStreamReducer"
+### Community 19 - "gate2_synthesis.ts"
 Cohesion: 0.18
-Nodes (4): createInitialNdjsonReducerState(), GeminiNdjsonStreamReducer, ndjsonStateToPalMessage(), reduceNdjsonStream()
+Nodes (20): Gate2ExecutionContext, Gate2ProbeDefinition, createEdgeCaseSynthesizer(), EdgeCaseCategory, estimateParamCount(), extractTargetFileExports(), GATE2_SYNTHESIS_CONSTANTS, Gate2EdgeCaseSynthesizer (+12 more)
 
 ### Community 20 - "roles.ts"
-Cohesion: 0.11
-Nodes (29): discoverAvailableSkills(), ALL_COGNITIVE_ROLES, BriefingOptions, canRoleDispatch(), COGNITIVE_ROLE_MATRIX, DispatchOptions, formatBriefingContent(), formatDispatchContent() (+21 more)
+Cohesion: 0.15
+Nodes (28): generateAgentId(), ALL_COGNITIVE_ROLES, BriefingOptions, canRoleDispatch(), COGNITIVE_ROLE_MATRIX, DispatchOptions, formatBriefingContent(), formatDispatchContent() (+20 more)
 
-### Community 21 - "DfsState"
-Cohesion: 0.50
-Nodes (4): DfsState, UNVISITED, VISITED, VISITING
+### Community 21 - "Gate2AssertionInjector"
+Cohesion: 0.14
+Nodes (5): createTestingSandbox(), Gate2AssertionInjector, Gate2InjectionError, sanitizeProbeName(), TestingSandbox
 
 ### Community 22 - "skills.ts"
-Cohesion: 0.08
-Nodes (32): taskPrompt(), 1. Skill Discovery & Data Model, 2. Prompt Injection Format (Indexed Catalog), 3. Centralized Injection Point in `cascade.ts`, Context, Decisions, Design: In-Repo Skills & Context Engine, 1. In-Repo Skills Discovery & Context Injection (+24 more)
+Cohesion: 0.11
+Nodes (24): taskPrompt(), 1. Skill Discovery & Data Model, 2. Prompt Injection Format (Indexed Catalog), 3. Centralized Injection Point in `cascade.ts`, Context, Decisions, Design: In-Repo Skills & Context Engine, 1. In-Repo Skills Discovery & Context Injection (+16 more)
 
-### Community 23 - "cascade.test.ts"
-Cohesion: 0.15
-Nodes (20): CONSTANTS, QA_VERIFY_COMMANDS, ArchifyTarget, buildArchifyCommand(), BuildArchifyCommandOptions, DiagramStepResult, DiagramSyncResult, discoverArchifyTargets() (+12 more)
+### Community 23 - "resilience.ts"
+Cohesion: 0.11
+Nodes (23): QA_VERIFY_COMMANDS, Definition of Done, Proposal: QA Verification Stage, Auto-Diagrams & 24/7 Resilience, What Changes, Why, 1. QA Stage, Auto-Diagrams & 24/7 Resilience, Tasks, CommandRunner (+15 more)
 
 ### Community 24 - "antigravity.ts"
-Cohesion: 0.15
-Nodes (18): ANTIGRAVITY_DEFAULT_MODEL, antigravityEffortArg(), antigravityModelArg(), AntigravityOutcome, AntigravityTokenUsage, buildAntigravityArgs(), classifyFailure(), estimateCostUsd() (+10 more)
+Cohesion: 0.14
+Nodes (19): ANTIGRAVITY_DEFAULT_MODEL, antigravityAdapter, antigravityEffortArg(), antigravityModelArg(), AntigravityOutcome, AntigravityTokenUsage, buildAntigravityArgs(), classifyFailure() (+11 more)
 
-### Community 25 - "DispatcherError"
-Cohesion: 0.20
-Nodes (5): AgentNotFoundError, DispatcherError, InvalidSubagentStateError, MaxConcurrencyExceededError, OrchestratorSuccessionLimitError
+### Community 25 - "openspec-cascade"
+Cohesion: 0.22
+Nodes (8): Adapting it, Cross-platform keep-alive, How it works, Known limits, openspec-cascade, Requirements, Tests, Usage
 
 ### Community 26 - "3. Comprehensive PAL Specification & Interface Contracts"
-Cohesion: 0.10
-Nodes (21): 1. Propósito de la tarea, 1. Propósito de la tarea, 1. Propósito de la tarea, 1. Propósito de la tarea, 2. Qué se espera lograr, 2. Qué se espera lograr, 2. Qué se espera lograr, 2. Qué se espera lograr (+13 more)
+Cohesion: 0.05
+Nodes (39): 1. Observation, 1. Propósito de la tarea, 1. Propósito de la tarea, 1. Propósito de la tarea, 1. Propósito de la tarea, 2. Qué se espera lograr, 2. Qué se espera lograr, 2. Qué se espera lograr (+31 more)
 
 ### Community 27 - "escalation.ts"
 Cohesion: 0.07
@@ -415,9 +395,9 @@ Nodes (4): Definition of Done, Proposal: In-Repo Skills & Context Engine, What C
 Cohesion: 0.40
 Nodes (4): ADDED Requirements, In-Repo Skills Specification, Requirement: In-Repo Skill Discovery and Injection, Scenario: Session initialization
 
-### Community 32 - "adapters/opencode.ts"
-Cohesion: 0.10
-Nodes (41): ActiveStreamingToolCall, buildOpenCodeCliArgs(), classifyOpenCodeFailure(), createOpenCodeAdapter(), formatOpenAiToolChoice(), formatOpenAiTools(), formatSessionPromptForCli(), isReadableStream() (+33 more)
+### Community 32 - "normalizer.ts"
+Cohesion: 0.06
+Nodes (75): ActiveStreamingToolCall, buildOpenCodeCliArgs(), classifyOpenCodeFailure(), createOpenCodeAdapter(), formatOpenAiToolChoice(), formatOpenAiTools(), formatSessionPromptForCli(), isReadableStream() (+67 more)
 
 ### Community 33 - "ADDED Requirements"
 Cohesion: 0.25
@@ -435,17 +415,17 @@ Nodes (3): Context, Decisions, Design: QA Stage, Auto-Diagrams & 24/7 Resilience
 Cohesion: 0.06
 Nodes (33): 1.1 Document Metadata & Integrity (Reviewer M1.2), 1.1 Status Header Update (Replace lines 3–4), 1.2 FSM Lifecycle & Escalation Deficiencies (Challenger M1.1), 1.2 Git Clean Invariant Update (Update Section 1.2 Axiom 4, Section 2.2.1, Section 5.2), 1.4 Provider Invariants & Fallbacks (Challenger M1.2 & Reviewer M1.2), 1. Observation, 2.1 State Definitions Update (Section 2.2.1), 2.2 Updated State Transition Matrix (Section 2.2.2) (+25 more)
 
-### Community 37 - "BRIEFING — 2026-10-24T14:26:00Z"
-Cohesion: 0.22
-Nodes (8): Artifact Index, BRIEFING — 2026-10-24T14:26:00Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
+### Community 37 - "RollbackStateBuffer"
+Cohesion: 0.09
+Nodes (18): Artifact Index, BRIEFING — 2026-10-24T14:26:00Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity (+10 more)
 
 ### Community 38 - "PalToolDefinition"
-Cohesion: 0.09
-Nodes (9): createPalToolDispatcher(), McpToolBridge, PalToolDispatcher, PalToolDispatcherOptions, RegisteredMcpTool, RegisteredTool, PalToolCallContent, PalToolDefinition (+1 more)
+Cohesion: 0.08
+Nodes (22): 1. Observation, Investigation State, 1. Propósito de la tarea, 2. Logic Chain, 2. Logic Chain, Verified Claims, Architectural Pillars:, Objective & Task Instructions (+14 more)
 
 ### Community 40 - "memory.ts"
-Cohesion: 0.09
-Nodes (22): AgentRegistrationOptions, AgentWorkspaceInfo, createMemoryStorage(), HeartbeatInspectionResult, HeartbeatRecoveryEvent, HeartbeatStalenessEvent, HeartbeatStatus, HeartbeatWatchdogOptions (+14 more)
+Cohesion: 0.10
+Nodes (21): AgentRegistrationOptions, AgentWorkspaceInfo, HeartbeatInspectionResult, HeartbeatRecoveryEvent, HeartbeatStalenessEvent, HeartbeatStatus, HeartbeatWatchdogOptions, InspectAgentHeartbeatOptions (+13 more)
 
 ### Community 41 - "GitHub Project #4 Environment & Item Creation Specification"
 Cohesion: 0.09
@@ -456,32 +436,32 @@ Cohesion: 0.10
 Nodes (19): 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, Adversarial Challenge Report, Challenge Summary, Challenges, Coverage Gaps (+11 more)
 
 ### Community 43 - "MemoryStorage"
-Cohesion: 0.16
-Nodes (5): SubagentDispatcherOptions, formatHeartbeatContent(), MemoryStorage, touchAgentHeartbeat(), writeBriefingAtomic()
+Cohesion: 0.15
+Nodes (4): SubagentDispatcherOptions, MemoryStorage, scaffoldDirectories(), StorageError
 
 ### Community 44 - "populate_tasks.ts"
 Cohesion: 0.13
 Nodes (16): json, looperItems, required, res, fetchExistingProjectItems(), ProjectItemNode, run(), setItemField() (+8 more)
 
 ### Community 46 - "memory.test.ts"
-Cohesion: 0.20
-Nodes (14): assertProtectedSectionsPreserved(), createHeartbeatWatchdog(), extractSignificantLines(), fileExists(), isSectionProtected(), mergeProtectedSections(), normalizeSectionTitle(), parseMarkdownSections() (+6 more)
+Cohesion: 0.15
+Nodes (17): assertProtectedSectionsPreserved(), createHeartbeatWatchdog(), createMemoryStorage(), extractSignificantLines(), fileExists(), formatHeartbeatContent(), isSectionProtected(), mergeProtectedSections() (+9 more)
 
-### Community 47 - "normalizer.ts"
-Cohesion: 0.10
-Nodes (42): DEFAULT_IMAGE_MIME_TYPE, formatGeminiResponse(), normalizeToolCallToClaude(), normalizeToolCallToGemini(), normalizeToolCallToOpenAi(), normalizeToolResultToClaude(), normalizeToolResultToGemini(), normalizeToolResultToOpenAi() (+34 more)
+### Community 47 - "gate2_injector.ts"
+Cohesion: 0.11
+Nodes (20): Gate2AttackVector, Gate2ChallengerOptions, Gate2ProbeRunner, AssertionInjectionResult, createAssertionInjector(), extractProbeErrorTrace(), formatAssertionReportMarkdown(), Gate2AssertionInjectorOptions (+12 more)
 
 ### Community 48 - "Handoff Report — Reviewer M1.1: Specification & Architecture Review"
 Cohesion: 0.12
 Nodes (15): 1. Observation, 3. Adversarial Challenge & Stress-Testing, 4. Findings & Quality Review Matrix, 5. Verified Claims Table, 6. Coverage Gaps & Unverified Items, 7. Caveats, 8. Conclusion, 9. Verification Method (+7 more)
 
 ### Community 49 - "3. Adversarial Challenges & Mitigations"
-Cohesion: 0.12
+Cohesion: 0.13
 Nodes (16): 1. Observation, 2. Logic Chain, 3. Adversarial Challenges & Mitigations, 4. Empirical Stress Test Results, 5. Caveats, 6. Conclusion, 7. Verification Method, [CRITICAL] Challenge 1: Data-Wiping Rollback Command (+8 more)
 
 ### Community 50 - "auditor_m1_2/handoff.md"
-Cohesion: 0.29
-Nodes (7): 1. Observation, 2.1 The Line 768 Stray Code Fence Disruption, 2.2 Why Worker M1.2's Test Missed It, 2.3 Required Remediation (Single-Line Delete), 2. Adversarial Review & Critical Document Formatting Defect, Forensic Audit Report, Handoff Report — Auditor M1.2: Forensic Integrity Auditor (Iteration 2)
+Cohesion: 0.15
+Nodes (12): 1. Observation, 2.1 The Line 768 Stray Code Fence Disruption, 2.2 Why Worker M1.2's Test Missed It, 2.3 Required Remediation (Single-Line Delete), 2. Adversarial Review & Critical Document Formatting Defect, Forensic Audit Report, Handoff Report — Auditor M1.2: Forensic Integrity Auditor (Iteration 2), Must exit with code 0 (203 passing tests, 0 TS errors, 0 linter errors) (+4 more)
 
 ### Community 51 - "1. Observation"
 Cohesion: 0.13
@@ -495,9 +475,9 @@ Nodes (14): 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion & Adversar
 Cohesion: 0.29
 Nodes (6): 2026-10-24T14:28:29Z, DISPATCH — Worker M1.1: Technical Architecture Specification Author, Exclusive Write Ownership, Identity, Mandatory Inputs, Mandatory Integrity Warning
 
-### Community 54 - "inspectAgentHeartbeat"
-Cohesion: 0.29
-Nodes (3): inspectAgentHeartbeat(), parseHeartbeatTimestamp(), readAgentHeartbeat()
+### Community 54 - ".fileExists"
+Cohesion: 0.23
+Nodes (4): inspectAgentHeartbeat(), parseHeartbeatTimestamp(), readAgentHeartbeat(), writeBriefingAtomic()
 
 ### Community 55 - "5. Verification Method"
 Cohesion: 0.15
@@ -540,8 +520,8 @@ Cohesion: 0.17
 Nodes (11): Artifact Index, BRIEFING — 2026-10-24T15:18:00Z, Change Tracker, Current Parent, 🔒 Key Constraints, Key Decisions Made, Loaded Skills, Mission (+3 more)
 
 ### Community 65 - "Master Technical Architecture Specification: Provider-Agnostic Multi-Agent Looper ("Agnostic Looper")"
-Cohesion: 0.10
-Nodes (19): 1.1 Core Objectives & Problem Statement, 1.2 Design Philosophy & Invariants, 1.3 Inspiration from Antigravity Teamwork, 1.4 High-Level System Architecture, 1. Executive Summary & System Vision, 3.1 The "Harness as Oracle" Axiom, 3.2 Gate 0: Automated Oracle / Mechanical QA Checks, 3.3 Gate 1: Independent Semantic Code Review (+11 more)
+Cohesion: 0.07
+Nodes (29): 1.1 Core Objectives & Problem Statement, 1.2 Design Philosophy & Invariants, 1.3 Inspiration from Antigravity Teamwork, 1.4 High-Level System Architecture, 1. Executive Summary & System Vision, 2.1 Event-Driven Finite State Machine (FSM), 2.2.1 State Definitions, 2.2.2 State Transition Matrix (+21 more)
 
 ### Community 66 - "BRIEFING — 2026-10-24T14:41:00Z"
 Cohesion: 0.18
@@ -591,9 +571,9 @@ Nodes (7): 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, Fo
 Cohesion: 0.22
 Nodes (8): Artifact Index, BRIEFING — 2026-10-24T14:44:40Z, Current Parent, Investigation State, 🔒 Key Constraints, Key Decisions Made, Mission, 🔒 My Identity
 
-### Community 78 - "adapters/claude.ts"
-Cohesion: 0.11
-Nodes (19): ActiveContentBlock, CLAUDE_ADAPTER_CONSTANTS, ClaudeAdapter, claudePalAdapter, ClaudeStreamChunkParserOptions, countCacheBreakpoints(), createClaudeAdapter(), formatClaudeToolChoice() (+11 more)
+### Community 78 - "types.ts"
+Cohesion: 0.05
+Nodes (50): Coverage Gaps, 2. Logic Chain, ActiveContentBlock, calculateClaudeTokenUsage(), CLAUDE_ADAPTER_CONSTANTS, ClaudeAdapter, claudePalAdapter, ClaudeStreamChunkParser (+42 more)
 
 ### Community 79 - "BRIEFING — 2026-10-24T14:26:00Z"
 Cohesion: 0.25
@@ -619,9 +599,9 @@ Nodes (8): ADDED Requirements, Purpose, Requirement: Heartbeat Watchdog, Require
 Cohesion: 0.25
 Nodes (7): Checklist, Current Status, Iteration Status, Lessons Learned & Process Improvements:, Progress Log, Retrospective Notes, What Worked Well:
 
-### Community 86 - "PalStreamEvent"
-Cohesion: 0.16
-Nodes (9): calculateClaudeTokenUsage(), ClaudeStreamChunkParser, isRecord(), mapClaudeStopReason(), parseClaudeStream(), parseClaudeStreamChunk(), GeminiNdjsonStreamReducerOptions, GeminiStreamChunkParserOptions (+1 more)
+### Community 86 - "Dispatch Manifest: reviewer_INTEG-RUN-001"
+Cohesion: 0.29
+Nodes (6): Allowed Permissions Summary, Assigned Mission, Authorized Target Scope, Dispatch Manifest: reviewer_INTEG-RUN-001, Injected Skills, Role & Archetype
 
 ### Community 87 - "DISPATCH — Worker M1.2: Specification Remediation Specialist"
 Cohesion: 0.29
@@ -755,10 +735,6 @@ Nodes (7): Capabilities, Impact, Modified Capabilities, New Capabilities, Propos
 Cohesion: 0.33
 Nodes (5): 1. Planning & Conceptual Understanding First, 2. Clean Code & Well-Architected Principles, 3. In-Repo Skills & Directives Compliance, 5. Autonomous QA Stage & Self-Verification, OpenSpec Cascade Agent Guidelines & Quality Standards
 
-### Community 120 - "2. Looper Engine Architecture & Lifecycle"
-Cohesion: 0.22
-Nodes (9): 2.1 Event-Driven Finite State Machine (FSM), 2.2.1 State Definitions, 2.2.2 State Transition Matrix, 2.2.3 Victory Audit Livelock Elimination Protocol, 2.2 FSM State Definitions & Transition Matrix, 2.3 Autonomous Task Routing Engine, 2.4 Cognitive Role Specialization Matrix (6 Tiers), 2.5 Dynamic Escalation Ladder (6 Rungs) (+1 more)
-
 ### Community 121 - "Sentinel Handoff Report: Agnostic Multi-Agent Looper"
 Cohesion: 0.29
 Nodes (6): 1. Observation, 2. Logic Chain, 3. Caveats, 4. Conclusion, 5. Verification Method, Sentinel Handoff Report: Agnostic Multi-Agent Looper
@@ -768,8 +744,8 @@ Cohesion: 0.29
 Nodes (6): 1. Observation, 2. Logic Chain, 3. Caveats & Assumptions, 4. Conclusion, 5. Verification Method, Hard Handoff Report: Provider-Agnostic Multi-Agent Looper Orchestration
 
 ### Community 123 - "OpenCodeAdapter"
-Cohesion: 0.16
-Nodes (6): calculateOpenAiTokenUsage(), isRecord(), OpenCodeAdapter, parseOpenAiError(), parseOpenAiRateLimitHeaders(), PalProviderName
+Cohesion: 0.10
+Nodes (7): calculateOpenAiTokenUsage(), isRecord(), OpenCodeAdapter, OpenCodeStreamChunkParser, parseOpenAiError(), parseOpenAiStream(), McpToolBridge
 
 ### Community 124 - "Requirement: Topological Dependency Sorting"
 Cohesion: 0.29
@@ -789,11 +765,11 @@ Nodes (6): ADDED Requirements, Purpose, Requirement: Canonical Schema Normalizat
 
 ### Community 128 - "dispatcher.ts"
 Cohesion: 0.10
-Nodes (40): AgentFilter, DISPATCHER_CONSTANTS, generateAgentId(), InterAgentMessage, SandboxAccessViolationError, SandboxCleanupOptions, SubagentDispatchOptions, SubagentInstance (+32 more)
+Nodes (29): AgentFilter, AgentNotFoundError, createSubagentDispatcher(), discoverAvailableSkills(), DISPATCHER_CONSTANTS, DispatcherError, InterAgentMessage, InvalidSubagentStateError (+21 more)
 
 ### Community 129 - "RollbackStateBuffer"
 Cohesion: 0.09
-Nodes (18): 2.1 The Need for an Orchestrated Multi-Agent Looper, 2.2 Core Engine State Machine & Looper Lifecycle, 2.3.1 Cognitive Role Specialization Matrix, 2.3.2 Autonomous Routing Decision Engine, 2.3 Autonomous Routing & Role Transitions, 2.4 Objective Verification Loops: The 4-Tier Gate Architecture, 2.5.1 The File-Based Persistent Memory Hierarchy, 2.5.2 Idempotent Crash Recovery Workflow (+10 more)
+Nodes (22): 2.1 The Need for an Orchestrated Multi-Agent Looper, 2.2 Core Engine State Machine & Looper Lifecycle, 2.3.1 Cognitive Role Specialization Matrix, 2.3.2 Autonomous Routing Decision Engine, 2.3 Autonomous Routing & Role Transitions, 2.4 Objective Verification Loops: The 4-Tier Gate Architecture, 2.5.1 The File-Based Persistent Memory Hierarchy, 2.5.2 Idempotent Crash Recovery Workflow (+14 more)
 
 ### Community 130 - "DISPATCH — Auditor M1.1: Forensic Integrity Auditor"
 Cohesion: 0.33
@@ -887,17 +863,17 @@ Nodes (5): ADDED Requirements, Purpose, Requirement: Gemini / Antigravity Execut
 Cohesion: 0.33
 Nodes (5): ADDED Requirements, Purpose, Requirement: Local Models and ReAct Fallback, Scenario: Model outputs raw markdown code block for tool call, Spec Delta: Adaptador OpenCode / Modelos Locales, Puente MCP y Parser ReAct
 
-### Community 153 - "PalError"
-Cohesion: 0.16
-Nodes (23): appendContentBlock(), runAntigravitySubprocess(), runOpenCodeSubprocess(), fromClaudeResponse(), fromGeminiResponse(), fromOpenAiResponse(), isRecord(), isSupportedImageMimeType() (+15 more)
+### Community 153 - "normalizer.test.ts"
+Cohesion: 0.10
+Nodes (39): [Critical] Finding 3 — Complete Omission of PAL Error Taxonomy and Standardized Error Codes, runOpenCodeSubprocess(), DEFAULT_IMAGE_MIME_TYPE, fromClaudeResponse(), fromGeminiResponse(), fromOpenAiResponse(), isRecord(), isSupportedImageMimeType() (+31 more)
 
 ### Community 154 - "Gate Status"
 Cohesion: 0.40
 Nodes (4): Gate — Iteration 1 (Milestone 1: Technical Architecture Specification Deliverable), Gate — Iteration 2 (Milestone 1: Remediated Technical Specification), Gate — Milestone 2 & 3: GitHub Project #4 Population & Verification Harness, Gate Status
 
-### Community 155 - "3. Comprehensive PAL Specification & Interface Contracts"
-Cohesion: 0.13
-Nodes (14): 1. Observation, 3.1 Architectural Structure (Hexagonal Ports & Adapters), 3.2 Canonical Data Model & Message Schema, 3.3 Provider Transformation & Invariant Resolution Matrix, 3.4 Unified Tool Definition & Execution Interface, 3.5 Streaming, Token Accounting & Usage Interface, 3.6 Capability Negotiation Matrix & Fallback Policy, 3.7 Error Classification & Adaptive Backoff (+6 more)
+### Community 155 - "Agent Briefing: reviewer_INTEG-RUN-001"
+Cohesion: 0.33
+Nodes (5): Agent Briefing: reviewer_INTEG-RUN-001, Current Objective, 🔒 Key Constraints, 🔒 My Identity, Recent Decisions & Context
 
 ### Community 156 - "Progress — Auditor M1.1 (Forensic Integrity Auditor)"
 Cohesion: 0.50
@@ -932,36 +908,40 @@ Cohesion: 0.08
 Nodes (61): escapeXml(), escapeXmlAttr(), formatFailureXml(), formatGate0Feedback(), GATE0_PARSER_CONSTANTS, Gate0DiagnosticSeverity, Gate0DiagnosticSource, Gate0ParsedDiagnostic (+53 more)
 
 ### Community 171 - "IPalProvider"
-Cohesion: 0.21
-Nodes (34): 1.1 Direct Empirical Verifications, Phase Results, Objectives, 1.3 PAL Core Interface Contracts & Error Taxonomy (Reviewer M1.2), Key Decisions Made, 1. Observation, 2. Logic Chain, 3. Caveats (+26 more)
+Cohesion: 0.15
+Nodes (38): 1.1 Direct Empirical Verifications, Phase Results, Objectives, 1.3 PAL Core Interface Contracts & Error Taxonomy (Reviewer M1.2), Key Decisions Made, 1. Observation, 2. Logic Chain, 3. Caveats (+30 more)
 
 ### Community 173 - "LooperFSM"
-Cohesion: 0.10
-Nodes (8): TransitionGuardEntry, LooperFSM, LooperFsmOptions, FsmTransitionGuard, FsmTransitionHook, FsmTransitionPayload, LooperState, TriageEvaluationOptions
+Cohesion: 0.11
+Nodes (9): 1. Implementation & Verification, Tasks: Máquina de Estados Finita (FSM) del Motor Central y Livelock Prevention, TransitionGuardEntry, LooperFSM, LooperFsmOptions, FsmTransitionGuard, FsmTransitionHook, FsmTransitionPayload (+1 more)
 
 ### Community 175 - "SubagentDispatcher"
-Cohesion: 0.12
-Nodes (5): SubagentDispatcher, CreateHandoffOptions, HandoffPayload, SnapshotCaptureOptions, writeAtomic()
+Cohesion: 0.08
+Nodes (11): 1. Implementation & Verification, Tasks: Despachador de Roles Cognitivos y Gestor de Sandboxes, SubagentDispatcher, WritePathValidationResult, CreateHandoffOptions, HandoffComponents, HandoffPayload, HandoffValidationResult (+3 more)
 
-### Community 177 - "Gate1Reviewer"
+### Community 177 - "Gate 1 Semantic Code Review Report"
+Cohesion: 0.33
+Nodes (5): Audit Checklist, Boundary Containment, Diff Metrics, Findings & Line Citations (0), Gate 1 Semantic Code Review Report
+
+### Community 178 - "Gate2Challenger"
 Cohesion: 0.20
-Nodes (5): 1. Implementation & Verification, Tasks: Gate 1: Subagente Revisor Semántico de Código, Gate1Reviewer, parseGitDiffStats(), runGate1Review()
+Nodes (3): 1. Implementation & Verification, Tasks: Gate 2: Motor de Fuzzing y Desafío Adversarial Red-Team, Gate2Challenger
 
-### Community 183 - "PalTurnNormalizer"
-Cohesion: 0.15
-Nodes (4): 4. Conclusion, 2. Logic Chain, PalProviderCapabilities, PalTurnNormalizer
+### Community 183 - "Gate 1 Semantic Code Review Report"
+Cohesion: 0.33
+Nodes (5): Audit Checklist, Boundary Containment, Diff Metrics, Findings & Line Citations (0), Gate 1 Semantic Code Review Report
 
 ### Community 184 - "GeminiAdapter"
-Cohesion: 0.10
-Nodes (12): 1. Implementation & Verification, Tasks: Adaptador Google Gemini y Antigravity con Streaming NDJSON, ClaudeAdapterOptions, createGeminiAdapter(), formatGeminiToolChoice(), formatGeminiTools(), GeminiAdapter, GeminiAdapterOptions (+4 more)
+Cohesion: 0.15
+Nodes (5): 1. Implementation & Verification, Tasks: Adaptador Google Gemini y Antigravity con Streaming NDJSON, ClaudeAdapterOptions, GeminiAdapter, PalThinkingOptions
 
 ### Community 209 - "EngineAdapter"
 Cohesion: 0.12
 Nodes (11): EngineType, EngineAdapter, Context, Decisions, Design: Centralized Configuration & Engine Adapters, Definition of Done, Proposal: Well-Architected Centralized Configuration & Engine Adapters, What Changes (+3 more)
 
-### Community 210 - "PalMessage"
-Cohesion: 0.15
-Nodes (23): 1. Observation, Investigation State, 1. Propósito de la tarea, 2. Logic Chain, 2. Qué se espera lograr, 3. Goal de la tarea, 4. Criterios de completitud / Definition of Done, Tarea PAL-01: Modelo Unificado de Mensajes, Bloques de Contenido y Normalizador Bi-direccional (+15 more)
+### Community 210 - "Handoff Report — Worker M1.1: Technical Architecture Specification Author"
+Cohesion: 0.40
+Nodes (4): 3. Caveats, 4. Conclusion, 5. Verification Method, Handoff Report — Worker M1.1: Technical Architecture Specification Author
 
 ### Community 211 - "OpenSpec Cascade Agent Guidelines & Quality Standards"
 Cohesion: 0.20
@@ -972,52 +952,28 @@ Cohesion: 0.29
 Nodes (6): 1. Planning & Conceptual Understanding First, 2. Clean Code & Well-Architected Principles, 3. In-Repo Skills & Directives Compliance, 4. Cross-Platform Safety (macOS & Linux), 5. Autonomous QA Stage & Self-Verification, OpenSpec Cascade Agent Guidelines & Quality Standards
 
 ### Community 213 - "Adversarial Challenge Report"
-Cohesion: 0.20
-Nodes (9): Adversarial Challenge Report, Challenge Summary, Challenges, [Critical] Challenge 1 — Cross-Provider Thought Block Deserialization Failure, [High] Challenge 2 — Gemini Tool Call ID Desynchronization in Multi-Tool Turns, [High] Challenge 3 — Thundering Herd 429 Cascade on Rate Limiter Reset, [Medium] Challenge 4 — Context Compaction Tool-Result Orphan Invariant Violation, Stress Test Results (+1 more)
+Cohesion: 0.12
+Nodes (16): Adversarial Challenge Report, Challenge Summary, Challenges, [Critical] Finding 1 — Tagged: INTEGRITY VIOLATION: Pre-emptive Self-Certification of Approval Status, Findings, [High] Challenge 2 — Gemini Tool Call ID Desynchronization in Multi-Tool Turns, [High] Challenge 3 — Thundering Herd 429 Cascade on Rate Limiter Reset, [Major] Finding 4 — Type Safety Erosion and Permissive `any` Types in `PalTurnNormalizer` (+8 more)
 
 ### Community 214 - "OpenSpec Cascade Agent Guidelines & Quality Standards"
 Cohesion: 0.33
 Nodes (5): 1. Planning & Conceptual Understanding First, 2. Clean Code & Well-Architected Principles, 3. In-Repo Skills & Directives Compliance, 5. Autonomous QA Stage & Self-Verification, OpenSpec Cascade Agent Guidelines & Quality Standards
 
-### Community 215 - ".processParsedJson"
-Cohesion: 0.24
-Nodes (9): accumulateNdjsonTokenUsage(), calculateGeminiTokenUsage(), convertProtobufStructToJson(), formatToolInput(), isProtobufStruct(), isProtobufValue(), isRecord(), mapGeminiFinishReason() (+1 more)
-
-### Community 216 - "GeminiStreamChunkParser"
-Cohesion: 0.22
-Nodes (3): GeminiStreamChunkParser, parseGeminiStream(), parseGeminiStreamChunk()
-
 ### Community 217 - "DynamicEscalationLadder"
 Cohesion: 0.08
 Nodes (4): createDynamicEscalationLadder(), createFailureClassifier(), DynamicEscalationLadder, EscalationError
 
-### Community 218 - "Findings"
-Cohesion: 0.20
-Nodes (10): Coverage Gaps, [Critical] Finding 1 — Tagged: INTEGRITY VIOLATION: Pre-emptive Self-Certification of Approval Status, [Critical] Finding 3 — Complete Omission of PAL Error Taxonomy and Standardized Error Codes, Findings, [Major] Finding 4 — Type Safety Erosion and Permissive `any` Types in `PalTurnNormalizer`, [Major] Finding 6 — Underspecified Rate Limiting and Backoff Algorithms, [Minor] Finding 7 — Unresolved Type References in Section 2.3, Quality Review Report (+2 more)
-
-### Community 219 - "gate1_feedback.ts"
-Cohesion: 0.15
-Nodes (27): classifyFindingPriority(), createPassFeedback(), createRejectionFeedback(), createRevisionFeedback(), escapeXml(), escapeXmlAttr(), formatGate1MarkdownFeedback(), formatGate1WorkerPrompt() (+19 more)
-
-### Community 220 - "gate1_review.ts"
-Cohesion: 0.13
-Nodes (21): createSubagentDispatcher(), createGate1Reviewer(), defaultGitDiffRunner(), formatReviewerPrompt(), formatReviewReportMarkdown(), GATE1_CONSTANTS, Gate1CROSS_PLATFORM, Gate1DiffExtractionError (+13 more)
+### Community 219 - "gate1_review.ts"
+Cohesion: 0.05
+Nodes (79): 1. Implementation & Verification, Tasks: Gate 1: Subagente Revisor Semántico de Código, classifyFindingPriority(), createPassFeedback(), createRejectionFeedback(), createRevisionFeedback(), escapeXml(), escapeXmlAttr() (+71 more)
 
 ### Community 221 - "FailureClassifier"
 Cohesion: 0.17
 Nodes (3): buildFailureEnrichedPrompt(), FailureClassifier, routeFailure()
 
-### Community 222 - "gate1_rubric.ts"
-Cohesion: 0.18
-Nodes (24): Gate1Finding, Gate1FindingSeverity, Gate1RubricCheckItem, Gate1Verdict, evaluateCleanCodeRubric(), evaluateDoDAdherenceRubric(), evaluateSemanticRubric(), evaluateZeroMagicNumbersRubric() (+16 more)
-
 ### Community 223 - ".handleFailure"
 Cohesion: 0.26
 Nodes (7): buildRungPromptEnrichment(), formatBlockedMarker(), getEscalationRungDefinition(), isForensicAuditRequired(), isPromptEnrichmentRequired(), isRetryEligible(), isWorkingTreeRetainedDirty()
-
-### Community 224 - "types.ts"
-Cohesion: 0.12
-Nodes (17): ClaudeToolResultImagePart, CreatePalMessageParams, CreateThoughtBlockOptions, GeminiPart, GeminiTurnContent, PAL_CONTENT_BLOCK_TYPES, PAL_ERROR_KINDS, PAL_FINISH_REASONS (+9 more)
 
 ### Community 225 - "config.ts"
 Cohesion: 0.29
@@ -1035,65 +991,37 @@ Nodes (4): attachSignalHandlers(), ProcessSignalTarget, removeEventListener(), M
 Cohesion: 0.29
 Nodes (3): EscalationBlockedError, InvalidEscalationStateError, InvalidRungTransitionError
 
-### Community 229 - "resilience.ts"
-Cohesion: 0.15
-Nodes (15): 1.1 Existing Single-Agent Looper in `openspec-cascade`, 1.2 Observed Limitations of the Single-Agent Looper, 1.3 Teamwork Multi-Agent Architecture in Practice, 1. Observation, DiagramSyncOptions, CommandRunner, buildGitCleanCommand(), captureGitState() (+7 more)
+### Community 229 - "diagrams.ts"
+Cohesion: 0.27
+Nodes (9): ArchifyTarget, buildArchifyCommand(), BuildArchifyCommandOptions, DiagramStepResult, DiagramSyncOptions, DiagramSyncResult, discoverArchifyTargets(), resolveArchifyBin() (+1 more)
 
-### Community 231 - "opencode.ts"
-Cohesion: 0.18
-Nodes (13): 3. Componentes del Sistema, `opencode.ts` (Adaptador de Motor OpenCode), classifyFailure(), Hooks, OPENCODE_DEFAULT_MODEL, openCodeAdapter, openCodeModelArg(), OpenCodeOutcome (+5 more)
+### Community 231 - "engine.ts"
+Cohesion: 0.11
+Nodes (26): claudeAdapter, claudeAgentOptions(), readClaudeUsage(), runClaudeSession(), toEpochMs(), CascadeConfig, CONSTANTS, 3. Componentes del Sistema (+18 more)
 
-### Community 233 - "repairJsonArguments"
-Cohesion: 0.36
-Nodes (8): OpenCodeStreamChunkParser, parseOpenAiStream(), createToolCallFromRecord(), extractReActToolCalls(), isRecord(), isToolCallStructure(), repairJsonArguments(), repairTruncatedJson()
-
-### Community 234 - "AgentContextSnapshot"
-Cohesion: 0.22
-Nodes (7): isValidRole(), RoleTier, AgentContextSnapshot, deserializeContextSnapshot(), InvalidSnapshotError, loadContextSnapshot(), SnapshotError
-
-### Community 235 - "5. State Persistence, Resilience & Fault Tolerance"
-Cohesion: 0.29
-Nodes (7): 5.1 File-Based Memory Hierarchy in `.agents/teamwork/`, 5.2 Working Tree Isolation, Git Snapshotting & Atomic Rollback, 5.3 Context Succession Pattern (The 16-Spawn Rule), 5.4 Idempotent Crash Recovery & Stale Agent Detection, 5. State Persistence, Resilience & Fault Tolerance, Memory Invariant Rules:, Mid-Execution Succession Protection Invariant
-
-### Community 237 - "auditor_m1_2/handoff.md"
-Cohesion: 0.33
-Nodes (5): Must exit with code 0 (203 passing tests, 0 TS errors, 0 linter errors), Must exit with code 1 (0 matches), Must return 0 lines (exit code 1), Verify clean parity when line 768 is removed:, Verify that all git clean occurrences specify -e .agents/teamwork/ -e projects/
-
-### Community 238 - "captureContextSnapshot"
-Cohesion: 0.33
-Nodes (5): captureContextSnapshot(), parseBriefingMemory(), parseDispatchManifest(), parseProgressTelemetry(), readAtomic()
-
-### Community 239 - "Proposal: QA Verification Stage, Auto-Diagrams & 24/7 Resilience"
-Cohesion: 0.40
-Nodes (4): Definition of Done, Proposal: QA Verification Stage, Auto-Diagrams & 24/7 Resilience, What Changes, Why
-
-### Community 240 - "2.6 Fault Tolerance, Liveness & Context Succession"
-Cohesion: 0.50
-Nodes (4): 2.6.1 Stale Agent Detection & Heartbeat Watchdogs, 2.6.2 Context Succession Protocol (The 16-Spawn Rule), 2.6.3 Provider Resilience & Rate-Limit Handling, 2.6 Fault Tolerance, Liveness & Context Succession
-
-### Community 244 - "Gate1BoundaryCheckResult"
-Cohesion: 0.67
-Nodes (3): Gate1BoundaryCheckResult, Gate1DiffStats, Gate1RubricEvaluationInput
+### Community 234 - "snapshot.ts"
+Cohesion: 0.14
+Nodes (26): isValidRole(), ROLES_CONSTANTS, RoleTier, AgentContextSnapshot, captureContextSnapshot(), createDiagnosticHandoffPayload(), createHandoffPayload(), createSuccessionHandoffPayload() (+18 more)
 
 ## Knowledge Gaps
 - **6 isolated node(s):** `@eslint/js`, `@types/bun`, `typescript`, `UNVISITED`, `VISITING` (+1 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1340 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **49 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1386 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **47 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `LooperFSM` connect `LooperFSM` to `.context`, `LooperEvent`, `fsm.ts`, `VictoryAuditLivelockPrevention`, `fsm_types.ts`, `1. Implementation & Verification`, `3. Adversarial Challenges & Mitigations`, `Proposal: Máquina de Estados Finita (FSM) del Motor Central y Livelock Prevention`?**
-  _High betweenness centrality (0.037) - this node is a cross-community bridge._
+- **Why does `IPalProvider` connect `IPalProvider` to `normalizer.ts`, `gate2_challenger.ts`, `PalToolDefinition`, `Handoff Report — Reviewer M1.3: Specification & Interface Contracts Re-Reviewer`, `4. Provider Abstraction Layer (PAL) Interface Contracts`, `types.ts`, `gate2_injector.ts`, `Handoff Report — Reviewer M1.1: Specification & Architecture Review`, `gemini.ts`, `normalizer.test.ts`, `3. Comprehensive PAL Specification & Interface Contracts`, `gate1_review.ts`?**
+  _High betweenness centrality (0.033) - this node is a cross-community bridge._
 - **Are the 2 inferred relationships involving `LooperFSM` (e.g. with `What Changes` and `1. Implementation & Verification`) actually correct?**
   _`LooperFSM` has 2 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `@eslint/js`, `@types/bun`, `typescript` to the rest of the system?**
   _6 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `ADDED Requirements` be split into smaller, more focused modules?**
-  _Cohesion score 0.11764705882352941 - nodes in this community are weakly interconnected._
-- **Why does `DirectedAcyclicGraph` connect `DirectedAcyclicGraph` to `DagLevelBatchResolver`, `dag.ts`, `1. Observation`?**
-  _High betweenness centrality (0.032) - this node is a cross-community bridge._
+- **Should `cascade.ts` be split into smaller, more focused modules?**
+  _Cohesion score 0.14358974358974358 - nodes in this community are weakly interconnected._
+- **Why does `HeartbeatWatchdog` connect `HeartbeatWatchdog` to `memory.ts`, `.fileExists`, `memory.test.ts`?**
+  _High betweenness centrality (0.026) - this node is a cross-community bridge._
 - **Are the 13 inferred relationships involving `PalStreamEvent` (e.g. with `Objectives` and `1.3 PAL Core Interface Contracts & Error Taxonomy (Reviewer M1.2)`) actually correct?**
   _`PalStreamEvent` has 13 INFERRED edges - model-reasoned connections that need verification._
-- **Should `package.json` be split into smaller, more focused modules?**
-  _Cohesion score 0.07692307692307693 - nodes in this community are weakly interconnected._
+- **Should `gate2_challenger.ts` be split into smaller, more focused modules?**
+  _Cohesion score 0.13213213213213212 - nodes in this community are weakly interconnected._
