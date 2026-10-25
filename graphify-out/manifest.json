@@ -174,9 +174,9 @@
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.delivery.json": {
-    "mtime": 1792884889.6445813,
-    "seen": 1792887001.1776257,
-    "ast_hash": "c8708f7c707c2575e9e0d86a1667d919",
+    "mtime": 1792887002.878436,
+    "seen": 1792889767.8003035,
+    "ast_hash": "b44e544395a801b0aa29f2302f326eab",
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.finalize-summary.json": {
@@ -300,8 +300,8 @@
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.html": {
-    "mtime": 1792884889.2685792,
-    "seen": 1792887001.1782153,
+    "mtime": 1792887002.4624338,
+    "seen": 1792889767.8015163,
     "ast_hash": "94db30b43f4a07a3e7ce38af427e41fd",
     "semantic_hash": ""
   },
@@ -972,8 +972,8 @@
     "semantic_hash": ""
   },
   ".archify/workflow-agnostic-looper/agnostic-looper-workflow.html": {
-    "mtime": 1792884890.8715882,
-    "seen": 1792887001.1782181,
+    "mtime": 1792887004.0574427,
+    "seen": 1792889767.8015232,
     "ast_hash": "c31685e59ee141da99e47a4901f179c5",
     "semantic_hash": ""
   },
@@ -1062,9 +1062,9 @@
     "semantic_hash": ""
   },
   "openspec/changes/looper-core-router-escalation/tasks.md": {
-    "mtime": 1792865836.0292184,
-    "seen": 1792868132.8801193,
-    "ast_hash": "10f935e070008dcd2e5e07a408820a43",
+    "mtime": 1792889740.051761,
+    "seen": 1792889767.8017697,
+    "ast_hash": "5a89489477c503e949df8899993ea3dc",
     "semantic_hash": ""
   },
   "openspec/changes/looper-core-subagent-dispatcher/.openspec.yaml": {
@@ -1440,9 +1440,9 @@
     "semantic_hash": ""
   },
   ".archify/workflow-agnostic-looper/agnostic-looper-workflow.delivery.json": {
-    "mtime": 1792884891.2375903,
-    "seen": 1792887001.1776407,
-    "ast_hash": "274b265fbf988b57b9a5fc377c3a0bdc",
+    "mtime": 1792887004.4174447,
+    "seen": 1792889767.8003294,
+    "ast_hash": "83a7361ad774775b9eedc6be2cb3231c",
     "semantic_hash": ""
   },
   "src/pal/normalizer.ts": {
@@ -1605,6 +1605,18 @@
     "mtime": 1792886610.2852352,
     "seen": 1792887001.1778347,
     "ast_hash": "0d22563cca986c31436d53f64a5da2f3",
+    "semantic_hash": ""
+  },
+  "src/core/escalation.ts": {
+    "mtime": 1792889550.6467023,
+    "seen": 1792889767.8005662,
+    "ast_hash": "c0066a5c280cbf721eef3d31c2a30ed5",
+    "semantic_hash": ""
+  },
+  "test/core/escalation.test.ts": {
+    "mtime": 1792889696.8665197,
+    "seen": 1792889767.8006976,
+    "ast_hash": "907c92ba493ecf1f259143fa417c6fb9",
     "semantic_hash": ""
   }
 }
