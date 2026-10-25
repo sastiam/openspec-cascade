@@ -174,9 +174,9 @@
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.delivery.json": {
-    "mtime": 1792897293.0074186,
-    "seen": 1792900556.8254662,
-    "ast_hash": "07216682184979604db952c501b9e0d5",
+    "mtime": 1792900558.3882725,
+    "seen": 1792902942.0471346,
+    "ast_hash": "ff7af52bf1c2a4b4bec63168c9fb36c1",
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.finalize-summary.json": {
@@ -300,8 +300,8 @@
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.html": {
-    "mtime": 1792897292.6864169,
-    "seen": 1792900556.8261392,
+    "mtime": 1792900558.0272706,
+    "seen": 1792902942.048579,
     "ast_hash": "94db30b43f4a07a3e7ce38af427e41fd",
     "semantic_hash": ""
   },
@@ -972,8 +972,8 @@
     "semantic_hash": ""
   },
   ".archify/workflow-agnostic-looper/agnostic-looper-workflow.html": {
-    "mtime": 1792897294.071424,
-    "seen": 1792900556.8261423,
+    "mtime": 1792900559.3842776,
+    "seen": 1792902942.0485857,
     "ast_hash": "c31685e59ee141da99e47a4901f179c5",
     "semantic_hash": ""
   },
@@ -1272,9 +1272,9 @@
     "semantic_hash": ""
   },
   "openspec/changes/looper-integration-github-project/tasks.md": {
-    "mtime": 1792865836.0312185,
-    "seen": 1792868132.8802297,
-    "ast_hash": "319dcebe8d6eeaab5c46b971393ed630",
+    "mtime": 1792902914.2931767,
+    "seen": 1792902942.049156,
+    "ast_hash": "22af36fe431c58d1b29d98f3dce771e3",
     "semantic_hash": ""
   },
   "openspec/changes/looper-pal-canonical-schema/.openspec.yaml": {
@@ -1440,9 +1440,9 @@
     "semantic_hash": ""
   },
   ".archify/workflow-agnostic-looper/agnostic-looper-workflow.delivery.json": {
-    "mtime": 1792897294.3774257,
-    "seen": 1792900556.8254783,
-    "ast_hash": "15eb05252dc4b3f6ab051f2d5f5a47fc",
+    "mtime": 1792900559.686279,
+    "seen": 1792902942.0471592,
+    "ast_hash": "17a53291c991a18454fccb47fd23c73a",
     "semantic_hash": ""
   },
   "src/pal/normalizer.ts": {
@@ -1692,8 +1692,8 @@
     "semantic_hash": ""
   },
   ".agents/teamwork/reviewer_INTEG-RUN-001/review_findings.json": {
-    "mtime": 1792900495.0739467,
-    "seen": 1792900556.8254237,
+    "mtime": 1792902848.8618577,
+    "seen": 1792902942.0470698,
     "ast_hash": "3b9081d1de27184c3a7b1bde7f5a72e8",
     "semantic_hash": ""
   },
@@ -1740,32 +1740,32 @@
     "semantic_hash": ""
   },
   ".agents/teamwork/reviewer_INTEG-RUN-001/BRIEFING.md": {
-    "mtime": 1792900495.0699468,
-    "seen": 1792900556.8259764,
+    "mtime": 1792902848.8598576,
+    "seen": 1792902942.0482159,
     "ast_hash": "e9e3d912fac062028707e957755a26fd",
     "semantic_hash": ""
   },
   ".agents/teamwork/reviewer_INTEG-RUN-001/DISPATCH.md": {
-    "mtime": 1792900495.0723035,
-    "seen": 1792900556.8259795,
+    "mtime": 1792902848.8604746,
+    "seen": 1792902942.0482228,
     "ast_hash": "3a38b49d840bf8c4bf5b05ce8c02084e",
     "semantic_hash": ""
   },
   ".agents/teamwork/reviewer_INTEG-RUN-001/handoff.md": {
-    "mtime": 1792900495.0739467,
-    "seen": 1792900556.825983,
+    "mtime": 1792902848.8628576,
+    "seen": 1792902942.0482297,
     "ast_hash": "89864fc38978b7de32493423ac3749ce",
     "semantic_hash": ""
   },
   ".agents/teamwork/reviewer_INTEG-RUN-001/progress.md": {
-    "mtime": 1792900495.0749469,
-    "seen": 1792900556.8259864,
-    "ast_hash": "b4a545f2eaed93d8cd5be998a9ca9d03",
+    "mtime": 1792902848.863845,
+    "seen": 1792902942.0482364,
+    "ast_hash": "b7ace64ad0624c8209104f9f33a14a25",
     "semantic_hash": ""
   },
   ".agents/teamwork/reviewer_INTEG-RUN-001/review_report.md": {
-    "mtime": 1792900495.0739467,
-    "seen": 1792900556.8259895,
+    "mtime": 1792902848.8618577,
+    "seen": 1792902942.048243,
     "ast_hash": "89864fc38978b7de32493423ac3749ce",
     "semantic_hash": ""
   },
@@ -1815,6 +1815,18 @@
     "mtime": 1792898762.9779868,
     "seen": 1792900556.8257618,
     "ast_hash": "95d9cdda2711302547d134f8b58f7557",
+    "semantic_hash": ""
+  },
+  "src/integration/github_project.ts": {
+    "mtime": 1792902413.3336961,
+    "seen": 1792902942.0475454,
+    "ast_hash": "052e77b42053c2c4f85423cf58c012bd",
+    "semantic_hash": ""
+  },
+  "test/integration/github_project.test.ts": {
+    "mtime": 1792902880.3080108,
+    "seen": 1792902942.0477777,
+    "ast_hash": "bffe09a26fb8e139560d3b115f22ce4d",
     "semantic_hash": ""
   }
 }
