@@ -174,9 +174,9 @@
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.delivery.json": {
-    "mtime": 1792887002.878436,
-    "seen": 1792889767.8003035,
-    "ast_hash": "b44e544395a801b0aa29f2302f326eab",
+    "mtime": 1792889769.4069247,
+    "seen": 1792891727.954301,
+    "ast_hash": "1d3c3473f452aea336379fb8099d5323",
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.finalize-summary.json": {
@@ -300,8 +300,8 @@
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.html": {
-    "mtime": 1792887002.4624338,
-    "seen": 1792889767.8015163,
+    "mtime": 1792889769.0319226,
+    "seen": 1792891727.9587233,
     "ast_hash": "94db30b43f4a07a3e7ce38af427e41fd",
     "semantic_hash": ""
   },
@@ -972,8 +972,8 @@
     "semantic_hash": ""
   },
   ".archify/workflow-agnostic-looper/agnostic-looper-workflow.html": {
-    "mtime": 1792887004.0574427,
-    "seen": 1792889767.8015232,
+    "mtime": 1792889770.4419305,
+    "seen": 1792891727.9587324,
     "ast_hash": "c31685e59ee141da99e47a4901f179c5",
     "semantic_hash": ""
   },
@@ -1122,9 +1122,9 @@
     "semantic_hash": ""
   },
   "openspec/changes/looper-gate0-mechanical-qa/tasks.md": {
-    "mtime": 1792865836.0292184,
-    "seen": 1792868132.8801515,
-    "ast_hash": "e5cc20842ed6ded57946749fb636df51",
+    "mtime": 1792891680.6335974,
+    "seen": 1792891727.96023,
+    "ast_hash": "6e16bb8c93022a89cc46068cc9bcf2f1",
     "semantic_hash": ""
   },
   "openspec/changes/looper-gate1-semantic-review/.openspec.yaml": {
@@ -1440,9 +1440,9 @@
     "semantic_hash": ""
   },
   ".archify/workflow-agnostic-looper/agnostic-looper-workflow.delivery.json": {
-    "mtime": 1792887004.4174447,
-    "seen": 1792889767.8003294,
-    "ast_hash": "83a7361ad774775b9eedc6be2cb3231c",
+    "mtime": 1792889770.7379322,
+    "seen": 1792891727.954328,
+    "ast_hash": "cd5faa53600f10432d3f194a34bd71e0",
     "semantic_hash": ""
   },
   "src/pal/normalizer.ts": {
@@ -1617,6 +1617,42 @@
     "mtime": 1792889696.8665197,
     "seen": 1792889767.8006976,
     "ast_hash": "907c92ba493ecf1f259143fa417c6fb9",
+    "semantic_hash": ""
+  },
+  "src/gates/gate0_parser.ts": {
+    "mtime": 1792890735.234318,
+    "seen": 1792891727.9546394,
+    "ast_hash": "1119eba451e1cca3db5c3fa0e5b60446",
+    "semantic_hash": ""
+  },
+  "src/gates/gate0_policy.ts": {
+    "mtime": 1792891134.739549,
+    "seen": 1792891727.9546468,
+    "ast_hash": "72aa3c4968feb453692e154d4872f21c",
+    "semantic_hash": ""
+  },
+  "src/gates/gate0_qa.ts": {
+    "mtime": 1792891279.584358,
+    "seen": 1792891727.9546535,
+    "ast_hash": "26ceaf30bc4d9009eff1f089544ea2df",
+    "semantic_hash": ""
+  },
+  "test/gates/gate0.test.ts": {
+    "mtime": 1792891627.9883034,
+    "seen": 1792891727.9547853,
+    "ast_hash": "52af9e9e647926910db79c61ee0cf520",
+    "semantic_hash": ""
+  },
+  "test/gates/gate0_parser.test.ts": {
+    "mtime": 1792890720.9402382,
+    "seen": 1792891727.9547913,
+    "ast_hash": "3e5a03e48fc247d7fc38d9e71ce97ada",
+    "semantic_hash": ""
+  },
+  "test/gates/gate0_policy.test.ts": {
+    "mtime": 1792891339.3896918,
+    "seen": 1792891727.9547975,
+    "ast_hash": "d4a7dbe2443695978dba02dd413a5ea6",
     "semantic_hash": ""
   }
 }
