@@ -1,12 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import {
   CONSTANTS,
+  formatHelp,
   FULL_VERIFY,
   getDefaultConfig,
   isKeepAliveEnabled,
   loadConfig,
   parseCliArgs,
   resolveEngine,
+  resolveLogDir,
 } from "./config";
 
 describe("resolveEngine", () => {
@@ -272,6 +274,99 @@ describe("loadConfig", () => {
     expect(def.engine).toBe("claude");
     expect(def.changes).toEqual([]);
     expect(def.keepAlive).toBe(true);
+  });
+});
+
+describe("resolveLogDir", () => {
+  const repo = "/work/my-project";
+  const home = "/home/dev";
+  const cwd = "/somewhere/else";
+
+  test("defaults to the per-project cache directory under home", () => {
+    expect(resolveLogDir({ repo, home, cwd })).toBe("/home/dev/.cache/openspec-cascade/logs/my-project");
+  });
+
+  test("uses the basename of the repo to keep projects separate", () => {
+    const a = resolveLogDir({ repo: "/a/alpha", home, cwd });
+    const b = resolveLogDir({ repo: "/a/beta", home, cwd });
+    expect(a.endsWith("/logs/alpha")).toBe(true);
+    expect(b.endsWith("/logs/beta")).toBe(true);
+  });
+
+  test("CASCADE_LOG_DIR overrides the default", () => {
+    expect(resolveLogDir({ repo, home, cwd, env: "/var/log/cascade" })).toBe("/var/log/cascade");
+  });
+
+  test("--log-dir option wins over CASCADE_LOG_DIR", () => {
+    expect(resolveLogDir({ repo, home, cwd, option: "/opt/logs", env: "/var/log/cascade" })).toBe("/opt/logs");
+  });
+
+  test("resolves relative paths against cwd", () => {
+    expect(resolveLogDir({ repo, home, cwd, option: "rel/logs" })).toBe("/somewhere/else/rel/logs");
+    expect(resolveLogDir({ repo, home, cwd, env: "./envlogs" })).toBe("/somewhere/else/envlogs");
+  });
+
+  test("ignores blank option and env values", () => {
+    expect(resolveLogDir({ repo, home, cwd, option: "  ", env: "" })).toBe(
+      "/home/dev/.cache/openspec-cascade/logs/my-project",
+    );
+  });
+});
+
+describe("loadConfig logDir", () => {
+  test("defaults to the per-project cache directory", () => {
+    const config = loadConfig({ argv: [], env: {}, cwd: "/mock/repo" });
+    expect(config.logDir.endsWith("/.cache/openspec-cascade/logs/repo")).toBe(true);
+  });
+
+  test("reads --log-dir and resolves it against cwd", () => {
+    const config = loadConfig({ argv: ["--log-dir", "out/logs"], env: {}, cwd: "/mock/repo" });
+    expect(config.logDir).toBe("/mock/repo/out/logs");
+  });
+
+  test("reads CASCADE_LOG_DIR and lets --log-dir override it", () => {
+    const fromEnv = loadConfig({ argv: [], env: { CASCADE_LOG_DIR: "/env/logs" }, cwd: "/mock/repo" });
+    expect(fromEnv.logDir).toBe("/env/logs");
+    const fromCli = loadConfig({ argv: ["--log-dir", "/cli/logs"], env: { CASCADE_LOG_DIR: "/env/logs" }, cwd: "/mock/repo" });
+    expect(fromCli.logDir).toBe("/cli/logs");
+  });
+});
+
+describe("--help", () => {
+  test("parses --help and -h into the help option", () => {
+    expect(parseCliArgs(["--help"]).options.help).toBe(true);
+    expect(parseCliArgs(["-h"]).options.help).toBe(true);
+    expect(parseCliArgs([]).options.help).toBeFalsy();
+  });
+
+  test("help text lists every flag, the env vars and usage examples", () => {
+    const text = formatHelp();
+    for (const flag of [
+      "--repo",
+      "--changes",
+      "--allow-dirty",
+      "--dry-run",
+      "--full-gate",
+      "--engine",
+      "--no-keep-alive",
+      "--model",
+      "--effort",
+      "--log-dir",
+      "--no-diagrams",
+      "--graphify-command",
+      "--archify-action",
+      "--archify-quality",
+      "--archify-bin",
+      "--no-rollback",
+      "--resilient",
+      "--help",
+    ]) {
+      expect(text).toContain(flag);
+    }
+    for (const env of ["CASCADE_MODEL", "CASCADE_EFFORT", "CASCADE_LOG_DIR"]) {
+      expect(text).toContain(env);
+    }
+    expect(text.match(/openspec-cascade --/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
   });
 });
 

@@ -9,15 +9,18 @@
  * the runner sleeps until the blocking meters reset.
  *
  * Usage:
- *   bun run cascade.ts --repo <path> --changes a,b,c [--allow-dirty] [--dry-run] [--no-keep-alive]
+ *   openspec-cascade --repo <path> --changes a,b,c [--allow-dirty] [--dry-run] [--no-keep-alive]
+ *   openspec-cascade --help
  */
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   CONSTANTS,
+  formatHelp,
   FULL_VERIFY,
   isKeepAliveEnabled,
   loadConfig,
+  parseCliArgs,
   resolveEngine,
   type CascadeConfig,
 } from "./config";
@@ -90,6 +93,12 @@ export {
   type VerificationResult,
 };
 
+// --help must run before any side effect (config validation, keep-alive, logging).
+if (import.meta.main && parseCliArgs().options.help) {
+  console.log(formatHelp());
+  process.exit(0);
+}
+
 export const config: CascadeConfig = loadConfig();
 
 export type Task = { id: string; done: boolean; text: string; section: string; line: number };
@@ -104,13 +113,18 @@ export function getKeepAliveController(): KeepAliveController | undefined {
 const repo = config.repo;
 const engine = config.engine;
 const changes = config.changes;
-const logDir = join(import.meta.dir, "logs");
-mkdirSync(logDir, { recursive: true });
-const logFile = join(logDir, `${new Date().toISOString().replaceAll(":", "-")}.jsonl`);
+// Path only; the directory and file are created on the first write (never on --dry-run or on import).
+const logFile = join(config.logDir, `${new Date().toISOString().replaceAll(":", "-")}.jsonl`);
+let logDirReady = false;
 let totalCostUsd = 0;
 let announcedModel: string | undefined;
 
 function log(event: string, data: Record<string, unknown> = {}) {
+  if (config.dryRun) return;
+  if (!logDirReady) {
+    mkdirSync(config.logDir, { recursive: true });
+    logDirReady = true;
+  }
   appendFileSync(logFile, JSON.stringify({ t: new Date().toISOString(), event, ...data }) + "\n");
 }
 
@@ -557,7 +571,7 @@ async function preflight() {
     say(warning);
   }
   const keepAliveStatus = keepAliveController ? `keepAlive=${keepAliveController.mechanism} ` : "";
-  say(`engine=${engine} ${keepAliveStatus}repo=${repo} branch=${branch} changes=${changes.join(" → ")} log=${logFile}`);
+  say(`engine=${engine} ${keepAliveStatus}repo=${repo} branch=${branch} changes=${changes.join(" → ")} log=${config.dryRun ? "disabled (dry-run)" : logFile}`);
 }
 
 function printPlan() {

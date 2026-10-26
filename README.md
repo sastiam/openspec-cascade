@@ -40,7 +40,23 @@ Engines: the [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/agent-
 bun install
 ```
 
+## Installation (global command)
+
+Link the package once to use `openspec-cascade` from any project directory:
+
+```bash
+bun link
+openspec-cascade --repo <path> --changes change-a,change-b
+openspec-cascade --help
+```
+
+`bun link` registers the `openspec-cascade` bin entry (`cascade.ts`, which runs under Bun) in `~/.bun/bin`;
+make sure that directory is on your `PATH`. Run `bun install` in this repository first so the engines'
+dependencies are available.
+
 ## Usage
+
+The examples below use `bun run cascade.ts`; after `bun link` you can substitute `openspec-cascade`.
 
 ```bash
 # Preview the plan: pending tasks, detected checks, commit types, current usage
@@ -71,10 +87,24 @@ bun run cascade.ts --repo <path> --changes change-a --no-keep-alive
 | `--engine` | `claude` (default), `opencode`, or `antigravity` (`agy`) |
 | `--no-keep-alive` | Disable automatic OS sleep inhibitor (`caffeinate` / `systemd-inhibit`) |
 | `--allow-dirty` | Start with a dirty tree; those files land in the first commit |
+| `--log-dir` | Directory for run logs (see [Logs](#logs)) |
+| `--help`, `-h` | Print all flags, environment variables and examples, then exit |
 | `CASCADE_MODEL` | Model alias or ID (OpenCode: `provider/model[#variant]`, Antigravity: `gemini-3.8-flash-high`) |
 | `CASCADE_EFFORT` | `low`…`max`, or `none` to omit it |
+| `CASCADE_LOG_DIR` | Same as `--log-dir`; the flag takes precedence |
 
-Refuses to run on `stable`, `main` or `master`. Logs go to `logs/*.jsonl`.
+Refuses to run on `stable`, `main` or `master`.
+
+### Logs
+
+Each run writes a JSON Lines file named `<timestamp>.jsonl`. The directory is chosen in this order:
+
+1. `--log-dir <path>`
+2. `CASCADE_LOG_DIR`
+3. `~/.cache/openspec-cascade/logs/<repo name>/` (the default; `<repo name>` is the basename of `--repo`)
+
+Relative paths are resolved against the current directory. The directory and file are created on the first
+write, and `--dry-run` writes no log at all.
 
 ## Cross-platform keep-alive
 

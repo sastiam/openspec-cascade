@@ -95,7 +95,7 @@ flowchart TD
 ## 3. Componentes del Sistema
 
 ### `cascade.ts` (Orquestador Principal)
-* **Entrada y CLI (`parseArgs`):** Procesa flags como `--repo`, `--changes`, `--dry-run`, `--full-gate`, `--engine`, `--allow-dirty`.
+* **Entrada y CLI (`parseArgs`):** Procesa flags como `--repo`, `--changes`, `--dry-run`, `--full-gate`, `--engine`, `--allow-dirty`, `--log-dir`, `--help`.
 * **Parser de Tareas (`parseTasks`):** Lee `tasks.md`, identificando identificadores numéricos (`1.1`, `3.9`) o de tickets (`**T013**`), secciones y estados de completitud.
 * **Extracción de Comandos de Verificación (`verifyCommands`):**
   * Busca cláusulas `Verify:` o frases como `"full verification"`.
@@ -126,14 +126,28 @@ flowchart TD
 
 ## 4. Referencia de Flags y Opciones
 
+### Instalación como comando global
+
+```bash
+bun install        # dependencias de los motores
+bun link           # registra el bin `openspec-cascade` en ~/.bun/bin
+openspec-cascade --repo <ruta> --changes a,b
+openspec-cascade --help
+```
+
+Asegúrate de que `~/.bun/bin` esté en el `PATH`. `--help` (o `-h`) imprime todos los flags, las variables de entorno y ejemplos de uso, y termina sin efectos secundarios.
+
 | Opción / Variable | Tipo / Valor | Función |
 | :--- | :--- | :--- |
 | `--repo <path>` | String | Ruta al repositorio objetivo. Por defecto toma el directorio de trabajo actual. |
 | `--changes <a,b>` | String (CSV) | Lista ordenada de carpetas de cambio en `openspec/changes/`. |
 | `--dry-run` | Flag booleano | Muestra el plan detallado (tareas, verificaciones asociadas, tipos de commit y cuotas actuales) sin ejecutar nada. |
 | `--full-gate` | Flag booleano | Obliga a que cualquier tarea que genere un commit ejecute la suite de verificación completa (`FULL_VERIFY`). |
-| `--engine <nombre>` | `claude` \| `opencode` | Motor de inferencia/agente a utilizar (por defecto `claude`). |
+| `--engine <nombre>` | `claude` \| `opencode` \| `antigravity` (alias `agy`) | Motor de inferencia/agente a utilizar (por defecto `claude`). |
 | `--allow-dirty` | Flag booleano | Permite arrancar la ejecución aunque existan modificaciones previas sin commitear en el árbol de trabajo. |
+| `--log-dir <path>` | String | Directorio de logs. Tiene prioridad sobre `CASCADE_LOG_DIR`. |
+| `--help`, `-h` | Flag booleano | Muestra la ayuda y termina con código `0`. |
+| `CASCADE_LOG_DIR` | Variable de entorno | Directorio de logs (el flag `--log-dir` tiene prioridad). |
 | `CASCADE_MODEL` | Variable de entorno | Modelo o alias del LLM (ej. `opencode/deepseek-v4.1-flash`, `claude-3-7-sonnet-20250219`). |
 | `CASCADE_EFFORT` | Variable de entorno | Nivel de esfuerzo de razonamiento (`low`, `medium`, `high`, `max`, o `none`). |
 
@@ -142,7 +156,8 @@ flowchart TD
 ## 5. Auditoría y Registro (Logging)
 
 Cada ejecución genera automáticamente un archivo de eventos estructurado en formato JSON Lines:
-* **Ubicación:** `logs/<timestamp>.jsonl`.
+* **Ubicación:** `<directorio de logs>/<timestamp>.jsonl`. El directorio se resuelve en este orden: `--log-dir`, `CASCADE_LOG_DIR`, y por defecto `~/.cache/openspec-cascade/logs/<nombre del repo>/` (nombre base de `--repo`). Las rutas relativas se resuelven contra el directorio actual.
+* **Creación perezosa:** el directorio y el archivo se crean en la primera escritura; con `--dry-run` no se escribe ningún log.
 * **Eventos capturados:**
   * `task_start`: Inicio de procesamiento de una tarea específica.
   * `tool`: Invocaciones de herramientas por parte del agente con parámetros resumidos.
