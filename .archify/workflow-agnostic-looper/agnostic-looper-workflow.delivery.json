@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "144252a8-95d5-47fa-9d1e-5c7468237211",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "/home/sastiam/Workspace/openspec-cascade/.archify/workflow-agnostic-looper/candidate.json",
+  "output": "/home/sastiam/Workspace/openspec-cascade/.archify/workflow-agnostic-looper/agnostic-looper-workflow.html",
+  "specification": {
+    "sha256": "4f4ec0e9d91adf80fe9e2b539c0435125c921d19c6ed473cc4a6579e6ac80be6",
+    "bytes": 5499
+  },
+  "artifact": {
+    "sha256": "3f3f684ecb9f7d03fb0d248a4d93a83ed4dde50dd7d4030879cec413ee98bba0",
+    "bytes": 834744
+  }
+}

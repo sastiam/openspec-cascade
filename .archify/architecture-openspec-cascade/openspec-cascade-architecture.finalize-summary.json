@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "/home/sastiam/Workspace/openspec-cascade/.archify/architecture-openspec-cascade/candidate.json",
+    "sha256": "0bebb2f18f3ca7c05447f0aa3b5f48baa10fb6d69315253d62fe9203ae081043",
+    "bytes": 5184
+  },
+  "artifact": {
+    "path": "/home/sastiam/Workspace/openspec-cascade/.archify/architecture-openspec-cascade/openspec-cascade-architecture.html",
+    "sha256": "4820aad690056b0474613dfb8f80e9c837aac70021a74e91f08feb3a134dc8d3",
+    "bytes": 827045
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/home/sastiam/Workspace/openspec-cascade/.archify/architecture-openspec-cascade/openspec-cascade-architecture.finalize.json",
+    "summaryReceipt": "/home/sastiam/Workspace/openspec-cascade/.archify/architecture-openspec-cascade/openspec-cascade-architecture.finalize-summary.json",
+    "browserCheckReceipt": "/home/sastiam/Workspace/openspec-cascade/.archify/architecture-openspec-cascade/openspec-cascade-architecture.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.2.0",
+    "availableVersion": "3.2.0",
+    "releaseNotes": null,
+    "checkedAt": "2026-10-23T21:58:45.164Z",
+    "source": "network",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 2146,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  },
+  "visualReviewRecommendation": {
+    "action": "inspect-route-readability",
+    "signals": {
+      "routesOverSuggestedBends": 5,
+      "routesOverSuggestedStretch": 2
+    },
+    "reason": "Automated gates passed, but crossings or detours still need perceptual review before claiming visual quality.",
+    "affectedRoutes": {
+      "crossings": [],
+      "detours": [
+        {
+          "relationship": {
+            "id": "cli-to-harness",
+            "from": "cli",
+            "to": "harness",
+            "label": "invokes runner",
+            "collectionIndex": 0,
+            "artifactIndex": 1
+          },
+          "bends": 3,
+          "stretch": 1.304
+        },
+        {
+          "relationship": {
+            "id": "harness-to-claude",
+            "from": "harness",
+            "to": "engine_claude",
+            "label": "dispatch task",
+            "collectionIndex": 2,
+            "artifactIndex": 3
+          },
+          "bends": 3,
+          "stretch": 1
+        },
+        {
+          "relationship": {
+            "id": "harness-to-antigravity",
+            "from": "harness",
+            "to": "engine_antigravity",
+            "label": "dispatch task",
+            "collectionIndex": 4,
+            "artifactIndex": 5
+          },
+          "bends": 3,
+          "stretch": 1
+        },
+        {
+          "relationship": {
+            "id": "engines-to-verifier",
+            "from": "engine_opencode",
+            "to": "verifier",
+            "label": "runs verification",
+            "collectionIndex": 5,
+            "artifactIndex": 6
+          },
+          "bends": 4,
+          "stretch": 1.444
+        },
+        {
+          "relationship": {
+            "id": "verifier-to-committer",
+            "from": "verifier",
+            "to": "committer",
+            "label": "commit on pass",
+            "collectionIndex": 6,
+            "artifactIndex": 7
+          },
+          "bends": 4,
+          "stretch": 1.444
+        }
+      ],
+      "truncated": false
+    },
+    "hints": [
+      "cli → harness needs 3 bends: move node cli or harness so they share a row or column with matching centers, or sit diagonally with a clear corner.",
+      "harness → engine_claude needs 3 bends: move node harness or engine_claude so they share a row or column with matching centers, or sit diagonally with a clear corner.",
+      "harness → engine_antigravity needs 3 bends: move node harness or engine_antigravity so they share a row or column with matching centers, or sit diagonally with a clear corner.",
+      "engine_opencode → verifier needs 4 bends: move node engine_opencode or verifier so they share a row or column with matching centers, or sit diagonally with a clear corner.",
+      "verifier → committer needs 4 bends: move node verifier or committer so they share a row or column with matching centers, or sit diagonally with a clear corner."
+    ],
+    "repair": "Trace these relationships at the desktop viewport. For Architecture, use references/architecture-layout-repair.md: reflow a blocked main path or tangled connected scene, and repair an isolated defect locally only when the surrounding composition is accepted. Preserve all semantic content and user-fixed geometry. Rerun finalize once after the edit."
+  }
+}

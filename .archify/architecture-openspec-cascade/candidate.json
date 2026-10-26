@@ -1,0 +1,254 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "OpenSpec Cascade System Architecture",
+    "output": "openspec-cascade-architecture.html",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    {
+      "id": "cli",
+      "type": "external",
+      "label": "CLI Trigger",
+      "sublabel": "caffeinate -i bun run cascade.ts",
+      "pos": [
+        40,
+        250
+      ],
+      "size": [
+        160,
+        60
+      ]
+    },
+    {
+      "id": "harness",
+      "type": "backend",
+      "label": "Cascade Harness Core",
+      "sublabel": "cascade.ts (main, runTask)",
+      "pos": [
+        260,
+        250
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "tag": "Master Orchestrator"
+    },
+    {
+      "id": "guard",
+      "type": "security",
+      "label": "Rate & Usage Guard",
+      "sublabel": "Plan Headroom & Rate Limits",
+      "pos": [
+        260,
+        100
+      ],
+      "size": [
+        180,
+        60
+      ]
+    },
+    {
+      "id": "engine_claude",
+      "type": "backend",
+      "label": "Claude Engine",
+      "sublabel": "@anthropic-ai/claude-agent-sdk",
+      "pos": [
+        510,
+        100
+      ],
+      "size": [
+        180,
+        60
+      ]
+    },
+    {
+      "id": "engine_opencode",
+      "type": "backend",
+      "label": "OpenCode Engine",
+      "sublabel": "opencode CLI NDJSON stream",
+      "pos": [
+        510,
+        250
+      ],
+      "size": [
+        180,
+        60
+      ]
+    },
+    {
+      "id": "engine_antigravity",
+      "type": "backend",
+      "label": "Antigravity Engine",
+      "sublabel": "agy CLI stream-json",
+      "pos": [
+        510,
+        400
+      ],
+      "size": [
+        180,
+        60
+      ]
+    },
+    {
+      "id": "verifier",
+      "type": "backend",
+      "label": "Verification Gate",
+      "sublabel": "bun test, tsc, lint, build",
+      "pos": [
+        760,
+        250
+      ],
+      "size": [
+        180,
+        64
+      ],
+      "tag": "Quality Gate (QA)"
+    },
+    {
+      "id": "committer",
+      "type": "database",
+      "label": "Git Committer",
+      "sublabel": "Conventional Commits & Push",
+      "pos": [
+        1010,
+        250
+      ],
+      "size": [
+        160,
+        60
+      ]
+    },
+    {
+      "id": "tasks_state",
+      "type": "database",
+      "label": "Task State & Logs",
+      "sublabel": "tasks.md & logs/*.jsonl",
+      "pos": [
+        260,
+        400
+      ],
+      "size": [
+        180,
+        60
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Autonomous AI Execution Engines",
+      "wraps": [
+        "engine_claude",
+        "engine_opencode",
+        "engine_antigravity"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "Verification & Safety Sandbox",
+      "wraps": [
+        "verifier",
+        "committer"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "cli-to-harness",
+      "from": "cli",
+      "to": "harness",
+      "label": "invokes runner",
+      "variant": "emphasis"
+    },
+    {
+      "id": "harness-to-guard",
+      "from": "harness",
+      "to": "guard",
+      "label": "check headroom",
+      "variant": "security",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "harness-to-claude",
+      "from": "harness",
+      "to": "engine_claude",
+      "label": "dispatch task",
+      "fromSide": "top",
+      "toSide": "left"
+    },
+    {
+      "id": "harness-to-opencode",
+      "from": "harness",
+      "to": "engine_opencode",
+      "label": "dispatch task",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "harness-to-antigravity",
+      "from": "harness",
+      "to": "engine_antigravity",
+      "label": "dispatch task",
+      "fromSide": "bottom",
+      "toSide": "left"
+    },
+    {
+      "id": "engines-to-verifier",
+      "from": "engine_opencode",
+      "to": "verifier",
+      "label": "runs verification",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "verifier-to-committer",
+      "from": "verifier",
+      "to": "committer",
+      "label": "commit on pass",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "harness-to-state",
+      "from": "harness",
+      "to": "tasks_state",
+      "label": "mark [x] & append log",
+      "fromSide": "bottom",
+      "toSide": "top"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Harness Core",
+      "items": [
+        "Seq execution of OpenSpec changes",
+        "State stored in tasks.md and git",
+        "Harness owns verification, not the LLM"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Multi-Engine Support",
+      "items": [
+        "Claude Agent SDK (with usage headroom guard)",
+        "OpenCode CLI (DeepSeek/providers)",
+        "Google Antigravity CLI (agy / Gemini)"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "QA & Safety Controls",
+      "items": [
+        "Strict verification gate: tests, lint, tsc, build",
+        "Denied bash: LLM cannot git commit/push directly",
+        "Automatic retries up to 3 attempts with failure feedback"
+      ]
+    }
+  ]
+}
