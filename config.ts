@@ -5,6 +5,8 @@
  * overrides, and strict constants to ensure zero magic numbers across the codebase.
  */
 
+import { homedir } from "node:os";
+import { basename, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { normalizePlatformPath } from "./platform";
 
@@ -175,6 +177,8 @@ export interface CascadeConfig {
   model?: string;
   /** Reasoning effort override ("high", "low", "none", etc.) */
   effort?: string;
+  /** Directory where run logs are written (created lazily on first write) */
+  logDir: string;
 
   /** Maximum plan usage percentage before pausing (0-100) */
   usageLimitPercent: number;
@@ -254,6 +258,8 @@ export interface ParsedCliOptions {
   "keep-alive"?: boolean;
   model?: string;
   effort?: string;
+  "log-dir"?: string;
+  help?: boolean;
   "no-diagrams"?: boolean;
   diagrams?: boolean;
   "graphify-command"?: string;
@@ -288,6 +294,65 @@ export function isKeepAliveEnabled(options: { "no-keep-alive"?: boolean; "keep-a
   return true;
 }
 
+export interface LogDirInput {
+  /** Value of `--log-dir` */
+  option?: string;
+  /** Value of `CASCADE_LOG_DIR` */
+  env?: string;
+  /** Target repository root; its basename names the default subdirectory */
+  repo: string;
+  /** Home directory hosting the default cache location */
+  home: string;
+  /** Base for resolving relative paths */
+  cwd: string;
+}
+
+/** Log directory precedence: `--log-dir` > `CASCADE_LOG_DIR` > `<home>/.cache/openspec-cascade/logs/<repo name>`. */
+export function resolveLogDir({ option, env, repo, home, cwd }: LogDirInput): string {
+  const explicit = [option, env].find((value) => value !== undefined && value.trim() !== "");
+  if (explicit !== undefined) return resolve(cwd, explicit.trim());
+  return join(home, ".cache", "openspec-cascade", "logs", basename(repo));
+}
+
+const HELP_TEXT = `openspec-cascade: run OpenSpec changes in order, one agent session per task.
+
+Usage:
+  openspec-cascade --repo <path> --changes a,b,c [options]
+
+Options:
+  --repo <path>              Target repository (default: current directory; env CASCADE_REPO)
+  --changes a,b,c            OpenSpec changes to run, in cascade order (env CASCADE_CHANGES)
+  --engine <name>            claude (default), opencode, or antigravity (alias: agy)
+  --model <name>             Model override for the selected engine
+  --effort <level>           Reasoning effort override (default: ${CONSTANTS.DEFAULT_EFFORT})
+  --allow-dirty              Run on a dirty git working tree
+  --dry-run                  Print the plan and usage meters; run nothing and write no logs
+  --full-gate                Run the full verification suite on every committing task
+  --no-keep-alive            Do not prevent the machine from sleeping while running
+  --log-dir <path>           Directory for run logs (default: ~/.cache/openspec-cascade/logs/<repo name>)
+  --no-diagrams              Disable automatic diagram synchronization
+  --graphify-command <cmd>   Command that updates the Graphify knowledge graph
+  --archify-action <action>  Archify action (default: ${CONSTANTS.ARCHIFY_ACTION})
+  --archify-quality <name>   Archify quality profile (default: ${CONSTANTS.ARCHIFY_DEFAULT_QUALITY})
+  --archify-bin <path>       Archify binary or command prefix
+  --no-rollback              Keep the working tree as is when a task fails
+  --resilient                Continue with the next task when a task fails (alias: --continue-on-failure)
+  -h, --help                 Show this help and exit
+
+Environment:
+  CASCADE_MODEL              Same as --model
+  CASCADE_EFFORT             Same as --effort
+  CASCADE_LOG_DIR            Same as --log-dir (the flag takes precedence)
+
+Examples:
+  openspec-cascade --repo ~/work/my-app --changes add-auth,add-billing
+  openspec-cascade --repo . --changes add-auth --engine opencode --dry-run
+`;
+
+export function formatHelp(): string {
+  return HELP_TEXT;
+}
+
 export function parseCliArgs(argv: string[] = process.argv.slice(CONSTANTS.ARGV_START_INDEX)): {
   options: ParsedCliOptions;
   positionals: string[];
@@ -306,6 +371,8 @@ export function parseCliArgs(argv: string[] = process.argv.slice(CONSTANTS.ARGV_
         "keep-alive": { type: "boolean" },
         model: { type: "string" },
         effort: { type: "string" },
+        "log-dir": { type: "string" },
+        help: { type: "boolean", short: "h", default: false },
         "no-diagrams": { type: "boolean", default: false },
         diagrams: { type: "boolean" },
         "graphify-command": { type: "string" },
@@ -398,6 +465,17 @@ export function loadConfig(options: LoadConfigOptions = {}): CascadeConfig {
   // 6. Model & Effort
   const model = overrides.model ?? cliOpts.model ?? env.CASCADE_MODEL ?? undefined;
   const effort = overrides.effort ?? cliOpts.effort ?? env.CASCADE_EFFORT ?? CONSTANTS.DEFAULT_EFFORT;
+
+  // 6b. Log directory
+  const logDir =
+    overrides.logDir ??
+    resolveLogDir({
+      option: typeof cliOpts["log-dir"] === "string" ? cliOpts["log-dir"] : undefined,
+      env: env.CASCADE_LOG_DIR,
+      repo,
+      home: homedir(),
+      cwd,
+    });
 
   // 7. Limits & Margins
   const usageLimitPercent =
@@ -524,6 +602,7 @@ export function loadConfig(options: LoadConfigOptions = {}): CascadeConfig {
     keepAlive,
     model,
     effort,
+    logDir,
     usageLimitPercent,
     resetMarginMs,
     unknownResetSleepMs,
