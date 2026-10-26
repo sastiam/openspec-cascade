@@ -174,9 +174,9 @@
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.delivery.json": {
-    "mtime": 1792900558.3882725,
-    "seen": 1792902942.0471346,
-    "ast_hash": "ff7af52bf1c2a4b4bec63168c9fb36c1",
+    "mtime": 1792902943.6673198,
+    "seen": 1792906154.4245203,
+    "ast_hash": "d846aa52761220f87717e9f82c914189",
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.finalize-summary.json": {
@@ -300,8 +300,8 @@
     "semantic_hash": ""
   },
   ".archify/architecture-openspec-cascade/openspec-cascade-architecture.html": {
-    "mtime": 1792900558.0272706,
-    "seen": 1792902942.048579,
+    "mtime": 1792902943.3603184,
+    "seen": 1792906154.4252388,
     "ast_hash": "94db30b43f4a07a3e7ce38af427e41fd",
     "semantic_hash": ""
   },
@@ -456,8 +456,8 @@
     "semantic_hash": ""
   },
   "projects/agnostic_looper/tasks_catalog.json": {
-    "mtime": 1792854998.184256,
-    "seen": 1792868132.879432,
+    "mtime": 1792903499.6960483,
+    "seen": 1792906154.424604,
     "ast_hash": "622a9a4dbb1584af216f630f49353491",
     "semantic_hash": ""
   },
@@ -972,8 +972,8 @@
     "semantic_hash": ""
   },
   ".archify/workflow-agnostic-looper/agnostic-looper-workflow.html": {
-    "mtime": 1792900559.3842776,
-    "seen": 1792902942.0485857,
+    "mtime": 1792902944.707325,
+    "seen": 1792906154.4252427,
     "ast_hash": "c31685e59ee141da99e47a4901f179c5",
     "semantic_hash": ""
   },
@@ -1242,9 +1242,9 @@
     "semantic_hash": ""
   },
   "openspec/changes/looper-integration-catalog-sync/tasks.md": {
-    "mtime": 1792865836.0312185,
-    "seen": 1792868132.8802137,
-    "ast_hash": "015e01b6c641166bce62c8160208c39d",
+    "mtime": 1792906112.4630356,
+    "seen": 1792906154.425464,
+    "ast_hash": "e676f6ca4007d589b8ac79ff645d1c49",
     "semantic_hash": ""
   },
   "openspec/changes/looper-integration-github-project/.openspec.yaml": {
@@ -1434,15 +1434,15 @@
     "semantic_hash": ""
   },
   "projects/agnostic_looper/tasks_catalog.md": {
-    "mtime": 1792854998.184256,
-    "seen": 1792868132.8803556,
+    "mtime": 1792903742.652247,
+    "seen": 1792906154.4256148,
     "ast_hash": "870bfd25b4d176f594387c911ce43082",
     "semantic_hash": ""
   },
   ".archify/workflow-agnostic-looper/agnostic-looper-workflow.delivery.json": {
-    "mtime": 1792900559.686279,
-    "seen": 1792902942.0471592,
-    "ast_hash": "17a53291c991a18454fccb47fd23c73a",
+    "mtime": 1792902945.0073264,
+    "seen": 1792906154.4245324,
+    "ast_hash": "575a468658728758793d278cc7817759",
     "semantic_hash": ""
   },
   "src/pal/normalizer.ts": {
@@ -1692,8 +1692,8 @@
     "semantic_hash": ""
   },
   ".agents/teamwork/reviewer_INTEG-RUN-001/review_findings.json": {
-    "mtime": 1792902848.8618577,
-    "seen": 1792902942.0470698,
+    "mtime": 1792906095.3129506,
+    "seen": 1792906154.4244776,
     "ast_hash": "3b9081d1de27184c3a7b1bde7f5a72e8",
     "semantic_hash": ""
   },
@@ -1740,32 +1740,32 @@
     "semantic_hash": ""
   },
   ".agents/teamwork/reviewer_INTEG-RUN-001/BRIEFING.md": {
-    "mtime": 1792902848.8598576,
-    "seen": 1792902942.0482159,
+    "mtime": 1792906095.3099506,
+    "seen": 1792906154.4250655,
     "ast_hash": "e9e3d912fac062028707e957755a26fd",
     "semantic_hash": ""
   },
   ".agents/teamwork/reviewer_INTEG-RUN-001/DISPATCH.md": {
-    "mtime": 1792902848.8604746,
-    "seen": 1792902942.0482228,
+    "mtime": 1792906095.3116243,
+    "seen": 1792906154.4250689,
     "ast_hash": "3a38b49d840bf8c4bf5b05ce8c02084e",
     "semantic_hash": ""
   },
   ".agents/teamwork/reviewer_INTEG-RUN-001/handoff.md": {
-    "mtime": 1792902848.8628576,
-    "seen": 1792902942.0482297,
+    "mtime": 1792906095.3129506,
+    "seen": 1792906154.4250724,
     "ast_hash": "89864fc38978b7de32493423ac3749ce",
     "semantic_hash": ""
   },
   ".agents/teamwork/reviewer_INTEG-RUN-001/progress.md": {
-    "mtime": 1792902848.863845,
-    "seen": 1792902942.0482364,
-    "ast_hash": "b7ace64ad0624c8209104f9f33a14a25",
+    "mtime": 1792906095.3139508,
+    "seen": 1792906154.4250758,
+    "ast_hash": "c34a31de573ba40459bd5fa7c41ee4fe",
     "semantic_hash": ""
   },
   ".agents/teamwork/reviewer_INTEG-RUN-001/review_report.md": {
-    "mtime": 1792902848.8618577,
-    "seen": 1792902942.048243,
+    "mtime": 1792906095.3124523,
+    "seen": 1792906154.4250793,
     "ast_hash": "89864fc38978b7de32493423ac3749ce",
     "semantic_hash": ""
   },
@@ -1827,6 +1827,36 @@
     "mtime": 1792902880.3080108,
     "seen": 1792902942.0477777,
     "ast_hash": "bffe09a26fb8e139560d3b115f22ce4d",
+    "semantic_hash": ""
+  },
+  "src/integration/catalog_generator.ts": {
+    "mtime": 1792904855.8877797,
+    "seen": 1792906154.4247186,
+    "ast_hash": "f4293cf154ee54caf76d9cbd58e9014d",
+    "semantic_hash": ""
+  },
+  "src/integration/drift_detector.ts": {
+    "mtime": 1792904768.2763424,
+    "seen": 1792906154.4247222,
+    "ast_hash": "fa604931cc55215677670379dab88302",
+    "semantic_hash": ""
+  },
+  "src/integration/errors.ts": {
+    "mtime": 1792904674.6118746,
+    "seen": 1792906154.4247258,
+    "ast_hash": "9515938dd60a14b7fa941693ef5ed455",
+    "semantic_hash": ""
+  },
+  "src/integration/schema_validator.ts": {
+    "mtime": 1792904341.748217,
+    "seen": 1792906154.4247336,
+    "ast_hash": "6c20a49875d9a522f2801a100e62ff3d",
+    "semantic_hash": ""
+  },
+  "test/integration/catalog.test.ts": {
+    "mtime": 1792906051.5357342,
+    "seen": 1792906154.4248443,
+    "ast_hash": "246e649b1dbe56dfa2070693bd8b2b05",
     "semantic_hash": ""
   }
 }
