@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   JULES_ADAPTER_CONSTANTS,
   JULES_AWAITING_INPUT_POLICIES,
+  JULES_BATCH_OUTCOMES,
   JULES_SESSION_STATES,
   JulesAdapter,
   JulesAuthError,
@@ -9,6 +10,7 @@ import {
   JulesCliNotFoundError,
   JulesSessionFailedError,
   JulesTimeoutError,
+  buildJulesPrompt,
   formatJulesPrompt,
   normalizeJulesStatus,
   parseJulesCreatedSessionIds,
@@ -532,6 +534,117 @@ describe("Google Jules Provider Adapter (LOOPER-PAL-JULES)", () => {
     });
   });
 
+  describe("Finished session with empty status", () => {
+    const FINISHED_PATCH = `diff --git a/x b/x\n+finished work\n`;
+
+    it("completes an awaiting session whose pull returns a diff, without error", async () => {
+      const patches = new Map<string, string>();
+      const { adapter, cli } = createAdapter(
+        scriptedCli({
+          listStdouts: [sessionListOutput([REAL_AWAITING_INPUT_ROW])],
+          pullStdouts: { [SESSION_ID_REAL]: FINISHED_PATCH },
+        })
+      );
+
+      const transitions = await collect(
+        adapter.watchSessions([SESSION_ID_REAL], undefined, patches)
+      );
+
+      expect(transitions).toEqual([
+        { sessionId: SESSION_ID_REAL, rawStatus: "", state: JULES_SESSION_STATES.COMPLETED },
+      ]);
+      expect(patches.get(SESSION_ID_REAL)).toBe(FINISHED_PATCH);
+      expect(cli.calls.filter((argv) => argv[2] === "pull")).toHaveLength(1);
+    });
+
+    it("completes a session that becomes ready after an empty poll, pulling once per poll", async () => {
+      let pullCount = 0;
+      const { adapter, cli } = createAdapter((args) => {
+        if (args[0] === "list") {
+          return { stdout: sessionListOutput([REAL_AWAITING_INPUT_ROW]) };
+        }
+        pullCount += 1;
+        return { stdout: pullCount === 1 ? NO_DIFF_OUTPUT : FINISHED_PATCH };
+      });
+
+      const transitions = await collect(adapter.watchSessions([SESSION_ID_REAL]));
+
+      expect(transitions.map((t) => t.state)).toEqual([
+        JULES_SESSION_STATES.AWAITING_INPUT,
+        JULES_SESSION_STATES.COMPLETED,
+      ]);
+      expect(cli.calls.filter((argv) => argv[2] === "pull")).toHaveLength(2);
+    });
+
+    it("still fails an awaiting session whose pull stays empty, after the poll limit", async () => {
+      const { adapter, cli } = createAdapter(
+        scriptedCli({
+          listStdouts: [sessionListOutput([REAL_AWAITING_INPUT_ROW])],
+          pullStdouts: {},
+        })
+      );
+
+      const error = await collect(adapter.watchSessions([SESSION_ID_REAL])).catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(JulesAwaitingInputError);
+      const limit = JULES_ADAPTER_CONSTANTS.DEFAULT_AWAITING_INPUT_POLL_LIMIT;
+      expect(cli.calls.filter((argv) => argv[2] === "list")).toHaveLength(limit);
+      expect(cli.calls.filter((argv) => argv[2] === "pull")).toHaveLength(limit);
+    });
+
+    it("treats a failed pull as not ready instead of crashing the watch", async () => {
+      const { adapter } = createAdapter((args) =>
+        args[0] === "list"
+          ? { stdout: sessionListOutput([REAL_AWAITING_INPUT_ROW]) }
+          : { exitCode: 3, stderr: "pull failed" }
+      );
+
+      const error = await collect(adapter.watchSessions([SESSION_ID_REAL])).catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(JulesAwaitingInputError);
+    });
+
+    it("keep-waiting policy still completes an awaiting session once its pull returns a diff", async () => {
+      const { adapter } = createAdapter(
+        scriptedCli({
+          listStdouts: [sessionListOutput([REAL_AWAITING_INPUT_ROW])],
+          pullStdouts: { [SESSION_ID_REAL]: FINISHED_PATCH },
+        }),
+        { awaitingInputPolicy: JULES_AWAITING_INPUT_POLICIES.KEEP_WAITING }
+      );
+
+      const transitions = await collect(adapter.watchSessions([SESSION_ID_REAL]));
+
+      expect(transitions.map((t) => t.state)).toEqual([JULES_SESSION_STATES.COMPLETED]);
+    });
+
+    it("streamTurn reuses the diff pulled while watching instead of pulling again", async () => {
+      const { adapter, cli } = createAdapter(
+        scriptedCli({
+          newStdout: `Created session ${SESSION_ID_REAL}\n`,
+          listStdouts: [sessionListOutput([REAL_AWAITING_INPUT_ROW])],
+          pullStdouts: { [SESSION_ID_REAL]: FINISHED_PATCH },
+        })
+      );
+
+      const events = await collect<PalStreamEvent>(adapter.streamTurn(userSession("task")));
+
+      expect(events).toEqual([
+        {
+          type: "thought_delta",
+          thought: `Jules session ${SESSION_ID_REAL}: ${JULES_ADAPTER_CONSTANTS.PULL_COMPLETED_DISPLAY_LABEL}`,
+        },
+        { type: "text_delta", text: FINISHED_PATCH },
+        {
+          type: "turn_complete",
+          finishReason: PAL_FINISH_REASONS.STOP,
+          usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+        },
+      ]);
+      expect(cli.calls.filter((argv) => argv[2] === "pull")).toHaveLength(1);
+    });
+  });
+
   describe("Polling & lifecycle normalization", () => {
     it("emits one transition per state change and stops once every session completes", async () => {
       const { adapter, clock } = createAdapter(
@@ -835,6 +948,342 @@ describe("Google Jules Provider Adapter (LOOPER-PAL-JULES)", () => {
 
       expect(events.map((e) => e.type)).toEqual(["error"]);
       expect(cli.calls.map((argv) => argv[2])).toEqual(["new"]);
+    });
+  });
+
+  describe("Batch execution (runBatch)", () => {
+    const TASK_ONE = { id: "t1", prompt: "PROMPT-ONE" };
+    const TASK_TWO = { id: "t2", prompt: "PROMPT-TWO" };
+    const SESSION_FLAG_PREFIX = "--session=";
+
+    interface BatchCliScript {
+      sessionIdByPrompt: Record<string, string>;
+      failCreatePrompts?: string[];
+      statusOf: (sessionId: string, listCall: number) => string;
+      pulls?: Record<string, string>;
+      failPulls?: string[];
+      failList?: boolean;
+    }
+
+    /**
+     * Fake CLI for a batch: `new` maps the prompt to a session, `list` renders every created
+     * session with its scripted status, `pull` answers from the script.
+     */
+    function batchCli(script: BatchCliScript): FakeCliHandler {
+      const created: string[] = [];
+      let listCalls = 0;
+      return (args) => {
+        const action = args[0];
+        const sessionArg =
+          args.find((arg) => arg.startsWith(SESSION_FLAG_PREFIX))?.slice(SESSION_FLAG_PREFIX.length) ??
+          "";
+        if (action === "new") {
+          if (script.failCreatePrompts?.includes(sessionArg)) {
+            return { exitCode: 1, stderr: "quota exceeded" };
+          }
+          const id = script.sessionIdByPrompt[sessionArg] ?? "";
+          created.push(id);
+          return { stdout: `Created session ${id}\n` };
+        }
+        if (action === "list") {
+          listCalls += 1;
+          if (script.failList) {
+            return { exitCode: 3, stderr: "list failed" };
+          }
+          return {
+            stdout: sessionListOutput(
+              created.map((id) => sessionRow(id, "task", script.statusOf(id, listCalls)))
+            ),
+          };
+        }
+        if (action === "pull") {
+          if (script.failPulls?.includes(sessionArg)) {
+            return { exitCode: 3, stderr: "pull failed" };
+          }
+          return { stdout: script.pulls?.[sessionArg] ?? NO_DIFF_OUTPUT };
+        }
+        return { exitCode: 2, stderr: `unknown action ${String(action)}` };
+      };
+    }
+
+    const SESSIONS_BY_PROMPT = {
+      "PROMPT-ONE": SESSION_ID_A,
+      "PROMPT-TWO": SESSION_ID_B,
+    };
+
+    function actionsOf(cli: { calls: string[][] }): string[] {
+      return cli.calls.map((argv) => argv[2] ?? "");
+    }
+
+    it("creates one session per task with the repo and no --parallel, returning results in input order", async () => {
+      const { adapter, cli } = createAdapter(
+        batchCli({
+          sessionIdByPrompt: SESSIONS_BY_PROMPT,
+          statusOf: () => "Completed",
+          pulls: { [SESSION_ID_A]: "patch-A", [SESSION_ID_B]: "patch-B" },
+        })
+      );
+
+      const results = await adapter.runBatch([TASK_ONE, TASK_TWO]);
+
+      expect(results).toEqual([
+        { taskId: "t1", sessionId: SESSION_ID_A, outcome: JULES_BATCH_OUTCOMES.DIFF, patch: "patch-A" },
+        { taskId: "t2", sessionId: SESSION_ID_B, outcome: JULES_BATCH_OUTCOMES.DIFF, patch: "patch-B" },
+      ]);
+      const newCalls = cli.calls.filter((argv) => argv[2] === "new");
+      expect(newCalls).toHaveLength(2);
+      for (const argv of newCalls) {
+        expect(argv).toContain(`--repo=${TEST_REPO}`);
+        expect(argv).not.toContain("--parallel");
+      }
+    });
+
+    it("records a creation failure for one task without aborting the others", async () => {
+      const { adapter } = createAdapter(
+        batchCli({
+          sessionIdByPrompt: SESSIONS_BY_PROMPT,
+          failCreatePrompts: [TASK_ONE.prompt],
+          statusOf: () => "Completed",
+          pulls: { [SESSION_ID_B]: "patch-B" },
+        })
+      );
+
+      const [first, second] = await adapter.runBatch([TASK_ONE, TASK_TWO]);
+
+      expect(first?.outcome).toBe(JULES_BATCH_OUTCOMES.FAILED);
+      expect(first?.sessionId).toBeUndefined();
+      expect(first?.error).toContain("quota exceeded");
+      expect(second).toEqual({
+        taskId: "t2",
+        sessionId: SESSION_ID_B,
+        outcome: JULES_BATCH_OUTCOMES.DIFF,
+        patch: "patch-B",
+      });
+    });
+
+    it("records a failed session as failed while the other sessions complete", async () => {
+      const { adapter } = createAdapter(
+        batchCli({
+          sessionIdByPrompt: SESSIONS_BY_PROMPT,
+          statusOf: (id) => (id === SESSION_ID_A ? "Failed" : "Completed"),
+          pulls: { [SESSION_ID_B]: "patch-B" },
+        })
+      );
+
+      const [first, second] = await adapter.runBatch([TASK_ONE, TASK_TWO]);
+
+      expect(first?.outcome).toBe(JULES_BATCH_OUTCOMES.FAILED);
+      expect(first?.sessionId).toBe(SESSION_ID_A);
+      expect(first?.error).toContain(`Jules session ${SESSION_ID_A} ended`);
+      expect(second?.outcome).toBe(JULES_BATCH_OUTCOMES.DIFF);
+    });
+
+    it("classifies awaiting sessions by their pull: a diff is a result, an empty pull needs input", async () => {
+      const { adapter } = createAdapter(
+        batchCli({
+          sessionIdByPrompt: SESSIONS_BY_PROMPT,
+          statusOf: () => "",
+          pulls: { [SESSION_ID_A]: "patch-A" },
+        })
+      );
+
+      const [first, second] = await adapter.runBatch([TASK_ONE, TASK_TWO]);
+
+      expect(first).toEqual({
+        taskId: "t1",
+        sessionId: SESSION_ID_A,
+        outcome: JULES_BATCH_OUTCOMES.DIFF,
+        patch: "patch-A",
+      });
+      expect(second?.outcome).toBe(JULES_BATCH_OUTCOMES.NEEDS_INPUT);
+      expect(second?.error).toContain(`https://jules.google.com/session/${SESSION_ID_B}`);
+    });
+
+    it("keep-waiting policy times out an awaiting session with no diff instead of asking for input", async () => {
+      const { adapter } = createAdapter(
+        batchCli({
+          sessionIdByPrompt: SESSIONS_BY_PROMPT,
+          statusOf: () => "",
+        }),
+        { awaitingInputPolicy: JULES_AWAITING_INPUT_POLICIES.KEEP_WAITING }
+      );
+
+      const results = await adapter.runBatch([TASK_ONE]);
+
+      expect(results[0]?.outcome).toBe(JULES_BATCH_OUTCOMES.TIMEOUT);
+      expect(results[0]?.error).toContain("did not complete");
+    });
+
+    it("records a session still running at the deadline as timeout and keeps the finished diffs", async () => {
+      const { adapter } = createAdapter(
+        batchCli({
+          sessionIdByPrompt: SESSIONS_BY_PROMPT,
+          statusOf: (id) => (id === SESSION_ID_B ? "In Progress" : "Completed"),
+          pulls: { [SESSION_ID_A]: "patch-A" },
+        })
+      );
+
+      const [first, second] = await adapter.runBatch([TASK_ONE, TASK_TWO]);
+
+      expect(first?.outcome).toBe(JULES_BATCH_OUTCOMES.DIFF);
+      expect(second?.outcome).toBe(JULES_BATCH_OUTCOMES.TIMEOUT);
+      expect(second?.sessionId).toBe(SESSION_ID_B);
+    });
+
+    it("records a failed pull of a finished session as failed for that task only", async () => {
+      const { adapter } = createAdapter(
+        batchCli({
+          sessionIdByPrompt: SESSIONS_BY_PROMPT,
+          statusOf: () => "Completed",
+          failPulls: [SESSION_ID_A],
+          pulls: { [SESSION_ID_B]: "patch-B" },
+        })
+      );
+
+      const [first, second] = await adapter.runBatch([TASK_ONE, TASK_TWO]);
+
+      expect(first?.outcome).toBe(JULES_BATCH_OUTCOMES.FAILED);
+      expect(first?.error).toContain("pull failed");
+      expect(second?.outcome).toBe(JULES_BATCH_OUTCOMES.DIFF);
+    });
+
+    it("reports an empty pull of a finished session as empty", async () => {
+      const { adapter } = createAdapter(
+        batchCli({ sessionIdByPrompt: SESSIONS_BY_PROMPT, statusOf: () => "Completed" })
+      );
+
+      const results = await adapter.runBatch([TASK_ONE]);
+
+      expect(results).toEqual([
+        { taskId: "t1", sessionId: SESSION_ID_A, outcome: JULES_BATCH_OUTCOMES.EMPTY },
+      ]);
+    });
+
+    it("shares one remote list poll across every session in a wave", async () => {
+      const { adapter, cli } = createAdapter(
+        batchCli({
+          sessionIdByPrompt: SESSIONS_BY_PROMPT,
+          statusOf: () => "Completed",
+          pulls: { [SESSION_ID_A]: "patch-A", [SESSION_ID_B]: "patch-B" },
+        })
+      );
+
+      await adapter.runBatch([TASK_ONE, TASK_TWO]);
+
+      expect(cli.calls.filter((argv) => argv[2] === "list")).toHaveLength(1);
+    });
+
+    it("runs sessions in waves of maxConcurrent, finishing a wave before creating the next", async () => {
+      const tasks = ["a", "b", "c", "d", "e"].map((id) => ({ id, prompt: `prompt-${id}` }));
+      const sessionIdByPrompt = Object.fromEntries(
+        tasks.map((task, index) => [task.prompt, `${index + 1}`.padStart(SESSION_ID_A.length, "1")])
+      );
+      const { adapter, cli } = createAdapter(
+        batchCli({ sessionIdByPrompt, statusOf: () => "Completed" })
+      );
+
+      const results = await adapter.runBatch(tasks, { maxConcurrent: 2 });
+
+      expect(results.map((r) => r.outcome)).toEqual(tasks.map(() => JULES_BATCH_OUTCOMES.EMPTY));
+      expect(actionsOf(cli)).toEqual([
+        "new", "new", "list", "pull", "pull",
+        "new", "new", "list", "pull", "pull",
+        "new", "list", "pull",
+      ]);
+    });
+
+    it("defaults to five sessions per wave", async () => {
+      const tasks = ["a", "b", "c", "d", "e", "f"].map((id) => ({ id, prompt: `prompt-${id}` }));
+      const sessionIdByPrompt = Object.fromEntries(
+        tasks.map((task, index) => [task.prompt, `${index + 1}`.padStart(SESSION_ID_A.length, "1")])
+      );
+      const { adapter, cli } = createAdapter(
+        batchCli({ sessionIdByPrompt, statusOf: () => "Completed" })
+      );
+
+      await adapter.runBatch(tasks);
+
+      const actions = actionsOf(cli);
+      const firstList = actions.indexOf("list");
+      expect(actions.slice(0, JULES_ADAPTER_CONSTANTS.MAX_BATCH_MAX_CONCURRENT)).toEqual(
+        Array.from({ length: JULES_ADAPTER_CONSTANTS.MAX_BATCH_MAX_CONCURRENT }, () => "new")
+      );
+      expect(firstList).toBe(JULES_ADAPTER_CONSTANTS.MAX_BATCH_MAX_CONCURRENT);
+    });
+
+    it("collects a list failure as failed for the unfinished tasks instead of throwing", async () => {
+      const { adapter } = createAdapter(
+        batchCli({ sessionIdByPrompt: SESSIONS_BY_PROMPT, statusOf: () => "", failList: true })
+      );
+
+      const results = await adapter.runBatch([TASK_ONE, TASK_TWO]);
+
+      expect(results.map((r) => r.outcome)).toEqual([
+        JULES_BATCH_OUTCOMES.FAILED,
+        JULES_BATCH_OUTCOMES.FAILED,
+      ]);
+      expect(results[0]?.error).toContain("list failed");
+    });
+
+    it("returns no results and spawns nothing for an empty batch", async () => {
+      const { adapter, cli } = createAdapter(batchCli({ sessionIdByPrompt: {}, statusOf: () => "" }));
+
+      expect(await adapter.runBatch([])).toEqual([]);
+      expect(cli.calls).toHaveLength(0);
+    });
+
+    it("rejects invalid maxConcurrent, duplicate ids and empty prompts before spawning anything", async () => {
+      const { adapter, cli } = createAdapter(batchCli({ sessionIdByPrompt: SESSIONS_BY_PROMPT, statusOf: () => "" }));
+
+      for (const maxConcurrent of [0, JULES_ADAPTER_CONSTANTS.MAX_BATCH_MAX_CONCURRENT + 1, 1.5]) {
+        await expect(adapter.runBatch([TASK_ONE], { maxConcurrent })).rejects.toBeInstanceOf(PalError);
+      }
+      await expect(adapter.runBatch([TASK_ONE, { ...TASK_TWO, id: "t1" }])).rejects.toBeInstanceOf(PalError);
+      await expect(adapter.runBatch([{ id: "t3", prompt: "   " }])).rejects.toBeInstanceOf(PalError);
+      expect(cli.calls).toHaveLength(0);
+    });
+
+    it("accepts every maxConcurrent value from the minimum to the maximum", async () => {
+      for (let value = JULES_ADAPTER_CONSTANTS.MIN_BATCH_MAX_CONCURRENT; value <= JULES_ADAPTER_CONSTANTS.MAX_BATCH_MAX_CONCURRENT; value += 1) {
+        const { adapter } = createAdapter(batchCli({ sessionIdByPrompt: SESSIONS_BY_PROMPT, statusOf: () => "Completed" }));
+        await expect(adapter.runBatch([TASK_ONE], { maxConcurrent: value })).resolves.toHaveLength(1);
+      }
+    });
+  });
+
+  describe("Prompt composition (buildJulesPrompt)", () => {
+    it("composes the goal, exact files, verify command and standard constraints", () => {
+      const prompt = buildJulesPrompt({
+        goal: "Fix the parser edge case",
+        files: ["src/parser.ts", "test/parser.test.ts"],
+        verifyCommand: "bun test test/parser.test.ts",
+        constraints: ["Keep the public API unchanged"],
+      });
+
+      expect(prompt).toContain("Goal: Fix the parser edge case");
+      expect(prompt).toContain("- src/parser.ts\n- test/parser.test.ts");
+      expect(prompt).toContain("`bun test test/parser.test.ts`");
+      expect(prompt).toContain("Do not modify any file other than the files listed above.");
+      expect(prompt).toContain("Do not open a pull request.");
+      expect(prompt).toContain("- Keep the public API unchanged");
+    });
+
+    it("trims inputs and removes duplicate files", () => {
+      const prompt = buildJulesPrompt({
+        goal: "  Tidy  ",
+        files: ["src/a.ts", " src/a.ts ", "  "],
+        verifyCommand: "  bun test  ",
+      });
+
+      expect(prompt).toContain("Goal: Tidy\n");
+      expect(prompt.match(/- src\/a\.ts/g)).toHaveLength(1);
+      expect(prompt).toContain("`bun test`");
+    });
+
+    it("rejects a missing goal, no files, or a missing verify command", () => {
+      expect(() => buildJulesPrompt({ goal: " ", files: ["a.ts"], verifyCommand: "bun test" })).toThrow(PalError);
+      expect(() => buildJulesPrompt({ goal: "g", files: [], verifyCommand: "bun test" })).toThrow(PalError);
+      expect(() => buildJulesPrompt({ goal: "g", files: ["a.ts"], verifyCommand: "" })).toThrow(PalError);
     });
   });
 

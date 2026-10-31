@@ -83,6 +83,8 @@ export const JULES_ADAPTER_CONSTANTS = {
   SESSION_ROW_ID_PATTERN: /^\d+$/,
   // Shown in thought events in place of an empty status label.
   EMPTY_STATUS_DISPLAY_LABEL: "awaiting input",
+  // Shown when an empty status label was resolved to completed by a non-empty pull.
+  PULL_COMPLETED_DISPLAY_LABEL: "completed (diff ready)",
   SESSION_URL_BASE: "https://jules.google.com/session/",
   // Exact stdout of `jules remote pull` when the remote VM has no changes (exit 0).
   NO_DIFF_MESSAGE: "No diff found in the remote VM.",
@@ -99,6 +101,20 @@ export const JULES_ADAPTER_CONSTANTS = {
   // Awaiting-input policy. Default fails fast so polling never hangs until the timeout.
   DEFAULT_AWAITING_INPUT_POLL_LIMIT: 3,
   MIN_AWAITING_INPUT_POLL_LIMIT: 1,
+
+  // Batch execution: sessions are created and watched in waves of at most maxConcurrent.
+  DEFAULT_BATCH_MAX_CONCURRENT: 5,
+  MIN_BATCH_MAX_CONCURRENT: 1,
+  MAX_BATCH_MAX_CONCURRENT: 5,
+
+  // Prompt composition (buildJulesPrompt)
+  PROMPT_HEADING_GOAL: "Goal:",
+  PROMPT_HEADING_FILES: "Modify only these files (exact paths):",
+  PROMPT_HEADING_CONSTRAINTS: "Constraints:",
+  PROMPT_VERIFY_INSTRUCTION: "Before finishing, run this command and make sure it passes:",
+  PROMPT_CONSTRAINT_OTHER_FILES: "Do not modify any file other than the files listed above.",
+  PROMPT_CONSTRAINT_NO_PULL_REQUEST: "Do not open a pull request.",
+  PROMPT_LIST_ITEM_PREFIX: "- ",
 
   // Usage & rate limits (not reported by the CLI)
   ZERO_TOKENS: 0,
@@ -124,6 +140,19 @@ export const JULES_SESSION_STATES = {
 
 export type JulesSessionState =
   (typeof JULES_SESSION_STATES)[keyof typeof JULES_SESSION_STATES];
+
+/**
+ * Per-task outcome reported by `runBatch`.
+ */
+export const JULES_BATCH_OUTCOMES = {
+  DIFF: "diff",
+  EMPTY: "empty",
+  FAILED: "failed",
+  TIMEOUT: "timeout",
+  NEEDS_INPUT: "needs_input",
+} as const;
+
+export type JulesBatchOutcome = (typeof JULES_BATCH_OUTCOMES)[keyof typeof JULES_BATCH_OUTCOMES];
 
 /**
  * Policies applied when a session stays in AWAITING_INPUT for the configured number of
@@ -172,6 +201,49 @@ export interface JulesTaskRequest {
   prompt: string;
   repo?: string;
   parallel?: number;
+}
+
+/**
+ * One task of a batch: runs as exactly one remote session.
+ */
+export interface JulesBatchTask {
+  /** Caller-chosen identifier, unique within the batch. */
+  id: string;
+  prompt: string;
+  repo?: string;
+}
+
+/**
+ * Options for `runBatch`.
+ */
+export interface JulesBatchOptions {
+  /** Sessions created and watched per wave (1-5). Defaults to 5. */
+  maxConcurrent?: number;
+}
+
+/**
+ * Result of one batch task. `sessionId` is absent when the session could not be created.
+ */
+export interface JulesBatchTaskResult {
+  taskId: string;
+  sessionId?: string;
+  outcome: JulesBatchOutcome;
+  /** Unified diff, present only when outcome is "diff". */
+  patch?: string;
+  /** Human-readable reason, present for failed, timeout and needs_input outcomes. */
+  error?: string;
+}
+
+/**
+ * Structured input for `buildJulesPrompt`.
+ */
+export interface JulesPromptSpec {
+  goal: string;
+  /** Exact paths the session may modify. At least one is required. */
+  files: string[];
+  verifyCommand: string;
+  /** Extra constraints appended after the standard ones. */
+  constraints?: string[];
 }
 
 /**
@@ -409,6 +481,93 @@ export function validateAwaitingInputPollLimit(limit: number): void {
 }
 
 /**
+ * Validates the number of sessions a batch wave may run at once.
+ */
+export function validateJulesBatchMaxConcurrent(maxConcurrent: number): void {
+  if (
+    !Number.isInteger(maxConcurrent) ||
+    maxConcurrent < JULES_ADAPTER_CONSTANTS.MIN_BATCH_MAX_CONCURRENT ||
+    maxConcurrent > JULES_ADAPTER_CONSTANTS.MAX_BATCH_MAX_CONCURRENT
+  ) {
+    throw new PalError(
+      PAL_ERROR_KINDS.INVALID_REQUEST,
+      `Jules batch maxConcurrent must be an integer between ${JULES_ADAPTER_CONSTANTS.MIN_BATCH_MAX_CONCURRENT} and ${JULES_ADAPTER_CONSTANTS.MAX_BATCH_MAX_CONCURRENT}, got ${maxConcurrent}`,
+      false
+    );
+  }
+}
+
+/**
+ * Validates batch tasks before any session is created: ids must be non-empty and unique,
+ * prompts must be non-empty.
+ */
+export function validateJulesBatchTasks(tasks: JulesBatchTask[]): void {
+  const seenIds = new Set<string>();
+  for (const task of tasks) {
+    if (task.id.trim().length === 0) {
+      throw new PalError(PAL_ERROR_KINDS.INVALID_REQUEST, "Jules batch task id must be non-empty", false);
+    }
+    if (seenIds.has(task.id)) {
+      throw new PalError(
+        PAL_ERROR_KINDS.INVALID_REQUEST,
+        `Jules batch task id "${task.id}" is not unique`,
+        false
+      );
+    }
+    seenIds.add(task.id);
+    if (task.prompt.trim().length === 0) {
+      throw new PalError(
+        PAL_ERROR_KINDS.INVALID_REQUEST,
+        `Jules batch task "${task.id}" has an empty prompt`,
+        false
+      );
+    }
+  }
+}
+
+/**
+ * Composes a precise, self-contained Jules prompt: the goal, the exact files that may be
+ * modified, the verification command, and the standard constraints (no other files, no
+ * pull request) followed by any extra constraints.
+ */
+export function buildJulesPrompt(spec: JulesPromptSpec): string {
+  const goal = spec.goal.trim();
+  const verifyCommand = spec.verifyCommand.trim();
+  const files = [...new Set(spec.files.map((file) => file.trim()).filter((file) => file.length > 0))];
+  if (goal.length === 0) {
+    throw new PalError(PAL_ERROR_KINDS.INVALID_REQUEST, "Jules prompt requires a goal", false);
+  }
+  if (files.length === 0) {
+    throw new PalError(PAL_ERROR_KINDS.INVALID_REQUEST, "Jules prompt requires at least one file", false);
+  }
+  if (verifyCommand.length === 0) {
+    throw new PalError(PAL_ERROR_KINDS.INVALID_REQUEST, "Jules prompt requires a verify command", false);
+  }
+
+  const extraConstraints = (spec.constraints ?? [])
+    .map((constraint) => constraint.trim())
+    .filter((constraint) => constraint.length > 0);
+  const constraints = [
+    JULES_ADAPTER_CONSTANTS.PROMPT_CONSTRAINT_OTHER_FILES,
+    JULES_ADAPTER_CONSTANTS.PROMPT_CONSTRAINT_NO_PULL_REQUEST,
+    ...extraConstraints,
+  ];
+  const listItem = (text: string): string =>
+    `${JULES_ADAPTER_CONSTANTS.PROMPT_LIST_ITEM_PREFIX}${text}`;
+
+  return [
+    `${JULES_ADAPTER_CONSTANTS.PROMPT_HEADING_GOAL} ${goal}`,
+    [JULES_ADAPTER_CONSTANTS.PROMPT_HEADING_FILES, ...files.map(listItem)].join(
+      JULES_ADAPTER_CONSTANTS.PROMPT_LINE_SEPARATOR
+    ),
+    `${JULES_ADAPTER_CONSTANTS.PROMPT_VERIFY_INSTRUCTION}\n\`${verifyCommand}\``,
+    [JULES_ADAPTER_CONSTANTS.PROMPT_HEADING_CONSTRAINTS, ...constraints.map(listItem)].join(
+      JULES_ADAPTER_CONSTANTS.PROMPT_LINE_SEPARATOR
+    ),
+  ].join(JULES_ADAPTER_CONSTANTS.PROMPT_SECTION_SEPARATOR);
+}
+
+/**
  * Maps a raw Jules status label to a normalized session state.
  * An empty label means the session is waiting for user input.
  * Unrecognized labels are treated as running so that polling continues until timeout.
@@ -587,6 +746,31 @@ async function readStreamText(
  */
 function defaultSleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Mutable polling state for one watch over a set of sessions.
+ */
+interface JulesWatchContext {
+  deadline: number;
+  pending: Set<string>;
+  lastState: Map<string, JulesSessionState>;
+  consecutiveAwaitingPolls: Map<string, number>;
+  /** Diffs pulled while watching (awaiting sessions that turned out to have work). */
+  pulledPatches: Map<string, string>;
+}
+
+/**
+ * Human-readable status for a thought event. An empty raw label is shown as
+ * "awaiting input", or as "completed (diff ready)" when a pull resolved it.
+ */
+function describeTransitionStatus(transition: JulesSessionTransition): string {
+  if (transition.rawStatus.trim().length > 0) {
+    return transition.rawStatus;
+  }
+  return transition.state === JULES_SESSION_STATES.COMPLETED
+    ? JULES_ADAPTER_CONSTANTS.PULL_COMPLETED_DISPLAY_LABEL
+    : JULES_ADAPTER_CONSTANTS.EMPTY_STATUS_DISPLAY_LABEL;
 }
 
 /**
@@ -776,21 +960,49 @@ export class JulesAdapter implements ProviderAdapter {
   /**
    * Polls the given sessions until all complete, yielding each state transition.
    * Each poll is a single `remote list` call that serves every tracked session.
+   * A session reported as AWAITING_INPUT is pulled once per poll: a non-empty diff means
+   * the work is finished, so the session completes and the diff is cached in
+   * `pulledPatches` for streamTurn/executeTurn to reuse. An empty or failed pull leaves
+   * the session ambiguous and it counts as an awaiting-input poll.
    * Throws JulesSessionFailedError on the first failed session, JulesTimeoutError
    * when the poll deadline passes with sessions still pending, and (under the default
    * "fail" awaiting-input policy) JulesAwaitingInputError once a session has been
-   * AWAITING_INPUT for `awaitingInputPollLimit` consecutive polls.
+   * AWAITING_INPUT with no diff for `awaitingInputPollLimit` consecutive polls.
    */
   async *watchSessions(
     sessionIds: string[],
+    abortSignal?: AbortSignal,
+    pulledPatches: Map<string, string> = new Map<string, string>()
+  ): AsyncIterable<JulesSessionTransition> {
+    yield* this.pollSessions(this.createWatchContext(sessionIds, pulledPatches), abortSignal);
+  }
+
+  /**
+   * Builds the polling state for a watch. runBatch keeps one context across restarts so the
+   * deadline, awaiting-input counts and cached diffs survive a per-session failure.
+   */
+  private createWatchContext(
+    sessionIds: string[],
+    pulledPatches: Map<string, string>
+  ): JulesWatchContext {
+    return {
+      deadline: this.now() + this.pollTimeoutMs,
+      pending: new Set(sessionIds),
+      lastState: new Map<string, JulesSessionState>(),
+      consecutiveAwaitingPolls: new Map<string, number>(),
+      pulledPatches,
+    };
+  }
+
+  /**
+   * Core polling loop over a watch context. Removes a session from `ctx.pending` before
+   * throwing its per-session error, so a caller may resume with the remaining sessions.
+   */
+  private async *pollSessions(
+    ctx: JulesWatchContext,
     abortSignal?: AbortSignal
   ): AsyncIterable<JulesSessionTransition> {
-    const deadline = this.now() + this.pollTimeoutMs;
-    const pending = new Set(sessionIds);
-    const lastState = new Map<string, JulesSessionState>();
-    const consecutiveAwaitingPolls = new Map<string, number>();
-
-    while (pending.size > 0) {
+    while (ctx.pending.size > 0) {
       if (abortSignal?.aborted) {
         throw new PalError(
           PAL_ERROR_KINDS.TIMEOUT,
@@ -802,45 +1014,81 @@ export class JulesAdapter implements ProviderAdapter {
       const rows = await this.listSessions();
       const rowsById = new Map(rows.map((row) => [row.id, row]));
 
-      for (const sessionId of [...pending]) {
+      for (const sessionId of [...ctx.pending]) {
         const row = rowsById.get(sessionId);
         if (row === undefined) {
           // Not yet visible in the list; keep waiting. Not an awaiting-input poll.
-          consecutiveAwaitingPolls.delete(sessionId);
+          ctx.consecutiveAwaitingPolls.delete(sessionId);
           continue;
         }
-        const state = normalizeJulesStatus(row.status);
-        if (lastState.get(sessionId) !== state) {
-          lastState.set(sessionId, state);
+        let state = normalizeJulesStatus(row.status);
+        if (state === JULES_SESSION_STATES.AWAITING_INPUT) {
+          const patch = await this.tryPullPatch(sessionId);
+          if (patch !== undefined) {
+            ctx.pulledPatches.set(sessionId, patch);
+            state = JULES_SESSION_STATES.COMPLETED;
+          }
+        }
+        if (ctx.lastState.get(sessionId) !== state) {
+          ctx.lastState.set(sessionId, state);
           yield { sessionId, rawStatus: row.status, state };
         }
         if (state === JULES_SESSION_STATES.COMPLETED) {
-          pending.delete(sessionId);
-          consecutiveAwaitingPolls.delete(sessionId);
+          ctx.pending.delete(sessionId);
+          ctx.consecutiveAwaitingPolls.delete(sessionId);
         } else if (state === JULES_SESSION_STATES.FAILED) {
+          ctx.pending.delete(sessionId);
           throw new JulesSessionFailedError(sessionId, row.status);
         } else if (state === JULES_SESSION_STATES.AWAITING_INPUT) {
-          const polls = (consecutiveAwaitingPolls.get(sessionId) ?? 0) + 1;
-          consecutiveAwaitingPolls.set(sessionId, polls);
+          const polls = (ctx.consecutiveAwaitingPolls.get(sessionId) ?? 0) + 1;
+          ctx.consecutiveAwaitingPolls.set(sessionId, polls);
           if (
             this.awaitingInputPolicy === JULES_AWAITING_INPUT_POLICIES.FAIL &&
             polls >= this.awaitingInputPollLimit
           ) {
+            ctx.pending.delete(sessionId);
             throw new JulesAwaitingInputError(sessionId, polls);
           }
         } else {
-          consecutiveAwaitingPolls.delete(sessionId);
+          ctx.consecutiveAwaitingPolls.delete(sessionId);
         }
       }
 
-      if (pending.size === 0) {
+      if (ctx.pending.size === 0) {
         break;
       }
-      if (this.now() >= deadline) {
-        throw new JulesTimeoutError([...pending], this.pollTimeoutMs);
+      if (this.now() >= ctx.deadline) {
+        throw new JulesTimeoutError([...ctx.pending], this.pollTimeoutMs);
       }
       await this.sleep(this.pollIntervalMs);
     }
+  }
+
+  /**
+   * Pulls an ambiguous (AWAITING_INPUT) session. Resolves to the diff when there is one,
+   * or undefined when the pull is empty or fails. A failed pull counts as "not ready".
+   */
+  private async tryPullPatch(sessionId: string): Promise<string | undefined> {
+    try {
+      const pulled = await this.pullSession(sessionId);
+      return pulled.status === "diff" ? pulled.patch : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Returns the diff cached by watching the session, or pulls it when not cached.
+   */
+  private async pullOrReuse(
+    sessionId: string,
+    pulledPatches: Map<string, string>
+  ): Promise<JulesPullResult> {
+    const cached = pulledPatches.get(sessionId);
+    if (cached !== undefined) {
+      return { status: "diff", patch: cached };
+    }
+    return this.pullSession(sessionId);
   }
 
   /**
@@ -853,20 +1101,21 @@ export class JulesAdapter implements ProviderAdapter {
     try {
       const prompt = formatJulesPrompt(options);
       const sessionIds = await this.createSessions({ prompt });
+      const pulledPatches = new Map<string, string>();
 
-      for await (const transition of this.watchSessions(sessionIds, options.abortSignal)) {
-        const statusLabel =
-          transition.rawStatus.trim().length > 0
-            ? transition.rawStatus
-            : JULES_ADAPTER_CONSTANTS.EMPTY_STATUS_DISPLAY_LABEL;
+      for await (const transition of this.watchSessions(
+        sessionIds,
+        options.abortSignal,
+        pulledPatches
+      )) {
         yield {
           type: "thought_delta",
-          thought: `Jules session ${transition.sessionId}: ${statusLabel}`,
+          thought: `Jules session ${transition.sessionId}: ${describeTransitionStatus(transition)}`,
         };
       }
 
       for (const sessionId of sessionIds) {
-        const pulled = await this.pullSession(sessionId);
+        const pulled = await this.pullOrReuse(sessionId, pulledPatches);
         if (pulled.status === "empty") {
           yield {
             type: "thought_delta",
@@ -889,6 +1138,129 @@ export class JulesAdapter implements ProviderAdapter {
     } catch (err: unknown) {
       yield { type: "error", error: toPalError(err) };
     }
+  }
+
+  /**
+   * Runs many tasks as remote sessions and resolves one result per task, in input order.
+   * Tasks run in waves of at most `maxConcurrent`: each wave creates one session per task,
+   * watches them together (one `remote list` per poll), then pulls the finished ones.
+   * A task's failure is recorded as its own outcome and never aborts the other tasks.
+   * Only invalid input (bad maxConcurrent, duplicate ids, empty prompts) throws.
+   */
+  async runBatch(
+    tasks: JulesBatchTask[],
+    options?: JulesBatchOptions
+  ): Promise<JulesBatchTaskResult[]> {
+    const maxConcurrent =
+      options?.maxConcurrent ?? JULES_ADAPTER_CONSTANTS.DEFAULT_BATCH_MAX_CONCURRENT;
+    validateJulesBatchMaxConcurrent(maxConcurrent);
+    validateJulesBatchTasks(tasks);
+
+    const results: JulesBatchTaskResult[] = [];
+    for (let start = 0; start < tasks.length; start += maxConcurrent) {
+      results.push(...(await this.runBatchWave(tasks.slice(start, start + maxConcurrent))));
+    }
+    return results;
+  }
+
+  /**
+   * Runs one wave of batch tasks: create sessions, watch them together, settle each one.
+   */
+  private async runBatchWave(wave: JulesBatchTask[]): Promise<JulesBatchTaskResult[]> {
+    const outcomes = new Map<string, JulesBatchTaskResult>();
+    const sessions: Array<{ task: JulesBatchTask; sessionId: string }> = [];
+
+    for (const task of wave) {
+      try {
+        const sessionIds = await this.createSessions({
+          prompt: task.prompt,
+          repo: task.repo,
+          parallel: JULES_ADAPTER_CONSTANTS.MIN_PARALLEL,
+        });
+        const sessionId = sessionIds[0];
+        if (sessionId === undefined) {
+          throw new PalError(
+            PAL_ERROR_KINDS.INVALID_REQUEST,
+            "Could not extract a session ID from `jules remote new` output",
+            false
+          );
+        }
+        sessions.push({ task, sessionId });
+      } catch (err: unknown) {
+        outcomes.set(task.id, {
+          taskId: task.id,
+          outcome: JULES_BATCH_OUTCOMES.FAILED,
+          error: toPalError(err).message,
+        });
+      }
+    }
+
+    const pulledPatches = new Map<string, string>();
+    const ctx = this.createWatchContext(
+      sessions.map((entry) => entry.sessionId),
+      pulledPatches
+    );
+    const taskBySession = new Map(sessions.map((entry) => [entry.sessionId, entry.task]));
+    const settle = (sessionId: string, outcome: JulesBatchOutcome, error: string): void => {
+      ctx.pending.delete(sessionId);
+      const task = taskBySession.get(sessionId);
+      if (task !== undefined) {
+        outcomes.set(task.id, { taskId: task.id, sessionId, outcome, error });
+      }
+    };
+
+    // One watch serves the whole wave. A per-session error settles only that session and
+    // the watch resumes with the rest, sharing the same deadline and poll counters.
+    while (ctx.pending.size > 0) {
+      try {
+        for await (const _transition of this.pollSessions(ctx)) {
+          // Progress lives in ctx; per-task outcomes are recorded below.
+        }
+      } catch (err: unknown) {
+        if (err instanceof JulesSessionFailedError) {
+          settle(err.sessionId, JULES_BATCH_OUTCOMES.FAILED, err.message);
+          continue;
+        }
+        if (err instanceof JulesAwaitingInputError) {
+          settle(err.sessionId, JULES_BATCH_OUTCOMES.NEEDS_INPUT, err.message);
+          continue;
+        }
+        // Timeout, abort or a list failure: nothing further can be observed for the rest.
+        const isTimeout = err instanceof PalError && err.kind === PAL_ERROR_KINDS.TIMEOUT;
+        const outcome = isTimeout ? JULES_BATCH_OUTCOMES.TIMEOUT : JULES_BATCH_OUTCOMES.FAILED;
+        const message = toPalError(err).message;
+        for (const sessionId of [...ctx.pending]) {
+          settle(sessionId, outcome, message);
+        }
+      }
+    }
+
+    for (const { task, sessionId } of sessions) {
+      if (outcomes.has(task.id)) {
+        continue;
+      }
+      try {
+        const pulled = await this.pullOrReuse(sessionId, pulledPatches);
+        outcomes.set(
+          task.id,
+          pulled.status === "diff"
+            ? { taskId: task.id, sessionId, outcome: JULES_BATCH_OUTCOMES.DIFF, patch: pulled.patch }
+            : { taskId: task.id, sessionId, outcome: JULES_BATCH_OUTCOMES.EMPTY }
+        );
+      } catch (err: unknown) {
+        outcomes.set(task.id, {
+          taskId: task.id,
+          sessionId,
+          outcome: JULES_BATCH_OUTCOMES.FAILED,
+          error: toPalError(err).message,
+        });
+      }
+    }
+
+    return wave.flatMap((task) => {
+      const result = outcomes.get(task.id);
+      return result === undefined ? [] : [result];
+    });
   }
 
   /**
