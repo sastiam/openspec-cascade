@@ -73,6 +73,7 @@ export const PAL_PROVIDER_NAMES = {
   CLAUDE: "claude",
   ANTIGRAVITY: "antigravity",
   OPENCODE: "opencode",
+  JULES: "jules",
 } as const;
 
 export type PalProviderName =
