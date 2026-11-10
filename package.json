@@ -3,10 +3,12 @@
   "private": true,
   "type": "module",
   "bin": {
-    "openspec-cascade": "./cascade.ts"
+    "openspec-cascade": "./cascade.ts",
+    "cascade-install": "./bin/install.mjs"
   },
   "scripts": {
     "start": "bun run cascade.ts",
+    "install:claude": "node bin/install.mjs",
     "cascade:looper": "bun run cascade.ts --engine antigravity --changes looper-storage-memory,looper-pal-canonical-schema,looper-core-fsm,looper-core-dag-scheduler,looper-pal-claude-adapter,looper-pal-gemini-adapter,looper-pal-opencode-adapter,looper-core-subagent-dispatcher,looper-core-router-escalation,looper-gate0-mechanical-qa,looper-gate1-semantic-review,looper-gate2-adversarial-challenger,looper-gate3-forensic-audit,looper-integration-github-project,looper-integration-catalog-sync,cascade-v2-sdd-framework",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."

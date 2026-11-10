@@ -1,0 +1,17 @@
+{
+  "name": "openspec-cascade",
+  "owner": {
+    "name": "sastiam"
+  },
+  "metadata": {
+    "description": "Autonomous multi-engine task execution harness and Spec-Driven Development (SDD) looper for Claude Code, OpenCode, and Antigravity.",
+    "version": "2.0.0"
+  },
+  "plugins": [
+    {
+      "name": "cascade",
+      "source": "./plugins/cascade",
+      "description": "OpenSpec Cascade v2 plugin for Claude Code: autonomous task runner, SDD gates, looper workflows, and Clean Code verification skills."
+    }
+  ]
+}
