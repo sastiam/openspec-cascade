@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "cascade",
+  "version": "2.0.0",
+  "description": "OpenSpec Cascade v2 plugin for Claude Code. Provides autonomous task execution, SDD lifecycle gates, multi-engine looper, and in-repo Clean Code verification skills.",
+  "author": {
+    "name": "sastiam"
+  },
+  "keywords": [
+    "cascade",
+    "openspec",
+    "sdd",
+    "autonomous",
+    "looper",
+    "clean-code",
+    "zero-magic-numbers"
+  ]
+}
