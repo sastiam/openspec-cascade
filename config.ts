@@ -146,6 +146,21 @@ export const CONSTANTS = {
   GIT_STATUS_PORCELAIN: "git status --porcelain",
   ROLLBACK_ON_FAILURE: true,
   RESILIENT_MODE: false,
+
+  // Spec-Driven Development (SDD) Constants
+  SDD_PRODUCTION_EXTENSIONS: [".ts", ".tsx", ".js", ".jsx", ".vue", ".py", ".go", ".rs", ".java", ".rb", ".php", ".kt"] as const,
+  SDD_EXEMPT_PATH_SEGMENTS: ["/test/", "/tests/", "/__tests__/", "/spec/", "/specs/", "/docs/", "/openspec/", "/.agents/", "/.claude/", "/dist/"] as const,
+  SDD_EXEMPT_NAME_PREFIXES: ["test_", "test.", "spec."] as const,
+  SDD_EXEMPT_NAME_SUFFIXES: [".test.", ".spec."] as const,
+  SDD_GATED_TOOLS: ["Edit", "Write", "MultiEdit"] as const,
+  SDD_MIN_REVIEW_DURATION_SECONDS: 10,
+  SDD_MAX_REVIEW_FIX_ROUNDS: 2,
+  SDD_MAX_TASKS_BUDGET: 12,
+  SDD_TASK_CHECK_HEADINGS_MANUAL: ["manual", "pendiente humano", "qa manual", "post-deploy", "deploy"] as const,
+  SDD_FRONTEND_EXTENSIONS: [".vue", ".tsx", ".jsx", ".svelte", ".html", ".css", ".scss", ".sass", ".less"] as const,
+  SDD_API_PATH_PATTERNS: ["/api/", "/routes/", "/controllers/", "/handlers/", "/server/", "/resolvers/"] as const,
+  SDD_CONSTITUTION_PATH: "openspec/project.md",
+  SDD_MIN_KEYWORD_LENGTH: 3,
 } as const;
 
 export const FULL_VERIFY: readonly string[] = [

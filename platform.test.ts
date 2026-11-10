@@ -8,6 +8,7 @@ import {
   CAFFEINATE_FLAG_WAIT_PID,
   canRunSystemdInhibit,
   DEFAULT_SYSTEMD_INHIBIT_PATH,
+  detectPackageManager,
   EXIT_CODE_SIGINT,
   EXIT_CODE_SIGTERM,
   findSystemdInhibit,
@@ -16,6 +17,7 @@ import {
   normalizePlatformPath,
   type ProcessSignalTarget,
   resolveBinaryInPath,
+  resolvePackageCommands,
   startKeepAlive,
   SYSTEMD_INHIBIT_HOLD_COMMAND,
   SYSTEMD_INHIBIT_WHAT,
@@ -430,3 +432,44 @@ describe("signal handlers and lifecycle", () => {
     expect(controller.active).toBe(false);
   });
 });
+
+describe("package manager detection and command resolution", () => {
+  test("detectPackageManager identifies bun in current repository", () => {
+    const pm = detectPackageManager(process.cwd());
+    expect(pm).toBe("bun");
+  });
+
+  test("resolvePackageCommands produces correct commands for pnpm", () => {
+    const cmds = resolvePackageCommands("pnpm");
+    expect(cmds.test).toBe("pnpm test");
+    expect(cmds.lint).toBe("pnpm run lint");
+    expect(cmds.build).toBe("pnpm run build");
+    expect(cmds.typecheck).toBe("pnpm run typecheck");
+    expect(cmds.run("custom")).toBe("pnpm run custom");
+  });
+
+  test("resolvePackageCommands produces correct commands for npm", () => {
+    const cmds = resolvePackageCommands("npm");
+    expect(cmds.test).toBe("npm test");
+    expect(cmds.lint).toBe("npm run lint");
+    expect(cmds.build).toBe("npm run build");
+    expect(cmds.run("custom")).toBe("npm run custom");
+  });
+
+  test("resolvePackageCommands produces correct commands for yarn", () => {
+    const cmds = resolvePackageCommands("yarn");
+    expect(cmds.test).toBe("yarn test");
+    expect(cmds.lint).toBe("yarn lint");
+    expect(cmds.build).toBe("yarn build");
+    expect(cmds.run("custom")).toBe("yarn custom");
+  });
+
+  test("resolvePackageCommands produces correct commands for bun", () => {
+    const cmds = resolvePackageCommands("bun");
+    expect(cmds.test).toBe("bun test");
+    expect(cmds.lint).toBe("bun run lint");
+    expect(cmds.build).toBe("bun run build");
+    expect(cmds.run("custom")).toBe("bun run custom");
+  });
+});
+

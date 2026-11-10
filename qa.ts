@@ -72,26 +72,63 @@ export async function defaultCommandRunner(
 ): Promise<CommandRunnerResult> {
   const argv = ["sh", "-c", cmd];
   try {
-    const proc = Bun.spawn(argv, {
-      cwd,
-      stdout: "pipe",
-      stderr: "pipe",
-      timeout: timeoutMs,
+    if (typeof Bun !== "undefined" && typeof Bun.spawn === "function") {
+      const proc = Bun.spawn(argv, {
+        cwd,
+        stdout: "pipe",
+        stderr: "pipe",
+        timeout: timeoutMs,
+      });
+      const [out, err, code] = await Promise.all([
+        new Response(proc.stdout).text(),
+        new Response(proc.stderr).text(),
+        proc.exited,
+      ]);
+      const trimmedOut = out.trim();
+      const trimmedErr = err.trim();
+      const combined = [trimmedOut, trimmedErr].filter(Boolean).join("\n") || trimmedOut || trimmedErr;
+      return {
+        code,
+        stdout: trimmedOut,
+        stderr: trimmedErr,
+        output: combined,
+      };
+    }
+
+    const { spawn } = await import("node:child_process");
+    return new Promise<CommandRunnerResult>((resolvePromise) => {
+      const proc = spawn("sh", ["-c", cmd], {
+        cwd,
+        timeout: timeoutMs,
+      });
+      let stdout = "";
+      let stderr = "";
+      proc.stdout?.on("data", (chunk: Buffer | string) => {
+        stdout += chunk.toString();
+      });
+      proc.stderr?.on("data", (chunk: Buffer | string) => {
+        stderr += chunk.toString();
+      });
+      proc.on("close", (code) => {
+        const trimmedOut = stdout.trim();
+        const trimmedErr = stderr.trim();
+        const combined = [trimmedOut, trimmedErr].filter(Boolean).join("\n") || trimmedOut || trimmedErr;
+        resolvePromise({
+          code: code ?? CONSTANTS.EXIT_CODE_SUCCESS,
+          stdout: trimmedOut,
+          stderr: trimmedErr,
+          output: combined,
+        });
+      });
+      proc.on("error", (err) => {
+        resolvePromise({
+          code: CONSTANTS.EXIT_CODE_ERROR,
+          stdout: "",
+          stderr: err.message,
+          output: err.message,
+        });
+      });
     });
-    const [out, err, code] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
-    const trimmedOut = out.trim();
-    const trimmedErr = err.trim();
-    const combined = [trimmedOut, trimmedErr].filter(Boolean).join("\n") || trimmedOut || trimmedErr;
-    return {
-      code,
-      stdout: trimmedOut,
-      stderr: trimmedErr,
-      output: combined,
-    };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return {
