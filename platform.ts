@@ -307,3 +307,66 @@ export function startKeepAlive(options: KeepAliveOptions = {}): KeepAliveControl
     stop: stopController,
   };
 }
+
+export type PackageManager = "pnpm" | "npm" | "yarn" | "bun";
+
+export interface PackageCommands {
+  test: string;
+  lint: string;
+  build: string;
+  typecheck: string;
+  run: (script: string) => string;
+}
+
+/**
+ * Detects the active package manager based on lockfile presence in target directory.
+ */
+export function detectPackageManager(cwd: string = process.cwd()): PackageManager {
+  if (existsSync(resolve(cwd, "pnpm-lock.yaml"))) return "pnpm";
+  if (existsSync(resolve(cwd, "package-lock.json"))) return "npm";
+  if (existsSync(resolve(cwd, "yarn.lock"))) return "yarn";
+  if (existsSync(resolve(cwd, "bun.lock")) || existsSync(resolve(cwd, "bun.lockb"))) return "bun";
+  return "npm";
+}
+
+/**
+ * Resolves standard command lines for the specified package manager.
+ */
+export function resolvePackageCommands(pm: PackageManager): PackageCommands {
+  switch (pm) {
+    case "pnpm":
+      return {
+        test: "pnpm test",
+        lint: "pnpm run lint",
+        build: "pnpm run build",
+        typecheck: "pnpm run typecheck",
+        run: (s: string): string => `pnpm run ${s}`,
+      };
+    case "yarn":
+      return {
+        test: "yarn test",
+        lint: "yarn lint",
+        build: "yarn build",
+        typecheck: "yarn typecheck",
+        run: (s: string): string => `yarn ${s}`,
+      };
+    case "bun":
+      return {
+        test: "bun test",
+        lint: "bun run lint",
+        build: "bun run build",
+        typecheck: "bun run typecheck",
+        run: (s: string): string => `bun run ${s}`,
+      };
+    case "npm":
+    default:
+      return {
+        test: "npm test",
+        lint: "npm run lint",
+        build: "npm run build",
+        typecheck: "npm run typecheck",
+        run: (s: string): string => `npm run ${s}`,
+      };
+  }
+}
+
