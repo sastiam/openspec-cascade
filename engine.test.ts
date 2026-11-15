@@ -82,6 +82,15 @@ describe("ClaudeAdapter", () => {
     expect(agentOpts.maxBudgetUsd).toBe(CONSTANTS.MAX_BUDGET_PER_SESSION_USD);
   });
 
+  test("claudeAgentOptions passes --settings to the SDK only when set", () => {
+    const abortController = new AbortController();
+    const base = { prompt: "t", cwd: "/t", hooks: { onTool: () => {}, onText: () => {}, log: () => {} } };
+    const without = claudeAgentOptions({ ...base, config: getDefaultConfig() }, abortController);
+    expect("settings" in without).toBe(false);
+    const config = { ...getDefaultConfig(), settings: "/run/night.settings.json" };
+    expect(claudeAgentOptions({ ...base, config }, abortController).settings).toBe("/run/night.settings.json");
+  });
+
   test("claudeAgentOptions omits effort when effort is none", () => {
     const config = getDefaultConfig();
     const abortController = new AbortController();

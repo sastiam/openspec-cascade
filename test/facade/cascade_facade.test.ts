@@ -176,6 +176,23 @@ describe("CascadeFacade", () => {
     expect(output.errors[0]).toContain("CRASHED");
   });
 
+  test("--settings must exist and is reported in the preflight banner", async () => {
+    const repo = await freshRepo();
+    const engine = new WorkingEngine(completeTask("add-greeting"));
+    const missing = await new CascadeFacade({ engine, output: captureOutput() }).run(
+      configFor(repo, "add-greeting", { dryRun: true, settings: join(repo.homeDir, "missing.settings.json") }),
+    );
+    expect(missing.exitCode).toBe(2);
+    expect(missing.error).toContain("--settings file not found");
+    const settingsFile = join(repo.homeDir, "sandbox.settings.json");
+    writeFileSync(settingsFile, JSON.stringify({ sandbox: { enabled: true } }));
+    const output = captureOutput();
+    const ok = await new CascadeFacade({ engine, output }).run(configFor(repo, "add-greeting", { dryRun: true, settings: settingsFile }));
+    expect(ok.exitCode).toBe(0);
+    expect(output.lines.join("\n")).toContain(`settings=${settingsFile}`);
+    expect(output.lines.join("\n")).toContain("--settings applies to the Claude engine only");
+  });
+
   test("human tasks are skipped and reported", async () => {
     const repo = await createTempGitRepo();
     repos.push(repo);

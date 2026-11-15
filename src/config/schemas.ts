@@ -182,6 +182,7 @@ export const RuntimeConfigSchema = z.object({
   repo: nonEmptyStringSchema("repo"),
   changes: z.array(ChangeIdSchema),
   logDir: nonEmptyStringSchema("logDir"),
+  settings: nonEmptyStringSchema("settings").optional(),
   allowDirty: strictBooleanSchema("allowDirty"),
   dryRun: strictBooleanSchema("dryRun"),
   fullGate: strictBooleanSchema("fullGate"),
@@ -354,6 +355,8 @@ export interface CascadeConfig {
   model?: string;
   effort?: EffortLevel;
   logDir: string;
+  /** Extra Claude Code settings file (Claude engine only), e.g. a sandbox for unattended runs. */
+  settings?: string;
   mode: ExecutionMode;
 
   usageLimitPercent: number;
@@ -433,6 +436,7 @@ export const CascadeConfigSchema: z.ZodType<CascadeConfig> = z.object({
   model: EngineConfigSchema.shape.model,
   effort: EngineConfigSchema.shape.effort,
   logDir: RuntimeConfigSchema.shape.logDir,
+  settings: RuntimeConfigSchema.shape.settings,
   mode: RuntimeConfigSchema.shape.mode.default(RUNTIME_CONSTANTS.DEFAULT_MODE),
 
   usageLimitPercent: EngineConfigSchema.shape.usageLimitPercent,
@@ -487,6 +491,7 @@ export const CascadeFileConfigSchema = z.strictObject({
   model: EngineConfigSchema.shape.model.optional(),
   effort: EngineConfigSchema.shape.effort.optional(),
   logDir: RuntimeConfigSchema.shape.logDir.optional(),
+  settings: RuntimeConfigSchema.shape.settings,
   mode: RuntimeConfigSchema.shape.mode.optional(),
 
   usageLimitPercent: EngineConfigSchema.shape.usageLimitPercent.optional(),

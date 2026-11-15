@@ -91,6 +91,7 @@ Cada motor se construye con `EngineFactory` y se envuelve con `ResilientEngineDe
 | `--full-gate` | `CASCADE_FULL_GATE` | Verificación completa en cada tarea con commit; habilita Gate 2 en v2. |
 | `--no-keep-alive` | `CASCADE_KEEP_ALIVE=false` | Desactiva el inhibidor de suspensión (`caffeinate` / `systemd-inhibit`). |
 | `--log-dir <ruta>` | `CASCADE_LOG_DIR` | Directorio de logs JSONL (por defecto `~/.cache/openspec-cascade/logs/<repo>`). |
+| `--settings <archivo>` | `CASCADE_SETTINGS` | Settings extra de Claude Code para cada sesión (solo motor `claude`), p. ej. un sandbox para ejecuciones desatendidas. Se resuelve contra el directorio actual; si no existe, la ejecución se detiene con `2`. |
 | `--no-diagrams` | `CASCADE_AUTO_DIAGRAMS=false` | Desactiva la sincronización de diagramas al completar un cambio. |
 | `--graphify-command <cmd>` | `CASCADE_GRAPHIFY_COMMAND` | Comando para actualizar el grafo Graphify. |
 | `--archify-action <acción>` | `CASCADE_ARCHIFY_ACTION` | Acción de Archify (por defecto `deliver`). |

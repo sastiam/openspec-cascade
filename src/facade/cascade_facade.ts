@@ -403,6 +403,12 @@ export class CascadeFacade {
 
   private async preflight(ctx: RunContext): Promise<void> {
     if (!ctx.config.changes.length) throw new Fatal("Pass --changes a,b,c in cascade order");
+    if (ctx.config.settings) {
+      if (!existsSync(ctx.config.settings)) throw new Fatal(`--settings file not found: ${ctx.config.settings}`);
+      if (ctx.config.engine !== "claude") {
+        this.say(ctx, `--settings applies to the Claude engine only; ignored for engine=${ctx.config.engine}`);
+      }
+    }
     const branch = (await this.git(ctx, ["branch", "--show-current"])).output;
     const branchGuard = evaluateProtectedBranchGuard({
       branch,
@@ -432,7 +438,7 @@ export class CascadeFacade {
     const keepAliveStatus = this.keepAliveController ? `keepAlive=${this.keepAliveController.mechanism} ` : "";
     this.say(
       ctx,
-      `engine=${ctx.config.engine} ${keepAliveStatus}repo=${ctx.config.repo} branch=${branch} changes=${ctx.config.changes.join(" → ")} log=${ctx.config.dryRun ? "disabled (dry-run)" : ctx.logFile}`,
+      `engine=${ctx.config.engine} ${keepAliveStatus}repo=${ctx.config.repo} branch=${branch} changes=${ctx.config.changes.join(" → ")} log=${ctx.config.dryRun ? "disabled (dry-run)" : ctx.logFile}${ctx.config.settings ? ` settings=${ctx.config.settings}` : ""}`,
     );
   }
 

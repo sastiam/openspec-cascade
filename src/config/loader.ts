@@ -68,6 +68,7 @@ export interface ParsedCliOptions {
   model?: string;
   effort?: string;
   "log-dir"?: string;
+  settings?: string;
   help?: boolean;
   "no-diagrams"?: boolean;
   diagrams?: boolean;
@@ -128,6 +129,7 @@ Options:
   --full-gate                Run the full verification suite on every committing task
   --no-keep-alive            Do not prevent the machine from sleeping while running
   --log-dir <path>           Directory for run logs (default: ~/.cache/openspec-cascade/logs/<repo name>)
+  --settings <file>          Extra Claude Code settings JSON for every session, e.g. a sandbox (Claude engine only)
   --no-diagrams              Disable automatic diagram synchronization
   --graphify-command <cmd>   Command that updates the Graphify knowledge graph
   --archify-action <action>  Archify action (default: ${DIAGRAM_CONSTANTS.ARCHIFY_ACTION})
@@ -141,6 +143,7 @@ Environment:
   CASCADE_MODEL              Same as --model
   CASCADE_EFFORT             Same as --effort
   CASCADE_LOG_DIR            Same as --log-dir (the flag takes precedence)
+  CASCADE_SETTINGS           Same as --settings (the flag takes precedence)
   CASCADE_CONFIG             Same as --config
 
 Configuration file:
@@ -217,6 +220,7 @@ export function parseCliArgs(argv: string[] = process.argv.slice(RUNTIME_CONSTAN
         model: { type: "string" },
         effort: { type: "string" },
         "log-dir": { type: "string" },
+        settings: { type: "string" },
         help: { type: "boolean", short: "h" },
         "no-diagrams": { type: "boolean" },
         diagrams: { type: "boolean" },
@@ -542,6 +546,7 @@ export function loadConfig(
   const explicitRepo = overrides.repo ?? cliOpts.repo ?? env.CASCADE_REPO;
   assertNonEmptyExplicitString(explicitRepo, "repo");
   assertNonEmptyExplicitString(overrides.logDir ?? cliOpts["log-dir"], "logDir");
+  assertNonEmptyExplicitString(overrides.settings ?? cliOpts.settings, "settings");
 
   const preliminaryRepo = normalizePlatformPath(explicitRepo ?? cwd);
   const explicitConfigPath = cliOpts.config ?? nonBlankEnv(env.CASCADE_CONFIG);
@@ -601,6 +606,9 @@ export function loadConfig(
       home: homedir(),
       cwd,
     });
+
+  const rawSettings = overrides.settings ?? cliOpts.settings ?? nonBlankEnv(env.CASCADE_SETTINGS) ?? fileConfig.settings;
+  const settings = rawSettings === undefined ? undefined : resolve(cwd, rawSettings);
 
   const usageLimitPercent = parseStrictNumberOption(
     overrides.usageLimitPercent ??
@@ -762,6 +770,7 @@ export function loadConfig(
     model,
     effort,
     logDir,
+    settings,
     mode,
     usageLimitPercent,
     resetMarginMs,

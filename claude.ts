@@ -45,6 +45,7 @@ export function claudeAgentOptions(
     maxBudgetUsd: options.maxBudgetUsd ?? config?.maxBudgetPerSessionUsd ?? CONSTANTS.MAX_BUDGET_PER_SESSION_USD,
     effort: effort === "none" ? undefined : (effort as Options["effort"]),
     model: options.model ?? config?.model,
+    ...(config?.settings ? { settings: config.settings } : {}),
   };
 }
 

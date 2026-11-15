@@ -118,6 +118,7 @@ bun run cascade.ts drift --catalog projects/agnostic_looper/tasks_catalog.json -
 | `--budget`, `--total-budget` | Per-session and total USD caps (fail closed at `>=`) |
 | `--max-attempts`, `--max-turns` | Attempts per task, turns per session |
 | `--resilient` | Continue with the next task after a failed (rolled back) task |
+| `--settings` | Extra Claude Code settings file for every session (Claude engine only), e.g. a sandbox for unattended runs |
 | `--no-keep-alive` | Disable automatic OS sleep inhibitor (`caffeinate` / `systemd-inhibit`) |
 | `--allow-dirty` | Start with a dirty tree; those files land in the first commit |
 | `--log-dir` | Directory for run logs (see [Logs](#logs)) |
@@ -125,6 +126,7 @@ bun run cascade.ts drift --catalog projects/agnostic_looper/tasks_catalog.json -
 | `CASCADE_MODEL` | Model alias or ID (OpenCode: `provider/model[#variant]`, Antigravity: `gemini-3.8-flash-high`) |
 | `CASCADE_EFFORT` | `low`…`max`, or `none` to omit it |
 | `CASCADE_LOG_DIR` | Same as `--log-dir`; the flag takes precedence |
+| `CASCADE_SETTINGS` | Same as `--settings`; the flag takes precedence |
 
 All flags, environment variables and subcommands: `--help` or [`docs/cli.md`](docs/cli.md).
 
@@ -188,7 +190,16 @@ package manager (`bun`, `pnpm`, `yarn`, `npm`); Nuxt programs are only added whe
 
 - OpenCode's JSON output carries no cost, so the total budget cap does not apply there; there is also no plan
   usage meter (a rate-limit error pauses 30 minutes) and no turn limit (sessions are cut at 45 minutes).
-- OpenCode loads your global `~/.config/opencode` configuration; the Claude engine loads only project settings.
+- OpenCode loads your global `~/.config/opencode` configuration; the Claude engine loads only project settings,
+  plus the file passed with `--settings` (the flag settings layer, above project settings). Use it to run every
+  session inside the Claude Code sandbox:
+
+  ```json
+  { "sandbox": { "enabled": true, "failIfUnavailable": true, "allowUnsandboxedCommands": false,
+                 "network": { "allowedDomains": ["github.com"] } } }
+  ```
+
+  Verification commands and commits run in the cascade process itself, outside that sandbox.
 - Jules has no documented headless login for its CLI; unattended runs need a pre-authenticated machine.
 - Gate 2 adversarial probes run test files with Bun; on Node-only machines Gate 2 is skipped and logged.
 - The Greptile CLI reviews committed work only; `review` therefore snapshots your working tree into a temporary
