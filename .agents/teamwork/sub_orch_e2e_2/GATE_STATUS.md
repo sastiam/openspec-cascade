@@ -2,4 +2,4 @@
 
 | Iteration | Phase | Explorers | Test-Writer / Worker | Reviewer 1 | Reviewer 2 | Challenger 1 | Challenger 2 | Auditor | Gate Verdict |
 |-----------|-------|-----------|----------------------|------------|------------|--------------|--------------|---------|--------------|
-| 2 | Phase A Remediation & Hardening | DONE (3/3) | DONE (`test_writer_e2e_2`) | `APPROVE` | `APPROVE` | `CONFIRMED` | `CONFIRMED` | IN_PROGRESS | PENDING |
+| 2 | Phase A Remediation & Hardening | DONE (3/3) | DONE (`test_writer_e2e_2`) | `APPROVE` | `APPROVE` | `CONFIRMED` | `CONFIRMED` | `PASS` (AST audit: 0 stubs/mocks, 0 `any`, 0 inline body comments) | `PASS` — Phase A CLOSED |

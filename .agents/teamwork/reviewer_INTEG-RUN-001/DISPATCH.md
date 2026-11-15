@@ -12,6 +12,7 @@ Perform independent semantic code review on git diff
 - (Scope determined by task requirements)
 
 ## Injected Skills
+- `clean-code-best-practices`
 - `openspec-apply-change`
 - `openspec-archive-change`
 - `openspec-cascade-runner`
@@ -19,6 +20,12 @@ Perform independent semantic code review on git diff
 - `openspec-propose`
 - `openspec-sync-specs`
 - `openspec-update-change`
+- `pre-pr-review`
+- `sdd-checklist`
+- `sdd-clarify`
+- `sdd-constitution`
+- `sdd-verify`
+- `zero-magic-numbers-audit`
 
 ## Allowed Permissions Summary
 Read all repository files, read git diffs, write review report. No code edit.
