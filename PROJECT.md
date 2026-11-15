@@ -56,13 +56,13 @@ Every feature below has an assigned Milestone and source reference (`ORIGINAL_RE
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
 | M0 | Env Provisioning & Git Sync | Install Bun, `bun install --frozen-lockfile`, `git fetch origin`, create/push `feat/cascade-looper-v2`, capture baseline | none | DONE |
-| E2E | E2E Testing Track | Design `TEST_INFRA.md`, write opaque-box Tiers 1–4 E2E tests (`test/e2e/`) importing real modules/CLI (0 stubs/mocks), publish `TEST_READY.md` | M0 | DONE (Phase A) |
+| E2E | E2E Testing Track | Design `TEST_INFRA.md`, write opaque-box Tiers 1–4 E2E tests (`test/e2e/`) importing real modules/CLI (0 stubs/mocks), publish `TEST_READY.md` | M0 | DONE (Phase A + B + Tier 5) |
 | M1 | Zero Magic Numbers, Zod Config & Guardrails | F01–F05 (`src/config/*`, `config.ts`, `platform.ts`, `cascade.ts`, `eslint.config.js`, `lint.test.ts`, OpenSpec change) + commit & push | M0 | DONE |
 | M2 | Isomorphic Runtime, PAL Factory & Facade | F06–F09 (`src/runtime/*`, `src/pal/factory.ts`, `src/decorators/*`, `src/facade/*`, 14 `Bun.*` migrations, OpenSpec change) + commit & push | M1 | DONE |
 | M3 | Greptile CLI Integration | F10–F13 (`src/integration/greptile/{client,shadow,cache,search,bridge}.ts`, OpenSpec change) + commit & push | M2 | DONE |
 | M4 | Harness Injector & V2 Looper Wiring | F14–F16 (`src/core/harness_injector.ts`, cycle fixes, v2 pipeline wiring in `CascadeFacade`, plugin/hook sync, OpenSpec change) + commit & push | M2, M3 | DONE |
 | M5 | Self-Improving Looper & CI | F17–F19 (`src/core/self_improver.ts`, bounded pre-PR loop, CLI integration, `.github/workflows/ci.yml`, `.gitignore`, OpenSpec change) + commit & push | M4 | DONE |
-| M6 | Final Certification | F20 + Phase 1 (100% E2E Tiers 1–4) + Phase 2 (Tier 5 Adversarial Hardening) + final clean verification & push to `origin` | M5, E2E | PLANNED |
+| M6 | Final Certification | F20 + Phase 1 (100% E2E Tiers 1–4) + Phase 2 (Tier 5 Adversarial Hardening) + final clean verification & push to `origin` | M5, E2E | DONE |
 
 ---
 
@@ -112,4 +112,6 @@ Every feature below has an assigned Milestone and source reference (`ORIGINAL_RE
 - `src/gates/`, `src/sdd/`, `src/storage/`, `src/engine/`, `src/integration/`: existing modules (de-cycled & wired)
 - `test/`: unit/integration tests + `test/e2e/{tier1_features,tier2_boundaries,tier3_combinations,tier4_scenarios,tier5_adversarial}/`
 - `openspec/changes/`: `--strict`-validated OpenSpec changes for M1–M5
-- `.github/workflows/ci.yml`: dual-runtime CI workflow
+- `ci/github-workflows/ci.yml`: dual-runtime CI workflow template (install to `.github/workflows/ci.yml` with a `workflow`-scoped credential)
+- `src/cli/`: `doctor`, `catalog`, `drift`, `review` subcommands
+- `test/node/`: Node.js 24 parity suite

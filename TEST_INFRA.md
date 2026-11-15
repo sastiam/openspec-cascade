@@ -17,7 +17,7 @@ The `test/e2e/` suite validates `openspec-cascade` end-to-end across its CLI bou
 4. **Build & Linter Compliance:** All `test/e2e/**/*.ts` files comply with `tsconfig.json` (`strict: true`, `noUncheckedIndexedAccess: true`) and `eslint.config.js` (`@typescript-eslint/explicit-module-boundary-types: "error"`, `@typescript-eslint/no-magic-numbers: "error"` on `helpers/*.ts`), with zero `any`, zero `as any`, and zero inline comments inside function bodies.
 5. **Two-Phase Delivery Gate:**
    - **Phase A (Active Now):** Tests exercising the real Phase A CLI (`cascade.ts`, `sdd_gate.mjs`, `bin/install.mjs`, `openspec`) and all existing production modules (`config.ts`, `platform.ts`, `qa.ts`, `skills.ts`, `diagrams.ts`, `engine.ts`, `resilience.ts`, `src/sdd/*`, `src/engine/*`, `src/core/*`, `src/gates/*`, `src/storage/*`, `src/pal/{types,normalizer,mcp,react_parser}`, `src/integration/{catalog_generator,drift_detector,schema_validator}`).
-   - **Phase B (Gated on M1–M5 `DONE` in `PROJECT.md`):** Expands the same 14 test files (plus Tier 5 hardening) to import newly landed modules (`src/config/*`, `src/runtime/*`, `src/pal/factory.ts`, `src/decorators/*`, `src/facade/*`, `src/integration/greptile/*`, `src/core/harness_injector.ts`, `src/core/self_improver.ts`) once each milestone marks `DONE` in `PROJECT.md`.
+   - **Phase B (M1–M5 `DONE`; delivered — see `TEST_READY.md`):** Expands the same 14 test files (plus Tier 5 hardening) to import newly landed modules (`src/config/*`, `src/runtime/*`, `src/pal/factory.ts`, `src/decorators/*`, `src/facade/*`, `src/integration/greptile/*`, `src/core/harness_injector.ts`, `src/core/self_improver.ts`) once each milestone marks `DONE` in `PROJECT.md`.
 
 ---
 
@@ -47,8 +47,12 @@ test/e2e/
 │   ├── dry_run_cascade_journey.test.ts
 │   ├── installer_and_sdd_hook_journey.test.ts
 │   └── failure_rollback_audit_journey.test.ts
-└── tier5_adversarial/          # Reserved Phase 2 / M6 adversarial hardening slot
-    └── README.md
+└── tier5_adversarial/          # M6 adversarial hardening (real modules / real CLI)
+    ├── README.md
+    ├── anticheat_and_audit_evasion.test.ts
+    ├── filesystem_and_process.test.ts
+    ├── input_injection.test.ts
+    └── redaction_bombs.test.ts
 ```
 
 ### Tier Definitions
@@ -58,7 +62,7 @@ test/e2e/
 | **Tier 2 — Boundaries** | `test/e2e/tier2_boundaries/` | Exercises invalid CLI arguments, protected branches, dirty trees, `NaN`/empty env inputs, subprocess timeouts, stale caches, diff mismatches, missing OpenSpec artifacts, and Gate 0–3 / Rollback invariant violations. |
 | **Tier 3 — Combinations** | `test/e2e/tier3_combinations/` | Tests cross-feature matrices: `CLI > env > defaults` precedence × engine × package manager lockfiles; `analyzeChangeArtifacts` + `surface_verifier` + `Gate 0..3`; `LooperFSM` + `DagLevelBatchResolver` + `VictoryAuditLivelockPrevention`; `TaskCatalogGenerator` + `CatalogDriftDetector`. |
 | **Tier 4 — Scenarios** | `test/e2e/tier4_scenarios/` | Executes multi-step user journeys end-to-end: multi-change `--dry-run` cascade plans, `openspec validate --strict` + `sdd_gate.mjs` + `bin/install.mjs` lifecycle, and dirty-repo violation → Gate 3 veto → atomic git rollback preserving `.agents/teamwork/` and audit JSONL logs. |
-| **Tier 5 — Adversarial** | `test/e2e/tier5_adversarial/` | Reserved for Phase 2 / M6 hardening after M1–M5 land: circular-reference redaction bombs, NaN/overflow budget injections, path traversal / symlink escapes, `SIGKILL`/`SIGTERM` process-group cleanup, and anti-cheat evasion probes. |
+| **Tier 5 — Adversarial** | `test/e2e/tier5_adversarial/` | Delivered in M6: circular-reference redaction bombs, NaN/overflow budget injections, path traversal / symlink escapes, `SIGKILL`/`SIGTERM` process-group cleanup, and anti-cheat evasion probes. |
 
 ---
 
@@ -125,6 +129,8 @@ Run with `export PATH="$HOME/.bun/bin:$PATH"`:
 ```bash
 bunx tsc --noEmit
 bunx eslint .
+bun run scripts/forensic_audit.ts
 bun test test/e2e
 bun test
+npm run test:node   # Node.js 24 parity suite (test/node/*.node.ts)
 ```

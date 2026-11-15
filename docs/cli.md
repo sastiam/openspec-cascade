@@ -1,179 +1,163 @@
-# Análisis de Arquitectura y Funcionamiento del CLI (`openspec-cascade`)
+# Referencia y Arquitectura del CLI (`openspec-cascade`)
 
-`openspec-cascade` es un ejecutor autónomo diseñado para procesar cambios estructurados según el estándar [OpenSpec](https://github.com/Fission-AI/OpenSpec). Ejecuta los cambios tarea por tarea, iniciando una sesión aislada de agente para cada ítem en `tasks.md` y garantizando que solo el código verificado y probado termine en el historial de Git.
+`openspec-cascade` ejecuta cambios [OpenSpec](https://github.com/Fission-AI/OpenSpec) de forma autónoma, tarea por tarea, con una sesión aislada de agente por cada ítem de `tasks.md`. El arnés —no el modelo— decide cuándo una tarea está terminada: ejecuta la verificación determinista, reinyecta los fallos al agente y solo confirma (commit) trabajo verificado.
 
----
-
-## 1. Principios de Diseño
-
-1. **El Arnés como Oráculo (*The Harness as the Oracle*):**
-   * El LLM no decide cuándo una tarea está terminada.
-   * El CLI detecta y ejecuta las pruebas y comandos de verificación directamente en el entorno local (`bun test`, `lint`, `tsc`, `build`, etc.).
-   * Si las pruebas fallan, el error se captura y se reinyecta al agente para un nuevo intento (hasta 3 intentos por tarea). Solo cuando los checks pasan con código de salida `0`, el CLI marca la tarea como realizada (`- [x]`) y procede al commit.
-
-2. **Aislamiento y Soberanía de Git:**
-   * El agente tiene denegado explícitamente el uso de comandos destructivos o de control de versiones (`git commit`, `git push`, `git reset`, `git checkout`, `git stash`, `bun run db:push/migrate`).
-   * El arnés es el dueño exclusivo de Git y de las migraciones de base de datos.
-
-3. **Persistencia Idempotente:**
-   * No requiere base de datos externa ni daemon centralizado.
-   * El estado vive en los archivos `tasks.md` y en el árbol de Git. Si una sesión se interrumpe (por límite de cuota o error fatal), reanudar el comando continúa automáticamente en la primera tarea sin marcar.
-
-4. **Protección de Ramas y Entorno Sucio:**
-   * Preflight aborta inmediatamente si se intenta ejecutar en ramas protegidas (`main`, `master`, `stable`).
-   * No permite iniciar con archivos sin confirmar salvo que se pase explícitamente `--allow-dirty`.
+El mismo código fuente TypeScript corre en **Bun 1.4+** y en **Node.js 24 LTS**.
 
 ---
 
-## 2. Diagrama de Flujo y Arquitectura
+## 1. Principios de diseño
 
-```mermaid
-flowchart TD
-    Start(["Inicio: bun run cascade.ts"]) --> Preflight["Preflight Checks\n(Ramas protegidas, git status dirty, existencia de cambios)"]
-    
-    Preflight --> DryRun{"¿Es --dry-run?"}
-    DryRun -->|Sí| PrintPlan["printPlan() + readUsage()\n(Muestra tareas, checks y cuota actual)"]
-    PrintPlan --> EndDryRun(["Fin"])
-    
-    DryRun -->|No| CascadeLoop["Iterar sobre cada cambio (--changes a,b,c)"]
-    
-    subgraph ChangeRunner ["Procesamiento del Cambio"]
-        CascadeLoop --> ReadTasks["parseTasks(tasks.md)"]
-        ReadTasks --> FindNextTask{"¿Hay tarea pendiente?"}
-        FindNextTask -->|No| ChangeDone["Cambio Completado"]
-        
-        FindNextTask -->|Sí| CheckHuman{"¿Es HUMAN_TASK?\n(PR, push, entrega)"}
-        CheckHuman -->|Sí| SkipTask["Omitir y añadir a lista humana"]
-        SkipTask --> FindNextTask
-        
-        CheckHuman -->|No| RunTask["runTask() (Intento 1..3)"]
-        
-        subgraph SessionLoop ["Ciclo de Tarea y Engine"]
-            RunTask --> CheckUsage["waitForUsageHeadroom()\n(Pausa si cuota >= 95%)"]
-            CheckUsage --> RunEngine{"Engine"}
-            RunEngine -->|claude| ClaudeSDK["Claude Agent SDK (query)"]
-            RunEngine -->|opencode| OpenCodeCLI["OpenCode CLI (JSON streaming)"]
-            
-            ClaudeSDK & OpenCodeCLI --> EvalOutcome{"Resultado de Sesión"}
-            
-            EvalOutcome -->|fatal| AbortFatal["Error Fatal: Detiene Cascada"]
-            EvalOutcome -->|paused| SleepResume["Dormir hasta reset de cuota\ny reanudar sesión"]
-            SleepResume --> CheckUsage
-            
-            EvalOutcome -->|error / crash| NextAttempt["Incrementar intento con feedback"]
-            NextAttempt --> RunTask
-            
-            EvalOutcome -->|done| CheckBlocked{"¿BLOCKED: motivo?"}
-            CheckBlocked -->|Sí| AbortBlocked["Detener Cascada (Requiere intervención humana)"]
-            
-            CheckBlocked -->|No| OracleChecks{"¿Tiene comandos de verificación?"}
-            OracleChecks -->|Sí| RunChecks["runChecks(verifyCommands)"]
-            RunChecks -->|Fallo| RetryChecks["Retroalimentar salida del fallo al modelo"]
-            RetryChecks --> NextAttempt
-            
-            RunChecks -->|Éxito| MarkDone["markDone() en tasks.md"]
-            OracleChecks -->|No| VerifyCheckbox{"¿Marcó el agente el checkbox?"}
-            VerifyCheckbox -->|No| RetryCheckbox["Reintentar pidiendo marcar checkbox"]
-            RetryCheckbox --> NextAttempt
-            VerifyCheckbox -->|Sí| CheckCommit
-            
-            MarkDone --> CheckCommit{"¿Debe commitear?"}
-            CheckCommit -->|Commit por tipo o fin de sección| GitCommit["git commit (Conventional Commit)"]
-            CheckCommit -->|No| NextTaskStep["Siguiente tarea"]
-            GitCommit --> NextTaskStep
-        end
-        
-        NextTaskStep --> FindNextTask
-    end
-    
-    ChangeDone --> Summary["Reporte final de costos y tareas humanas pendientes"]
-    Summary --> End(["Fin exitoso"])
-```
+1. **El arnés es el oráculo.** Los comandos de verificación (`Verify:` en `tasks.md`, `--full-gate`, Gates 0–3) los ejecuta el arnés; el código de salida `0` es la única prueba aceptada.
+2. **Soberanía de Git.** El agente no puede hacer `commit`, `push`, `reset`, `checkout`, `stash` ni migraciones. El arnés es dueño de Git y del buffer de rollback.
+3. **Estado idempotente.** El estado vive en `tasks.md`, Git y `.cascade/` (telemetría, caché). Una ejecución interrumpida se reanuda en la primera tarea pendiente.
+4. **Fail-closed.** Entradas inválidas, presupuestos agotados, ramas protegidas (`main`, `master`, `stable`) o árboles sucios detienen la ejecución con código `2`.
+5. **Spec antes que código.** El hook SDD del plugin y la puerta SDD del pipeline v2 bloquean cambios de código de producción sin un cambio OpenSpec activo.
 
 ---
 
-## 3. Componentes del Sistema
-
-### `cascade.ts` (Orquestador Principal)
-* **Entrada y CLI (`parseArgs`):** Procesa flags como `--repo`, `--changes`, `--dry-run`, `--full-gate`, `--engine`, `--allow-dirty`, `--log-dir`, `--help`.
-* **Parser de Tareas (`parseTasks`):** Lee `tasks.md`, identificando identificadores numéricos (`1.1`, `3.9`) o de tickets (`**T013**`), secciones y estados de completitud.
-* **Extracción de Comandos de Verificación (`verifyCommands`):**
-  * Busca cláusulas `Verify:` o frases como `"full verification"`.
-  * Extrae comandos backticked (`bun test`, `bun run lint`).
-  * Reemplaza `bunx tsc --noEmit` por las compilaciones específicas del proyecto (`.nuxt/tsconfig.server.json` y `.nuxt/tsconfig.app.json`).
-  * Asegura que `bun run db:generate` no cree migraciones no deseadas.
-  * Con `--full-gate`, cualquier tarea que realice un commit ejecuta obligatoriamente toda la suite de pruebas (`FULL_VERIFY`).
-* **Lógica de Commits (`commitsPerSection`, `commitTypeOf`):**
-  * Detecta si una tarea define un tipo convencional (ej. ``Commit `refactor(server)` ``).
-  * Si ninguna tarea del cambio define tipos, conmuta a modo **commit por sección**, creando un único commit al terminar la última tarea de cada bloque para mantener un historial limpio.
-* **Usage Guard (Claude Engine):**
-  * Invoca `/usage` vía SDK antes de cada sesión y tras advertencias de límite.
-  * Si la cuota de cualquier medidor supera el 95% (`USAGE_LIMIT_PERCENT`), duerme hasta su hora de reinicio (`resetsAt`) más un margen de seguridad de 2 minutos.
-
-### `opencode.ts` (Adaptador de Motor OpenCode)
-* **Subproceso en Streaming:** Lanza `opencode run --format json --auto` con un timeout de 45 minutos.
-* **Inyección de Permisos:** Configura la variable de entorno `OPENCODE_CONFIG_CONTENT` dinámicamente para prohibir comandos de Git definidos en `DENIED_BASH`.
-* **Reductor de Eventos (`reduceOpenCodeEvent`):**
-  * Parsea líneas JSON individuales generadas por la salida del CLI.
-  * Deduplica bloques de texto devueltos por el modelo.
-  * Acumula el costo en dólares reportado en partes `step-finish`.
-* **Clasificador de Fallos (`classifyFailure`):**
-  * Errores de autenticación/credenciales inválidas (`401`, `provider.auth`) $\rightarrow$ `fatal`.
-  * Límites de tasa (`429`, `rate limit`, `quota`) $\rightarrow$ `paused` (espera 30 minutos).
-  * Salidas con código de error normal $\rightarrow$ `error` reintentable.
-
----
-
-## 4. Referencia de Flags y Opciones
-
-### Instalación como comando global
+## 2. Ejecución en Bun y en Node.js 24
 
 ```bash
-bun install        # dependencias de los motores
-bun link           # registra el bin `openspec-cascade` en ~/.bun/bin
-openspec-cascade --repo <ruta> --changes a,b
-openspec-cascade --help
+# Bun (recomendado)
+bun run cascade.ts --repo <ruta> --changes cambio-a,cambio-b
+
+# Node.js 24 LTS (sin transpilar: el hook resuelve imports sin extensión)
+node --import ./scripts/node_ts_register.mjs cascade.ts --repo <ruta> --changes cambio-a --dry-run
 ```
 
-Asegúrate de que `~/.bun/bin` esté en el `PATH`. `--help` (o `-h`) imprime todos los flags, las variables de entorno y ejemplos de uso, y termina sin efectos secundarios.
-
-| Opción / Variable | Tipo / Valor | Función |
-| :--- | :--- | :--- |
-| `--repo <path>` | String | Ruta al repositorio objetivo. Por defecto toma el directorio de trabajo actual. |
-| `--changes <a,b>` | String (CSV) | Lista ordenada de carpetas de cambio en `openspec/changes/`. |
-| `--dry-run` | Flag booleano | Muestra el plan detallado (tareas, verificaciones asociadas, tipos de commit y cuotas actuales) sin ejecutar nada. |
-| `--full-gate` | Flag booleano | Obliga a que cualquier tarea que genere un commit ejecute la suite de verificación completa (`FULL_VERIFY`). |
-| `--engine <nombre>` | `claude` \| `opencode` \| `antigravity` (alias `agy`) | Motor de inferencia/agente a utilizar (por defecto `claude`). |
-| `--allow-dirty` | Flag booleano | Permite arrancar la ejecución aunque existan modificaciones previas sin commitear en el árbol de trabajo. |
-| `--log-dir <path>` | String | Directorio de logs. Tiene prioridad sobre `CASCADE_LOG_DIR`. |
-| `--help`, `-h` | Flag booleano | Muestra la ayuda y termina con código `0`. |
-| `CASCADE_LOG_DIR` | Variable de entorno | Directorio de logs (el flag `--log-dir` tiene prioridad). |
-| `CASCADE_MODEL` | Variable de entorno | Modelo o alias del LLM (ej. `opencode/deepseek-v4.1-flash`, `claude-3-7-sonnet-20250219`). |
-| `CASCADE_EFFORT` | Variable de entorno | Nivel de esfuerzo de razonamiento (`low`, `medium`, `high`, `max`, o `none`). |
+Toda ejecución de procesos pasa por el puerto `ISpawner` (`src/runtime/`): `BunSpawner` en Bun y `NodeSpawner` en Node. Ambos aíslan cada proceso en su propio grupo, matan el árbol completo en timeout/abort (`SIGTERM` → `SIGKILL` tras una gracia) y devuelven `124` en timeout.
 
 ---
 
-## 5. Auditoría y Registro (Logging)
+## 3. Modos de ejecución (`--mode`)
 
-Cada ejecución genera automáticamente un archivo de eventos estructurado en formato JSON Lines:
-* **Ubicación:** `<directorio de logs>/<timestamp>.jsonl`. El directorio se resuelve en este orden: `--log-dir`, `CASCADE_LOG_DIR`, y por defecto `~/.cache/openspec-cascade/logs/<nombre del repo>/` (nombre base de `--repo`). Las rutas relativas se resuelven contra el directorio actual.
-* **Creación perezosa:** el directorio y el archivo se crean en la primera escritura; con `--dry-run` no se escribe ningún log.
-* **Eventos capturados:**
-  * `task_start`: Inicio de procesamiento de una tarea específica.
-  * `tool`: Invocaciones de herramientas por parte del agente con parámetros resumidos.
-  * `text`: Respuestas y explicaciones del agente.
-  * `check`: Resultados de los comandos ejecutados por el oráculo con sus códigos de retorno.
-  * `commit`: Hashes SHA y mensajes de los commits generados.
-  * `rate_limit_event`: Reportes de saturación de cuota y tiempos de espera calculados.
-  * `result`: Costo acumulado en USD y número de turnos empleados por sesión.
+### `--mode v1` (por defecto)
+
+Bucle secuencial: por cada tarea pendiente se abre una sesión del motor, se ejecutan los comandos `Verify:` (hasta `--max-attempts` intentos con el fallo reinyectado), se marca la tarea y se hace commit por tipo o por sección. Si se agotan los intentos se ejecuta el rollback de Git (`--no-rollback` lo desactiva) y la ejecución se detiene, salvo con `--resilient`.
+
+### `--mode v2` (pipeline FSM)
+
+```mermaid
+flowchart LR
+    A[Analyze] --> S[SDD gate] --> D[Task DAG] --> F[LooperFSM]
+    F --> W[SubagentDispatcher + sesión del motor]
+    W --> G0[Gate 0 mecánico] --> G1[Gate 1 revisión] --> G2[Gate 2 adversarial] --> G3[Gate 3 auditoría]
+    G3 --> C[Commit checkpoint] --> F
+    G0 & G1 & G2 & G3 -. fallo .-> E[Escalada routeFailure]
+    E -. reintento .-> W
+    E -. agotado .-> R[RollbackStateBuffer] --> X[Abort / skip resiliente]
+```
+
+- **Analyze** (`analyzeChangeArtifacts`) bloquea cambios con brechas entre proposal, specs y tasks.
+- **HarnessInjector** construye el prompt determinista: tarea, reglas, directivas de remediación, artefactos del cambio, constitución (`openspec/project.md`), skills, contexto Greptile y guardarraíles.
+- **Gates 1–3 reciben el diff completo del árbol de trabajo** (incluidos archivos nuevos sin seguimiento) calculado mediante un *shadow commit*, sin tocar el índice del usuario.
+- **Gate 2** (sondas adversariales sintetizadas) se ejecuta con `--full-gate` cuando Bun está disponible y hay archivos de código.
+- Los artefactos de los gates viven en `.agents/teamwork/` y nunca entran en los commits; el estado de la ejecución se persiste con `MemoryStorage`.
 
 ---
 
-## 6. Personalización para otros Proyectos
+## 4. Motores (`--engine`)
 
-En su implementación base, `cascade.ts` está configurado para un stack basado en **Bun + Nuxt**. Para reutilizar el CLI en repositorios con otras tecnologías (Node, Next.js, Vite, Rust, Go, etc.), las siguientes constantes en la cabecera de `cascade.ts` son los puntos principales de ajuste:
+| Motor | Alias | Transporte | Notas |
+|---|---|---|---|
+| `claude` | — | Claude Agent SDK | Por defecto; medidores de uso del plan (`--usage-limit`). |
+| `opencode` | — | CLI `opencode run --format json` | Modelo `proveedor/modelo#variante`. |
+| `antigravity` | `agy`, `gemini` | CLI `agy` | Coste estimado por tokens. |
+| `jules` | — | CLI `jules remote` vía `PalEngineBridge` | Autenticación interactiva `jules login`; la API REST usa `X-Goog-Api-Key`. |
 
-* `DEFAULT_VERIFY`: Comandos base de verificación rápida (ej. `npm test`, `npm run lint`).
-* `TSC_SERVER` / `TSC_APP`: Verificaciones de tipado específicas del proyecto.
-* `FULL_VERIFY`: Suite de integración y validación completa previa a despliegue/commit mayor.
-* `NO_NEW_MIGRATION`: Script de aserción para asegurar que el generador de esquema no produzca migraciones accidentales.
+Cada motor se construye con `EngineFactory` y se envuelve con `ResilientEngineDecorator` (reintentos con backoff exponencial + jitter y *circuit breaker*) y `TelemetryMetricsDecorator` (latencia, coste, tokens, reintentos, categoría de error).
+
+---
+
+## 5. Opciones
+
+| Opción | Variable de entorno | Descripción |
+|---|---|---|
+| `--repo <ruta>` | `CASCADE_REPO` | Repositorio destino (por defecto el directorio actual). |
+| `--changes a,b,c` | `CASCADE_CHANGES` | Cambios OpenSpec en orden de cascada. Los ids deben cumplir `[A-Za-z0-9][A-Za-z0-9._-]*` (sin separadores ni `..`). |
+| `--engine <nombre>` | `CASCADE_ENGINE` | `claude`, `opencode`, `antigravity` (`agy`, `gemini`) o `jules`. |
+| `--model <nombre>` | `CASCADE_MODEL` | Modelo para el motor seleccionado. |
+| `--effort <nivel>` | `CASCADE_EFFORT` | `low`, `medium`, `high`, `max` o `none`. |
+| `--mode <v1\|v2>` | — | Pipeline secuencial (`v1`) o FSM con Gates 0–3 (`v2`). |
+| `--config <ruta>` | `CASCADE_CONFIG` | Archivo `.openspec-cascade.json`. |
+| `--budget <usd>` / `--max-budget` | `CASCADE_MAX_BUDGET_USD` | Presupuesto máximo por sesión (`>=` detiene). |
+| `--total-budget <usd>` | `CASCADE_TOTAL_BUDGET_USD` | Presupuesto total de la cascada. |
+| `--usage-limit <%>` | `CASCADE_USAGE_LIMIT_PERCENT` | Límite de uso del plan (1–100). |
+| `--max-turns <n>` | `CASCADE_MAX_TURNS` | Turnos máximos por sesión. |
+| `--max-attempts <n>` | `CASCADE_MAX_ATTEMPTS` | Intentos máximos por tarea. |
+| `--allow-dirty` | `CASCADE_ALLOW_DIRTY` | Permite iniciar con el árbol sucio. |
+| `--dry-run` | `CASCADE_DRY_RUN` | Muestra el plan (y en v2 el veredicto de Analyze y el orden del DAG) sin ejecutar ni escribir logs. |
+| `--full-gate` | `CASCADE_FULL_GATE` | Verificación completa en cada tarea con commit; habilita Gate 2 en v2. |
+| `--no-keep-alive` | `CASCADE_KEEP_ALIVE=false` | Desactiva el inhibidor de suspensión (`caffeinate` / `systemd-inhibit`). |
+| `--log-dir <ruta>` | `CASCADE_LOG_DIR` | Directorio de logs JSONL (por defecto `~/.cache/openspec-cascade/logs/<repo>`). |
+| `--no-diagrams` | `CASCADE_AUTO_DIAGRAMS=false` | Desactiva la sincronización de diagramas al completar un cambio. |
+| `--graphify-command <cmd>` | `CASCADE_GRAPHIFY_COMMAND` | Comando para actualizar el grafo Graphify. |
+| `--archify-action <acción>` | `CASCADE_ARCHIFY_ACTION` | Acción de Archify (por defecto `deliver`). |
+| `--archify-quality <perfil>` | `CASCADE_ARCHIFY_QUALITY` | Perfil de calidad de Archify (por defecto `showcase`). |
+| `--archify-bin <ruta>` | `CASCADE_ARCHIFY_BIN` | Binario o prefijo de comando de Archify. |
+| `--no-rollback` | `CASCADE_ROLLBACK_ON_FAILURE=false` | Conserva el árbol de trabajo cuando una tarea falla. |
+| `--resilient` / `--continue-on-failure` | `CASCADE_RESILIENT` | Continúa con la siguiente tarea tras un fallo (con rollback). |
+| `-h`, `--help` | — | Muestra la ayuda. |
+
+Precedencia: overrides programáticos > CLI > `CASCADE_*` > `.openspec-cascade.json` > valores por defecto.
+
+### Comandos de verificación desde `tasks.md`
+
+Solo se aceptan spans entre backticks que empiecen por `bun`, `bunx`, `npm`, `pnpm`, `yarn` o `tsc --noEmit`, y **se descartan** los que contengan operadores de control de shell (`;`, `&`, `|`, `` ` ``, `$(`, `${`, `>`, `<`, saltos de línea). Si no queda ninguno se aplica la verificación por defecto.
+
+---
+
+## 6. Subcomandos
+
+| Subcomando | Uso | Salida |
+|---|---|---|
+| `doctor` | `cascade.ts doctor [--repo <ruta>]` | Diagnóstico de runtime, git, OpenSpec, binarios de motores, Greptile, sincronía de hooks y telemetría. `0` si no hay checks `fail`. |
+| `catalog` | `cascade.ts catalog --sync --owner <o> --project <n> [--owner-type user\|organization] [--output <dir>]` | Genera el catálogo de tareas desde un GitHub Project (requiere `gh` autenticado). |
+| `drift` | `cascade.ts drift --catalog <archivo> (--remote-json <archivo> \| --owner <o> --project <n>)` | Compara el catálogo local con el proyecto o con una instantánea JSON. `1` si hay drift. |
+| `review` | `cascade.ts review --base <rama> [--rounds <n≤3>] [--repo <ruta>] [--engine <motor>]` | Bucle pre-PR acotado: revisión Greptile sobre un shadow worktree, corrección automática de hallazgos mecánicos, parada en hallazgos de riesgo. `0` si queda limpio. |
+
+Códigos de salida de los subcomandos: `0` éxito, `1` hallazgos/drift/estado no saludable, `2` entrada inválida o error fail-closed (por ejemplo, Greptile no instalado).
+
+---
+
+## 7. Integración con Greptile
+
+- Solo se usa la superficie documentada del CLI v3: `greptile review --json [--branch <base>]`, `greptile review status --json`, `greptile whoami`, `GREPTILE_API_KEY`.
+- El CLI revisa únicamente cambios confirmados, por lo que `ShadowCommitManager` crea un commit sombra (índice aislado con `GIT_INDEX_FILE`, ref privada `refs/cascade/shadow/*`) y lo expone en un *worktree* temporal; todo se limpia en `finally`.
+- Los resultados verificados se cachean en `.cascade/cache/greptile/` con clave SHA-256 de `(merge-base, hash del diff, consulta)`.
+- `verifyReviewFindings` rechaza respuestas en menos de 10 s (caché obsoleta) y hallazgos que no coinciden con el diff respecto a `git merge-base`.
+
+---
+
+## 8. Auto-mejora y telemetría
+
+Con `telemetry.enabled` (por defecto), cada sesión y cada fallo de verificación o de gate se registra, redactado, en `.cascade/telemetry/<AAAA-MM-DD>.jsonl`. `SelfImprover` normaliza las trazas en firmas estables y convierte las recurrentes (≥ 2) en un máximo de 5 directivas de remediación que se inyectan en los siguientes prompts. `.cascade/` está ignorado por Git, nunca entra en commits y sobrevive al rollback.
+
+---
+
+## 9. Plugin de Claude Code
+
+`node bin/install.mjs` registra el marketplace y el plugin `cascade` (agentes, comandos `/cascade` y `/cascade-looper`, skills y el hook `PreToolUse`). El hook (`sdd_gate.mjs` / `sdd_gate.cjs`, lógica en `sdd_gate_core.cjs`) lee `sdd_rules.json`, generado desde `SDD_CONSTANTS` con `bun run scripts/sync_plugin.ts`; `--check` falla si está desactualizado.
+
+---
+
+## 10. Verificación y CI
+
+```bash
+bunx tsc --noEmit
+bunx eslint .
+bun run scripts/forensic_audit.ts
+bun run scripts/sync_plugin.ts --check
+bunx openspec validate --all --strict
+bun test
+npm run test:node   # requiere Node.js 24
+```
+
+El workflow de CI se versiona en `ci/github-workflows/ci.yml`. Para activarlo, un mantenedor con credenciales con el scope `workflow` debe copiarlo:
+
+```bash
+mkdir -p .github/workflows && cp ci/github-workflows/ci.yml .github/workflows/ci.yml
+```
+
+Un test exige que la copia instalada sea idéntica a la plantilla.
