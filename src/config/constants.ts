@@ -211,7 +211,7 @@ export const GREPTILE_CONSTANTS = {
   CONTEXT_HEADER: "## Greptile semantic context",
   STDERR_TAIL_LENGTH: 500,
   SHADOW_WORKTREE_PREFIX: "cascade-shadow-worktree-",
-  SHADOW_EXCLUDED_PATHS: [".cascade"] as const,
+  SHADOW_EXCLUDED_PATHS: [".cascade", ".agents/teamwork"] as const,
   API_KEY_ENV: "GREPTILE_API_KEY",
   REVIEW_ARGS: ["review", "--json"] as const,
   REVIEW_BASE_FLAG: "--branch",
@@ -496,4 +496,15 @@ export const CLI_COMMAND_CONSTANTS = {
   STATUS_WARN: "warn",
   STATUS_FAIL: "fail",
   DEFAULT_REVIEW_ENGINE: "claude",
+} as const;
+
+/**
+ * Adversarial hardening rules (M6): input allowlists and injection guards.
+ */
+export const HARDENING_CONSTANTS = {
+  CHANGE_ID_PATTERN: /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/,
+  PARENT_SEGMENT: "..",
+  SHELL_CONTROL_PATTERN: /[;&|`<>\n\r]|\$\(|\$\{/,
+  TRAILING_DOTS_AND_SPACES: /[.\s]+$/,
+  TEST_FRAMEWORK_MODULES: ["bun:test", "vitest", "@jest/globals"] as const,
 } as const;

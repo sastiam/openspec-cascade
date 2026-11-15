@@ -129,6 +129,25 @@ describe("V2Pipeline", () => {
     expect(state?.finalState).toBe("STATE_ABORTED");
   }, 60_000);
 
+  test("Gate 3 vetoes cheating in new untracked files and nothing is committed", async () => {
+    const repo = await freshRepo();
+    const head = (await runGitCommand(repo.repoDir, ["rev-parse", "HEAD"])).stdout;
+    const cheater = new ScriptedWorker((options) => {
+      writeFileSync(join(options.cwd, "pay.ts"), 'export function pay(): number {\n  throw new Error("not implemented");\n}\n');
+      writeFileSync(join(options.cwd, "pay.test.ts"), 'import { expect, test } from "bun:test";\ntest("ok", () => {\n  expect(true).toBe(true);\n});\n');
+      const tasksPath = join(options.cwd, "openspec", "changes", CHANGE, "tasks.md");
+      writeFileSync(tasksPath, readFileSync(tasksPath, "utf8").replace("- [ ] 1.1", "- [x] 1.1"));
+      return { kind: "done", sessionId: "s", result: "done", costUsd: 0 };
+    });
+    const result = await new CascadeFacade({ engine: cheater, output: quietOutput(), resilience: false }).run(config(repo, { maxAttemptsPerTask: 1 }));
+    expect(result.exitCode).toBe(2);
+    expect((await runGitCommand(repo.repoDir, ["rev-parse", "HEAD"])).stdout).toBe(head);
+    const state = await new MemoryStorage({ repoRoot: repo.repoDir }).readState<{ states: string[] }>(`cascade-v2-${CHANGE}`);
+    expect(state?.states).toContain("STATE_GATE_3_AUDIT");
+    expect(state?.states).not.toContain("STATE_COMMIT_CHECKPOINT");
+    expect(existsSync(join(repo.repoDir, "pay.ts"))).toBe(false);
+  }, 60_000);
+
   test("analyze blocks invalid changes before any session", async () => {
     const repo = await createTempGitRepo({ branch: "feat/v2" });
     repos.push(repo);

@@ -7,6 +7,7 @@
 
 import { z } from "zod";
 import {
+  HARDENING_CONSTANTS,
   BUDGET_CONSTANTS,
   DIAGRAM_CONSTANTS,
   ENGINE_CONSTANTS,
@@ -169,9 +170,17 @@ const nonEmptyStringSchema = (label: string): z.ZodString =>
 
 const stringListSchema = z.array(z.string());
 
+/**
+ * OpenSpec change ids are directory names: no separators, no parent segments, no leading dot.
+ */
+export const ChangeIdSchema = z
+  .string()
+  .regex(HARDENING_CONSTANTS.CHANGE_ID_PATTERN, { message: "change id must match [A-Za-z0-9][A-Za-z0-9._-]* (no path separators)" })
+  .refine((value) => !value.includes(HARDENING_CONSTANTS.PARENT_SEGMENT), { message: "change id must not contain '..'" });
+
 export const RuntimeConfigSchema = z.object({
   repo: nonEmptyStringSchema("repo"),
-  changes: stringListSchema,
+  changes: z.array(ChangeIdSchema),
   logDir: nonEmptyStringSchema("logDir"),
   allowDirty: strictBooleanSchema("allowDirty"),
   dryRun: strictBooleanSchema("dryRun"),

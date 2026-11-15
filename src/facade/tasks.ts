@@ -5,6 +5,7 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { CONSTANTS, FULL_VERIFY, RUNTIME_CONSTANTS, VERIFY_CONSTANTS, type CascadeConfig } from "../../config";
+import { HARDENING_CONSTANTS } from "../config/constants";
 import { isNuxtProject, resolvePackageCommands, tryDetectPackageManager } from "../../platform";
 import { runVerificationPhase } from "../../qa";
 import { discoverDirectives, discoverSkills, formatDirectivesPrompt, formatSkillsPrompt } from "../../skills";
@@ -62,6 +63,13 @@ export function markDone(tasksPath: string, id: string): void {
 }
 
 /**
+ * Task-provided verify commands must be single commands: no chaining, piping, redirection or substitution.
+ */
+export function isSafeVerifyCommand(command: string): boolean {
+  return !HARDENING_CONSTANTS.SHELL_CONTROL_PATTERN.test(command);
+}
+
+/**
  * Extracts verification commands for a task, adapting to the repository's detected package manager
  * and only expanding Nuxt .nuxt/ tsconfig programs when Nuxt is present or unconfigured.
  */
@@ -88,6 +96,7 @@ export function verifyCommands(
   for (const [, span] of task.text.matchAll(/`([^`]+)`/g)) {
     const command = span!.trim();
     if (!pmCommandPattern.test(command)) continue;
+    if (!isSafeVerifyCommand(command)) continue;
     if (/^bun audit\b/.test(command)) continue;
     if (/^(?:bunx\s+)?tsc --noEmit$/.test(command)) {
       if (useNuxt) {

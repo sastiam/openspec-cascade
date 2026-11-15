@@ -43,5 +43,6 @@
   "blockExitCode": 2,
   "disableEnv": "CASCADE_SDD_GATE_DISABLED",
   "disableValue": "1",
-  "blockMessage": "SDD Gate Block: Attempted modification of production source without an active OpenSpec change. Spec before code: create or activate a validated change under openspec/changes/ with pending tasks in tasks.md before editing code. (Tests, docs, and specifications are exempt; set CASCADE_SDD_GATE_DISABLED=1 to bypass)."
+  "blockMessage": "SDD Gate Block: Attempted modification of production source without an active OpenSpec change. Spec before code: create or activate a validated change under openspec/changes/ with pending tasks in tasks.md before editing code. (Tests, docs, and specifications are exempt; set CASCADE_SDD_GATE_DISABLED=1 to bypass).",
+  "trailingTrimPattern": "[.\\s]+$"
 }

@@ -8,6 +8,7 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import { basename, join, normalize, resolve } from "node:path";
 import { CONSTANTS } from "../../config";
+import { HARDENING_CONSTANTS } from "../config/constants";
 
 export interface SddGateInput {
   toolName: string;
@@ -31,7 +32,7 @@ export function isProductionSourceFile(filePath: string): boolean {
     return false;
   }
 
-  const normalized = ("/" + normalize(filePath).replace(/\\/g, "/")).toLowerCase();
+  const normalized = ("/" + normalize(filePath).replace(/\\/g, "/")).toLowerCase().replace(HARDENING_CONSTANTS.TRAILING_DOTS_AND_SPACES, "");
 
   const isProductionExt = CONSTANTS.SDD_PRODUCTION_EXTENSIONS.some((ext) =>
     normalized.endsWith(ext)

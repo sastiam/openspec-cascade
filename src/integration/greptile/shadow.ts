@@ -98,6 +98,21 @@ export class ShadowCommitManager {
   }
 
   /**
+   * Diff between `baseRef` and the current working tree, including untracked (non-ignored) files,
+   * computed through a shadow commit so the user's index is never touched.
+   */
+  async workingTreeDiff(repoPath: string, baseRef: string): Promise<{ readonly files: readonly string[]; readonly patch: string }> {
+    return this.withShadowCommit(repoPath, async (sha) => {
+      const files = (await this.gitOrThrow(repoPath, ["diff", "--name-only", baseRef, sha], "diff --name-only"))
+        .split("\n")
+        .map((file) => file.trim())
+        .filter(Boolean);
+      const patch = await this.gitOrThrow(repoPath, ["diff", "--no-color", baseRef, sha], "diff");
+      return { files, patch };
+    });
+  }
+
+  /**
    * Computes the merge-base between `baseRef` and `headSha` and the changed files/patch between them.
    */
   async branchDiff(repoPath: string, baseRef: string, headSha: string): Promise<BranchDiff> {

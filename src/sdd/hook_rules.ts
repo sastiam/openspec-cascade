@@ -2,7 +2,7 @@
  * Single source of truth for the dependency-free Claude Code plugin hook
  * (`plugins/cascade/hooks/sdd_gate.{mjs,cjs}`), generated into `sdd_rules.json`.
  */
-import { EXIT_CODE_CONSTANTS, SDD_CONSTANTS } from "../config/constants";
+import { EXIT_CODE_CONSTANTS, HARDENING_CONSTANTS, SDD_CONSTANTS } from "../config/constants";
 
 export const SDD_HOOK_CONSTANTS = {
   RULES_RELATIVE_PATH: "plugins/cascade/hooks/sdd_rules.json",
@@ -27,6 +27,7 @@ export interface SddHookRules {
   readonly disableEnv: string;
   readonly disableValue: string;
   readonly blockMessage: string;
+  readonly trailingTrimPattern: string;
 }
 
 /**
@@ -44,6 +45,7 @@ export function buildSddHookRules(): SddHookRules {
     disableEnv: SDD_HOOK_CONSTANTS.DISABLE_ENV,
     disableValue: SDD_HOOK_CONSTANTS.DISABLE_VALUE,
     blockMessage: SDD_HOOK_CONSTANTS.BLOCK_MESSAGE,
+    trailingTrimPattern: HARDENING_CONSTANTS.TRAILING_DOTS_AND_SPACES.source,
   };
 }
 

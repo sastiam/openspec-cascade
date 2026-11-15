@@ -10,6 +10,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import ts from "typescript";
+import { HARDENING_CONSTANTS } from "../config/constants";
 
 export type ForensicRule =
   | "explicit-any"
@@ -132,10 +133,33 @@ function callExpressionCalleeName(expression: ts.LeftHandSideExpression): { root
   return null;
 }
 
-function isStubCall(node: ts.CallExpression): boolean {
+/**
+ * Local names bound to `mock`/`spyOn` imported from a test framework, including aliases (`mock as fake`).
+ */
+function collectStubAliases(sourceFile: ts.SourceFile): Set<string> {
+  const aliases = new Set<string>();
+  const frameworks: readonly string[] = HARDENING_CONSTANTS.TEST_FRAMEWORK_MODULES;
+  const stubCallees: readonly string[] = FORENSIC_CONSTANTS.STUB_CALLEES;
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    if (!frameworks.includes(statement.moduleSpecifier.text)) continue;
+    const bindings = statement.importClause?.namedBindings;
+    if (bindings === undefined || !ts.isNamedImports(bindings)) continue;
+    for (const element of bindings.elements) {
+      const imported = element.propertyName?.text ?? element.name.text;
+      if (stubCallees.includes(imported)) aliases.add(element.name.text);
+    }
+  }
+  return aliases;
+}
+
+function isStubCall(node: ts.CallExpression, aliases: ReadonlySet<string>): boolean {
   const callee = callExpressionCalleeName(node.expression);
   if (callee === null) {
     return false;
+  }
+  if (aliases.has(callee.root)) {
+    return true;
   }
   const stubCallees: readonly string[] = FORENSIC_CONSTANTS.STUB_CALLEES;
   const stubNamespaces: readonly string[] = FORENSIC_CONSTANTS.STUB_NAMESPACES;
@@ -179,6 +203,7 @@ export function auditSource(
   const isProduction = options.production ?? !normalizedName.endsWith(FORENSIC_CONSTANTS.TEST_FILE_SUFFIX);
   const violations: ForensicViolation[] = [];
   const bodies: Array<{ start: number; end: number }> = [];
+  const stubAliases = collectStubAliases(sourceFile);
 
   const visit = (node: ts.Node): void => {
     if (node.kind === ts.SyntaxKind.AnyKeyword) {
@@ -192,7 +217,7 @@ export function auditSource(
     if (isFunctionLikeWithBody(node)) {
       bodies.push({ start: node.body.getStart(sourceFile) + 1, end: node.body.getEnd() - 1 });
     }
-    if (isE2e && ts.isCallExpression(node) && isStubCall(node)) {
+    if (isE2e && ts.isCallExpression(node) && isStubCall(node, stubAliases)) {
       violations.push({
         file: fileName,
         line: lineOf(sourceFile, node.getStart(sourceFile)),

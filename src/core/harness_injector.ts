@@ -10,6 +10,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { discoverDirectives, discoverSkills, formatDirectivesPrompt, formatSkillsPrompt } from "../../skills";
 import { HARNESS_CONSTANTS, RUNTIME_CONSTANTS, SDD_CONSTANTS } from "../config/constants";
+import { ChangeIdSchema, ConfigValidationError } from "../config/schemas";
 import type { Task } from "../facade/tasks";
 import { estimateTokens } from "../integration/greptile/search";
 
@@ -143,6 +144,10 @@ export class HarnessInjector {
    * Builds the ordered, token-estimated execution context for one task session.
    */
   async buildExecutionContext(input: HarnessInput): Promise<InjectedHarness> {
+    const changeId = ChangeIdSchema.safeParse(input.changeId);
+    if (!changeId.success) {
+      throw new ConfigValidationError(`Invalid change id "${input.changeId}"`, changeId.error.issues.map((issue) => issue.message));
+    }
     const changeDir = join(input.repoRoot, ...HARNESS_CONSTANTS.CHANGES_DIR, input.changeId);
     const truncatedArtifacts: string[] = [];
     const contents = new Map<HarnessSectionName, string>();

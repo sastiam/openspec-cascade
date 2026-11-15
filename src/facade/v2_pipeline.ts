@@ -19,6 +19,7 @@ import { Gate0MechanicalRunner } from "../gates/gate0_qa";
 import { Gate1Reviewer } from "../gates/gate1_review";
 import { Gate2Challenger } from "../gates/gate2_challenger";
 import { Gate3Auditor } from "../gates/gate3_audit";
+import { ShadowCommitManager } from "../integration/greptile/shadow";
 import { getDefaultSpawner } from "../runtime/spawner";
 import type { ISpawner } from "../runtime/types";
 import { analyzeChangeArtifacts, type AnalysisResult } from "../sdd/analyze";
@@ -154,15 +155,6 @@ export class V2Pipeline {
   private async git(config: CascadeConfig, args: readonly string[]): Promise<string> {
     const result = await this.spawner.run(["git", ...args], { cwd: config.repo, timeoutMs: config.commandTimeoutMs });
     return result.stdout.trim();
-  }
-
-  private async changedFiles(config: CascadeConfig): Promise<string[]> {
-    const porcelain = await this.git(config, ["status", "--porcelain", "--untracked-files=all"]);
-    return porcelain
-      .split("\n")
-      .filter(Boolean)
-      .map((line) => line.slice(CONSTANTS.GIT_STATUS_PREFIX_LENGTH).trim())
-      .filter((file) => !V2_PIPELINE_CONSTANTS.WORKSPACE_EXCLUDES.some((prefix) => file.startsWith(prefix)));
   }
 
   /**
@@ -357,7 +349,11 @@ export class V2Pipeline {
     if (blocked) throw new Fatal(`Task ${run.task.id} needs a human decision: ${blocked}`);
     await fsm.dispatch(LOOPER_EVENTS.EVT_WORK_SUBMITTED);
 
-    const affectedFiles = await this.changedFiles(config);
+    const workingTree = await new ShadowCommitManager({ spawner: this.spawner, timeoutMs: config.commandTimeoutMs }).workingTreeDiff(
+      config.repo,
+      run.baselineSha,
+    );
+    const affectedFiles = [...workingTree.files];
     const gate0 = await new Gate0MechanicalRunner({
       repoRoot: config.repo,
       cwd: config.repo,
@@ -379,7 +375,7 @@ export class V2Pipeline {
     await fsm.dispatch(fastTrack ? LOOPER_EVENTS.EVT_G0_PASS_FAST_TRACK : LOOPER_EVENTS.EVT_G0_PASS, { isFastTrack: fastTrack, ...this.attemptContext(run) });
 
     if (!fastTrack) {
-      await this.semanticGates(config, run, fsm, hooks, affectedFiles);
+      await this.semanticGates(config, run, fsm, hooks, affectedFiles, workingTree.patch);
     }
 
     const gate3 = await new Gate3Auditor({
@@ -393,6 +389,8 @@ export class V2Pipeline {
       skipCleanRoomQa: true,
       autoRollbackOnVeto: false,
       autoCleanup: true,
+      diff: workingTree.patch,
+      targetFiles: affectedFiles,
     }).run();
     hooks.log("v2_gate3", { taskId: run.task.id, verdict: gate3.verdict, veto: gate3.veto });
     if (gate3.veto) {
@@ -407,8 +405,11 @@ export class V2Pipeline {
     fsm: LooperFSM,
     hooks: V2RunHooks,
     affectedFiles: readonly string[],
+    patch: string,
   ): Promise<void> {
     const gate1 = await new Gate1Reviewer({
+      diff: patch,
+      targetFiles: affectedFiles,
       workspaceRoot: config.repo,
       repoRoot: config.repo,
       taskId: run.task.id,
@@ -443,6 +444,7 @@ export class V2Pipeline {
       maxAttempts: config.maxAttemptsPerTask,
       autoCleanup: true,
       preserveBreakingProbes: false,
+      diff: patch,
     }).run();
     hooks.log("v2_gate2", { taskId: run.task.id, verdict: gate2.verdict, event: gate2.recommendedEvent });
     const gate2Feedback = [gate2.report.summary, ...(gate2.feedback?.recommendations ?? [])].join("\n");

@@ -20,7 +20,7 @@ function loadRules(rulesFile = RULES_FILE) {
 
 function isProductionSourceFile(filePath, rules) {
   if (!filePath) return false
-  const normalized = ('/' + path.normalize(filePath).replace(/\\/g, '/')).toLowerCase()
+  const normalized = ('/' + path.normalize(filePath).replace(/\\/g, '/')).toLowerCase().replace(new RegExp(rules.trailingTrimPattern), '')
   if (!rules.productionExtensions.some((ext) => normalized.endsWith(ext))) return false
   if (rules.exemptPathSegments.some((segment) => normalized.includes(segment))) return false
   const fileName = path.basename(normalized)
