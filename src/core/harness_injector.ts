@@ -117,7 +117,10 @@ function rulesSection(input: HarnessInput): string {
   ].join("\n");
 }
 
-function remediationSection(directives: readonly RemediationDirective[]): string {
+/**
+ * Renders the bounded remediation directive block shared by the v1 prompt and the harness.
+ */
+export function formatRemediationDirectives(directives: readonly RemediationDirective[]): string {
   const bounded = [...directives]
     .sort((left, right) => right.occurrences - left.occurrences || left.id.localeCompare(right.id))
     .slice(0, HARNESS_CONSTANTS.MAX_REMEDIATION_DIRECTIVES);
@@ -147,7 +150,7 @@ export class HarnessInjector {
     contents.set("task", taskSection(input));
     contents.set("rules", rulesSection(input));
     if (input.remediationDirectives?.length) {
-      contents.set("remediation", remediationSection(input.remediationDirectives));
+      contents.set("remediation", formatRemediationDirectives(input.remediationDirectives));
     }
 
     const artifactPaths = [

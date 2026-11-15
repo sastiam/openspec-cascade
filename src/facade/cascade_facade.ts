@@ -24,6 +24,7 @@ import type { EngineOutcome, UsageMeter } from "../engine/contract";
 import { startKeepAlive, type KeepAliveController, type KeepAliveOptions } from "../../platform";
 import { runVerificationPhase } from "../../qa";
 import { Fatal, RollbackStateBuffer, TaskFailureError } from "../../resilience";
+import { V2_PIPELINE_CONSTANTS } from "../config/constants";
 import { ResilientEngineDecorator, type ResilienceOptions } from "../decorators/resilient_engine";
 import {
   summarizeTelemetry,
@@ -31,7 +32,8 @@ import {
   type SessionTelemetryRecord,
   type TelemetrySummary,
 } from "../decorators/telemetry_metrics";
-import type { RemediationDirective } from "../core/harness_injector";
+import { formatRemediationDirectives, type RemediationDirective } from "../core/harness_injector";
+import { SelfImprover } from "../core/self_improver";
 import { EngineFactory, type UnifiedEngine } from "../pal/factory";
 import { getDefaultSpawner } from "../runtime/spawner";
 import type { ISpawner } from "../runtime/types";
@@ -104,6 +106,7 @@ export interface CascadeFacadeDependencies {
   readonly telemetrySink?: (record: SessionTelemetryRecord) => void;
   readonly v2Pipeline?: V2Pipeline;
   readonly remediationDirectives?: () => readonly RemediationDirective[];
+  readonly selfImprover?: SelfImprover;
 }
 
 interface RunContext {
@@ -118,6 +121,8 @@ interface RunContext {
   readonly tasks: TaskRunRecord[];
   readonly rollbacks: RollbackRecord[];
   readonly v2Reports: V2ChangeReport[];
+  readonly selfImprover?: SelfImprover;
+  readonly directives: readonly RemediationDirective[];
   usage?: UsageMeter[] | null;
 }
 
@@ -162,7 +167,18 @@ export class CascadeFacade {
   /**
    * Builds the decorated engine: Telemetry(Resilient(EngineFactory.create(engine))).
    */
-  buildEngine(config: CascadeConfig): { engine: UnifiedEngine; telemetry: TelemetryMetricsDecorator } {
+  /**
+   * Returns the self-improver for a run (telemetry enabled and not a dry run), if any.
+   */
+  createSelfImprover(config: CascadeConfig): SelfImprover | undefined {
+    if (!config.telemetry.enabled || config.dryRun) return undefined;
+    return this.dependencies.selfImprover ?? new SelfImprover({ dir: config.telemetry.telemetryDir, rootDir: config.repo });
+  }
+
+  buildEngine(
+    config: CascadeConfig,
+    selfImprover?: SelfImprover,
+  ): { engine: UnifiedEngine; telemetry: TelemetryMetricsDecorator } {
     const base = this.dependencies.engine ?? this.engineFactory.create(config.engine, { cwd: config.repo, model: config.model });
     const resilient =
       this.dependencies.resilience === false
@@ -171,7 +187,19 @@ export class CascadeFacade {
             sleep: (ms) => this.spawner.sleep(ms),
             ...(this.dependencies.resilience ?? {}),
           });
-    const telemetry = new TelemetryMetricsDecorator(resilient, { sink: this.dependencies.telemetrySink });
+    const telemetry = new TelemetryMetricsDecorator(resilient, {
+      sink: (record) => {
+        this.dependencies.telemetrySink?.(record);
+        selfImprover?.recordOutcome({
+          source: "session",
+          engine: record.engine,
+          outcome: record.outcome,
+          failureTrace: record.errorMessage,
+          costUsd: record.costUsd,
+          latencyMs: record.latencyMs,
+        });
+      },
+    });
     return { engine: telemetry, telemetry };
   }
 
@@ -181,7 +209,8 @@ export class CascadeFacade {
   async run(config: CascadeConfig): Promise<CascadeRunResult> {
     let ctx: RunContext | undefined;
     try {
-      const { engine, telemetry } = this.buildEngine(config);
+      const selfImprover = this.createSelfImprover(config);
+      const { engine, telemetry } = this.buildEngine(config, selfImprover);
       ctx = {
         config,
         engine,
@@ -193,6 +222,8 @@ export class CascadeFacade {
         tasks: [],
         rollbacks: [],
         v2Reports: [],
+        selfImprover,
+        directives: this.dependencies.remediationDirectives?.() ?? selfImprover?.deriveDirectives() ?? [],
       };
       await this.execute(ctx);
       return this.result(ctx, EXIT_CODE_CONSTANTS.EXIT_CODE_SUCCESS);
@@ -242,6 +273,16 @@ export class CascadeFacade {
 
   private log(ctx: RunContext, event: string, data: Record<string, unknown> = {}): void {
     if (ctx.config.dryRun) return;
+    if (event === "v2_failure" && typeof data.trace === "string") {
+      ctx.selfImprover?.recordOutcome({
+        source: "gate",
+        change: typeof data.change === "string" ? data.change : undefined,
+        taskId: typeof data.taskId === "string" ? data.taskId : undefined,
+        outcome: typeof data.event === "string" ? data.event : "v2_failure",
+        failureTrace: data.trace,
+        attempt: typeof data.attempt === "number" ? data.attempt : undefined,
+      });
+    }
     if (!ctx.logDirReady) {
       mkdirSync(ctx.config.logDir, { recursive: true });
       ctx.logDirReady = true;
@@ -302,15 +343,15 @@ export class CascadeFacade {
     }
   }
 
-  private v2Pipeline(): V2Pipeline {
+  private v2Pipeline(directives: readonly RemediationDirective[]): V2Pipeline {
     return (
       this.dependencies.v2Pipeline ??
-      new V2Pipeline({ spawner: this.spawner, remediationDirectives: this.dependencies.remediationDirectives })
+      new V2Pipeline({ spawner: this.spawner, remediationDirectives: () => directives })
     );
   }
 
   private async executeV2(ctx: RunContext): Promise<void> {
-    const pipeline = this.v2Pipeline();
+    const pipeline = this.v2Pipeline(ctx.directives);
     if (ctx.config.dryRun) {
       for (const changeReport of ctx.changes) {
         if (!existsSync(this.tasksPath(ctx, changeReport.change))) {
@@ -378,7 +419,10 @@ export class CascadeFacade {
       .split("\n")
       .filter(
         (line) =>
-          line && !ctx.config.neverCommit.some((path) => line.slice(CONSTANTS.GIT_STATUS_PREFIX_LENGTH).startsWith(path)),
+          line &&
+          ![...ctx.config.neverCommit, ...V2_PIPELINE_CONSTANTS.WORKSPACE_EXCLUDES].some((path) =>
+            line.slice(CONSTANTS.GIT_STATUS_PREFIX_LENGTH).startsWith(path),
+          ),
       );
     if (dirty.length) {
       const warning = `Working tree is dirty (these files would land in the first commit):\n${dirty.join("\n")}`;
@@ -511,7 +555,9 @@ export class CascadeFacade {
   }
 
   private async commitChanges(ctx: RunContext, message: string, extraExcludes: readonly string[] = []): Promise<void> {
-    const excludes = [...ctx.config.neverCommit, ...extraExcludes].map((path) => `:!${path}`);
+    const excludes = [...new Set([...ctx.config.neverCommit, ...V2_PIPELINE_CONSTANTS.WORKSPACE_EXCLUDES, ...extraExcludes])].map(
+      (path) => `:!${path}`,
+    );
     await this.git(ctx, ["add", "-A", "--", ".", ...excludes]);
     if ((await this.git(ctx, ["diff", "--cached", "--quiet"])).code === CONSTANTS.EXIT_CODE_SUCCESS) {
       this.say(ctx, "  nothing to commit");
@@ -536,6 +582,9 @@ export class CascadeFacade {
     const verify = verifyCommands(task, ctx.config.fullGate, { repoRoot: ctx.config.repo, config: ctx.config });
     const commitType = commitTypeOf(task);
     let prompt = taskPrompt(change, task, verify, sectionCommit, ctx.config.repo);
+    if (ctx.directives.length > 0) {
+      prompt = `${prompt}\n\n${formatRemediationDirectives(ctx.directives)}`;
+    }
     let sessionId: string | undefined;
     let subject: string | undefined;
     let header: string | undefined;
@@ -543,7 +592,7 @@ export class CascadeFacade {
 
     const rollbackBuffer = new RollbackStateBuffer({
       cwd: ctx.config.repo,
-      excludes: ctx.config.neverCommit,
+      excludes: [...ctx.config.neverCommit, ...V2_PIPELINE_CONSTANTS.WORKSPACE_EXCLUDES],
       timeoutMs: ctx.config.commandTimeoutMs,
       hooks: {
         say: (message) => this.say(ctx, message),
@@ -593,6 +642,14 @@ export class CascadeFacade {
         });
         if (!verification.success) {
           this.say(ctx, `  checks failed (attempt ${attempts}/${ctx.config.maxAttemptsPerTask})`);
+          ctx.selfImprover?.recordOutcome({
+            source: "gate",
+            change,
+            taskId: task.id,
+            outcome: "verification_failed",
+            failureTrace: verification.feedbackPrompt,
+            attempt: attempts,
+          });
           prompt = verification.feedbackPrompt ?? prompt;
           continue;
         }

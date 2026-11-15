@@ -13,6 +13,7 @@ import { loadConfig } from "../../config";
 import { auditFiles } from "../../src/audit/forensic";
 import { ConfigValidationError } from "../../src/config/schemas";
 import { HarnessInjector } from "../../src/core/harness_injector";
+import { SelfImprover } from "../../src/core/self_improver";
 import { CascadeFacade } from "../../src/facade/cascade_facade";
 import { GreptileCache, sha256, ShadowCommitManager } from "../../src/integration/greptile";
 import { EngineFactory } from "../../src/pal/factory";
@@ -153,6 +154,23 @@ describe("M4 harness and v2 pipeline on Node", () => {
       const result = await runCli(["--repo", repo, "--changes", "node-parity", "--mode", "v2", "--dry-run", "--no-keep-alive"]);
       assert.equal(result.exitCode, 2);
       assert.ok(result.stderr.includes("SDD analyze blocked"));
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("M5 self-improvement and integration CLI on Node", () => {
+  test("SelfImprover round-trips telemetry and doctor runs through the CLI", async () => {
+    const repo = await createRepoWithChange();
+    try {
+      const improver = new SelfImprover({ rootDir: repo });
+      improver.recordOutcome({ source: "gate", outcome: "x", failureTrace: "error TS2304 at line 4" });
+      improver.recordOutcome({ source: "gate", outcome: "x", failureTrace: "error TS2304 at line 9" });
+      assert.equal(improver.deriveDirectives()[0]?.occurrences, 2);
+      const doctor = await runCli(["doctor", "--repo", repo]);
+      assert.equal(doctor.exitCode, 0, doctor.stderr);
+      assert.ok(doctor.stdout.includes("runtime: node"));
     } finally {
       rmSync(repo, { recursive: true, force: true });
     }

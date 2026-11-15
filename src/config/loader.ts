@@ -146,9 +146,18 @@ Environment:
 Configuration file:
   Place .openspec-cascade.json in the target repo or cwd (precedence: CLI > env > file > defaults).
 
+Subcommands:
+  doctor [--repo <path>]                       Diagnose runtime, git, OpenSpec, engines, Greptile, plugin hooks, telemetry
+  catalog --sync --owner <o> --project <n>     Generate the task catalog from a GitHub Project (--owner-type, --output)
+  drift --catalog <file> (--remote-json <file> | --owner <o> --project <n>)
+                                               Detect drift between the local catalog and the project (exit 1 on drift)
+  review --base <branch> [--rounds <n<=3>]     Bounded pre-PR Greptile review/fix loop (--repo, --engine)
+
 Examples:
   openspec-cascade --repo ~/work/my-app --changes add-auth,add-billing
   openspec-cascade --repo . --changes add-auth --engine opencode --dry-run
+  openspec-cascade --repo . --changes add-auth --mode v2
+  openspec-cascade doctor --repo .
 `;
 
 /**

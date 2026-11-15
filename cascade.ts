@@ -44,6 +44,7 @@ import {
   type RollbackOptions,
   type RollbackResult,
 } from "./resilience";
+import { detectSubcommand, runSubcommand } from "./src/cli/commands";
 import { CascadeFacade, isFailClosedError, type CascadeFacadeDependencies } from "./src/facade/cascade_facade";
 
 export {
@@ -104,6 +105,10 @@ export async function runCli(
   env: NodeJS.ProcessEnv | Record<string, string | undefined> = process.env,
   dependencies: CascadeFacadeDependencies = {},
 ): Promise<number> {
+  const subcommand = detectSubcommand(argv);
+  if (subcommand !== undefined) {
+    return runSubcommand(subcommand, argv.slice(1));
+  }
   try {
     const parsed = parseCliArgs(argv);
     if (parsed.options.help) {

@@ -444,3 +444,56 @@ export const V2_PIPELINE_CONSTANTS = {
   CHALLENGE_EXTENSIONS: [".ts", ".tsx", ".js", ".jsx", ".mjs"] as const,
   CHALLENGE_RUNTIME: "bun",
 } as const;
+
+/**
+ * Self-improvement (telemetry → remediation directives) bounds.
+ */
+export const SELF_IMPROVER_CONSTANTS = {
+  FILE_EXTENSION: ".jsonl",
+  DATE_KEY_LENGTH: 10,
+  MIN_OCCURRENCES: 2,
+  MAX_DIRECTIVES: 5,
+  SIGNATURE_MAX_CHARS: 240,
+  EXAMPLE_MAX_CHARS: 160,
+  DIRECTIVE_ID_LENGTH: 8,
+  DIRECTIVE_ID_PREFIX: "SI-",
+  CATEGORY_PATTERNS: [
+    ["type_error", /\bTS\d{3,5}\b|type error|is not assignable|cannot find name|property .* does not exist/i],
+    ["test_failure", /\(fail\)|tests? failed|expect\(|assertion|toBe|toEqual/i],
+    ["lint", /eslint|no-magic-numbers|no-explicit-any|lint/i],
+    ["timeout", /time(?:d)?\s?out|deadline|\b124\b/i],
+    ["rate_limit", /rate.?limit|\b429\b|quota|too many requests/i],
+    ["auth", /unauthori[sz]ed|\b40[13]\b|credential|not (?:signed|logged) in/i],
+  ] as const,
+  UNKNOWN_CATEGORY: "unknown",
+  DIRECTIVE_TEMPLATES: {
+    type_error: "Run `tsc --noEmit` before finishing and fix every type error; never silence them with `any` or casts.",
+    test_failure: "Run the focused tests for the files you touch and make them pass before finishing; do not edit assertions to fit wrong behavior.",
+    lint: "Run the linter on touched files; move numeric literals into named constants and type every export.",
+    timeout: "Keep commands bounded: avoid watch modes and long-running servers; prefer focused test runs.",
+    rate_limit: "Batch tool calls and avoid redundant reads; the engine is hitting provider rate limits.",
+    auth: "Authentication failed for an external tool; do not retry blindly — report BLOCKED with the failing command.",
+    unknown: "This failure has recurred; read the previous error carefully and change approach instead of repeating it.",
+  } as const,
+} as const;
+
+/**
+ * Bounded pre-PR review/fix loop limits.
+ */
+export const PRE_PR_CONSTANTS = {
+  MAX_ROUNDS: 3,
+} as const;
+
+/**
+ * Integration subcommands dispatched by `cascade.ts` before regular flag parsing.
+ */
+export const CLI_COMMAND_CONSTANTS = {
+  SUBCOMMANDS: ["doctor", "catalog", "drift", "review"] as const,
+  ENGINE_BINARIES: { claude: "claude", opencode: "opencode", antigravity: "agy", jules: "jules" } as const,
+  DEFAULT_OWNER_TYPE: "user" as const,
+  OWNER_TYPES: ["user", "organization"] as const,
+  STATUS_OK: "ok",
+  STATUS_WARN: "warn",
+  STATUS_FAIL: "fail",
+  DEFAULT_REVIEW_ENGINE: "claude",
+} as const;

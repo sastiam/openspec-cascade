@@ -269,6 +269,15 @@ export class V2Pipeline {
         await dispatcher.completeAgent(worker.id, { handoffContent: `task ${task.id} committed` }).catch(() => undefined);
         return { taskId: task.id, status: "done", attempts: run.attempts, gate2: run.gate2 };
       } catch (signal) {
+        if (signal instanceof RetrySignal || signal instanceof EscalationSignal) {
+          hooks.log("v2_failure", {
+            change,
+            taskId: task.id,
+            event: signal.event,
+            attempt: run.attempts,
+            trace: signal instanceof RetrySignal ? signal.feedback : signal.trace,
+          });
+        }
         if (signal instanceof RetrySignal) {
           await fsm.dispatch(signal.event, this.attemptContext(run));
           run.feedback = signal.feedback;

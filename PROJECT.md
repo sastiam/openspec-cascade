@@ -61,7 +61,7 @@ Every feature below has an assigned Milestone and source reference (`ORIGINAL_RE
 | M2 | Isomorphic Runtime, PAL Factory & Facade | F06–F09 (`src/runtime/*`, `src/pal/factory.ts`, `src/decorators/*`, `src/facade/*`, 14 `Bun.*` migrations, OpenSpec change) + commit & push | M1 | DONE |
 | M3 | Greptile CLI Integration | F10–F13 (`src/integration/greptile/{client,shadow,cache,search,bridge}.ts`, OpenSpec change) + commit & push | M2 | DONE |
 | M4 | Harness Injector & V2 Looper Wiring | F14–F16 (`src/core/harness_injector.ts`, cycle fixes, v2 pipeline wiring in `CascadeFacade`, plugin/hook sync, OpenSpec change) + commit & push | M2, M3 | DONE |
-| M5 | Self-Improving Looper & CI | F17–F19 (`src/core/self_improver.ts`, bounded pre-PR loop, CLI integration, `.github/workflows/ci.yml`, `.gitignore`, OpenSpec change) + commit & push | M4 | PLANNED |
+| M5 | Self-Improving Looper & CI | F17–F19 (`src/core/self_improver.ts`, bounded pre-PR loop, CLI integration, `.github/workflows/ci.yml`, `.gitignore`, OpenSpec change) + commit & push | M4 | DONE |
 | M6 | Final Certification | F20 + Phase 1 (100% E2E Tiers 1–4) + Phase 2 (Tier 5 Adversarial Hardening) + final clean verification & push to `origin` | M5, E2E | PLANNED |
 
 ---

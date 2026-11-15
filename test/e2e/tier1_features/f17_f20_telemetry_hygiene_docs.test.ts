@@ -8,8 +8,10 @@ import { detectCatalogDrift } from "../../../src/integration/drift_detector";
 import type { ProjectV2Item } from "../../../src/integration/github_project";
 import { validateCatalogSchema, validateTaskSchema } from "../../../src/integration/schema_validator";
 import { createMemoryStorage } from "../../../src/storage/memory";
+import { SelfImprover } from "../../../src/core/self_improver";
+import { runCascadeCli } from "../helpers/cli_runner";
 import { E2E_CONSTANTS } from "../helpers/constants";
-import { cleanupTempDir } from "../helpers/temp_repo";
+import { cleanupTempDir, createTempGitRepo } from "../helpers/temp_repo";
 
 const cleanups: Array<() => void> = [];
 
@@ -159,5 +161,57 @@ describe("Tier 1 Features: F17–F20 Telemetry, Catalog Integration, Diagrams & 
     expect(parsed).not.toBeNull();
     expect(parsed?.runId).toBe("e2e-1");
     expect(parsed?.status).toBe("ok");
+  });
+  test(
+    "cascade CLI doctor diagnoses a real repository and drift compares real catalog snapshots",
+    async () => {
+      const fixture = await createTempGitRepo({ branch: "feat/e2e-doctor" });
+      cleanups.push(fixture.cleanup);
+      mkdirSync(join(fixture.repoDir, "openspec"), { recursive: true });
+      const doctor = await runCascadeCli({ args: ["doctor", "--repo", fixture.repoDir], homeDir: fixture.homeDir });
+      expect(doctor.exitCode).toBe(E2E_CONSTANTS.EXIT_CODE_SUCCESS);
+      expect(doctor.stdout).toContain("git: inside a work tree");
+      const generator = new TaskCatalogGenerator();
+      const item = (status: string): Record<string, unknown> => ({
+        task_key: "E2E-001",
+        taskId: "E2E-001",
+        project_item_id: "item-1",
+        githubProjectItemId: "item-1",
+        title: "E2E-001: drift",
+        workstream: "core",
+        stream: "core",
+        status,
+        priority: "P1",
+        size: "S",
+        sections_present: [],
+        url: "https://example.invalid/1",
+        githubUrl: "https://example.invalid/1",
+        sections: {},
+        body: "",
+      });
+      const local = join(fixture.homeDir, "local.json");
+      const remote = join(fixture.homeDir, "remote.json");
+      writeFileSync(local, generator.formatJson(generator.normalizeItems([item("Todo")])));
+      writeFileSync(remote, generator.formatJson(generator.normalizeItems([item("Done")])));
+      const drift = await runCascadeCli({ args: ["drift", "--catalog", local, "--remote-json", remote], homeDir: fixture.homeDir });
+      expect(drift.exitCode).toBe(E2E_CONSTANTS.EXIT_CODE_ERROR);
+      const review = await runCascadeCli({ args: ["review"], homeDir: fixture.homeDir });
+      expect(review.exitCode).toBe(E2E_CONSTANTS.EXIT_CODE_FATAL);
+      expect(review.stderr).toContain("--base is required");
+    },
+    E2E_CONSTANTS.SLOW_TEST_TIMEOUT_MS,
+  );
+
+  test("SelfImprover persists redacted telemetry and derives directives from real history", () => {
+    const dir = mkdtempSync(join(tmpdir(), E2E_CONSTANTS.TEMP_PREFIX_SANDBOX));
+    cleanups.push(() => cleanupTempDir(dir));
+    const improver = new SelfImprover({ rootDir: dir });
+    for (const line of [3, 17]) {
+      improver.recordOutcome({ source: "gate", outcome: "EVT_G0_RETRY", failureTrace: `src/x.ts(${line},2): error TS2304: Cannot find name 'y' token=ghp_abcdefghijklmnopqrstuvwxyz0123456789` });
+    }
+    const history = improver.loadHistory();
+    expect(history).toHaveLength(2);
+    expect(JSON.stringify(history)).not.toContain("ghp_abcdefghijklmnopqrstuvwxyz0123456789");
+    expect(improver.deriveDirectives(history)[0]?.occurrences).toBe(2);
   });
 });
