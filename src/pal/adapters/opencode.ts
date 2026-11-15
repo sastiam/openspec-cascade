@@ -10,6 +10,7 @@
  * DeepSeek reasoning/thinking deltas, JSON auto-repair, and OpenCode CLI subprocessing.
  */
 
+import { getDefaultSpawner, toAdapterProcess } from "../../runtime/spawner";
 import { randomUUID } from "node:crypto";
 import {
   extractReActToolCalls,
@@ -1022,7 +1023,7 @@ export async function* parseOpenAiStream(
 }
 
 /**
- * Default subprocess spawn implementation using Bun.spawn if available.
+ * Default subprocess spawn implementation backed by the runtime `ISpawner`.
  */
 function defaultBunSpawn(
   argv: string[],
@@ -1034,10 +1035,9 @@ function defaultBunSpawn(
     stderr: "pipe";
   }
 ): OpenCodeSpawnedProcess {
-  if (typeof Bun !== "undefined" && typeof Bun.spawn === "function") {
-    return Bun.spawn(argv, options) as unknown as OpenCodeSpawnedProcess;
-  }
-  throw new Error("Bun.spawn is not available in current runtime environment");
+  return toAdapterProcess(
+    getDefaultSpawner().spawn(argv, { cwd: options.cwd, env: options.env, timeoutMs: options.timeout }),
+  );
 }
 
 /**

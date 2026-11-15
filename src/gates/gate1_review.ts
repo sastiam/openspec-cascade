@@ -23,6 +23,7 @@
  *    Centralizes all thresholds, limits, exit codes, and string literals in GATE1_CONSTANTS.
  */
 
+import { getDefaultSpawner } from "../runtime/spawner";
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -776,50 +777,15 @@ Respond with a JSON object inside a \`\`\`json block adhering to this structure:
 }
 
 /**
- * Default git diff runner executing subprocess via Bun.spawn.
+ * Default git diff runner executing subprocess via the runtime ISpawner.
  */
 export async function defaultGitDiffRunner(
   commandArgs: readonly string[],
   cwd: string,
   timeoutMs: number = GATE1_CONSTANTS.DEFAULT_GIT_TIMEOUT_MS
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-  const isWindows = process.platform === "win32";
-  const shellArgs = isWindows ? ["cmd.exe", "/c", ...commandArgs] : [...commandArgs];
-
   try {
-    const proc = Bun.spawn(shellArgs, {
-      cwd,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const timeoutPromise = new Promise<{ timedOut: boolean }>((resolveTimeout) => {
-      timer = setTimeout(() => {
-        try {
-          proc.kill();
-        } catch {
-          // ignore kill failure
-        }
-        resolveTimeout({ timedOut: true });
-      }, timeoutMs);
-    });
-
-    const completionPromise = Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]).then(([stdout, stderr, exitCode]) => ({
-      timedOut: false,
-      stdout,
-      stderr,
-      exitCode,
-    }));
-
-    const result = await Promise.race([completionPromise, timeoutPromise]);
-    if (timer !== undefined) {
-      clearTimeout(timer);
-    }
+    const result = await getDefaultSpawner().run([...commandArgs], { cwd, timeoutMs });
 
     if (result.timedOut) {
       return {
@@ -829,7 +795,7 @@ export async function defaultGitDiffRunner(
       };
     }
 
-    const completed = result as { stdout: string; stderr: string; exitCode: number };
+    const completed = result;
     return {
       stdout: completed.stdout.trim(),
       stderr: completed.stderr.trim(),

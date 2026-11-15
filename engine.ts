@@ -9,6 +9,9 @@ import { CONSTANTS, type CascadeConfig, type EngineType, resolveEngine } from ".
 import { AntigravityAdapter, antigravityAdapter } from "./antigravity";
 import { ClaudeAdapter, claudeAdapter } from "./claude";
 import { OpenCodeAdapter, openCodeAdapter } from "./opencode";
+import { ENGINE_CONSTANTS } from "./src/config/constants";
+import { PalEngineBridge } from "./src/pal/bridge";
+import { getDefaultEngineFactory } from "./src/pal/factory";
 
 export type { EngineType };
 
@@ -62,10 +65,20 @@ export {
   openCodeAdapter,
 };
 
+/**
+ * Session-level Jules engine: the Jules PAL provider bridged to the `EngineAdapter` contract.
+ */
+export const julesEngineAdapter: PalEngineBridge = new PalEngineBridge({
+  engineType: "jules",
+  defaultModel: ENGINE_CONSTANTS.DEFAULT_JULES_MODEL,
+  createProvider: (context) => getDefaultEngineFactory().createProvider("jules", context),
+});
+
 export const engineAdapters: Record<EngineType, EngineAdapter> = {
   claude: claudeAdapter,
   opencode: openCodeAdapter,
   antigravity: antigravityAdapter,
+  jules: julesEngineAdapter,
 };
 
 /**

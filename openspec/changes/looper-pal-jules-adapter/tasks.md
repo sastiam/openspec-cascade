@@ -3,7 +3,7 @@
 ## 1. Discovery
 
 - [x] 1.1 Verificar empíricamente con la CLI real: formato de stdout de `remote new`/`list --session`, códigos de salida y semántica de `remote pull` (pendiente: login caducado y estados `Failed`/`Cancelled`)
-- [ ] 1.2 Revisar https://jules.google/docs/cli/examples y la REST API para autenticación headless
+- [x] 1.2 Revisar https://jules.google/docs/cli/examples y la REST API para autenticación headless
 
 ## 2. Implementation & Verification
 

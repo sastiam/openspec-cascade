@@ -10,6 +10,8 @@
  * Enforces zero-tolerance mechanical quality, exit code 0 gating, and prepares structured XML feedback.
  */
 
+import { getDefaultSpawner } from "../runtime/spawner";
+import { shellArgv } from "../runtime/process_control";
 import { readdir, stat } from "node:fs/promises";
 import { extname, isAbsolute, join, normalize, relative, resolve } from "node:path";
 import {
@@ -347,7 +349,7 @@ export interface Gate0Result {
 }
 
 /**
- * Default command runner executing subprocesses via Bun.spawn.
+ * Default command runner executing subprocesses via the runtime ISpawner.
  */
 export async function defaultGate0CommandRunner(
   command: string,
@@ -357,54 +359,12 @@ export async function defaultGate0CommandRunner(
   const timeoutMs = options.timeoutMs ?? GATE0_CONSTANTS.DEFAULT_PER_COMMAND_TIMEOUT_MS;
   const startTime = performance.now();
 
-  const isWindows = process.platform === "win32";
-  const shellArgs = isWindows ? ["cmd.exe", "/c", command] : ["sh", "-c", command];
-
   try {
-    const proc = Bun.spawn(shellArgs, {
-      cwd,
-      stdout: "pipe",
-      stderr: "pipe",
-      env: {
-        ...process.env,
-        ...(options.env ?? {}),
-      },
-    });
-
-    let timedOut = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    const timeoutPromise = new Promise<{ timedOut: boolean }>((resolveTimeout) => {
-      timer = setTimeout(() => {
-        timedOut = true;
-        try {
-          proc.kill();
-        } catch {
-          // ignore kill errors
-        }
-        resolveTimeout({ timedOut: true });
-      }, timeoutMs);
-    });
-
-    const completionPromise = Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]).then(([stdout, stderr, exitCode]) => ({
-      timedOut: false,
-      stdout,
-      stderr,
-      exitCode,
-    }));
-
-    const result = await Promise.race([completionPromise, timeoutPromise]);
-    if (timer !== undefined) {
-      clearTimeout(timer);
-    }
+    const result = await getDefaultSpawner().run(shellArgv(command), { cwd, timeoutMs, env: { ...process.env, ...(options.env ?? {}) } });
 
     const durationMs = Math.round(performance.now() - startTime);
 
-    if (result.timedOut || timedOut) {
+    if (result.timedOut) {
       const timeoutMessage = `Command timed out after ${timeoutMs}ms: ${command}`;
       return {
         code: GATE0_CONSTANTS.EXIT_CODE_TIMEOUT,
@@ -416,7 +376,7 @@ export async function defaultGate0CommandRunner(
       };
     }
 
-    const completed = result as { stdout: string; stderr: string; exitCode: number };
+    const completed = result;
     const trimmedOut = completed.stdout.trim();
     const trimmedErr = completed.stderr.trim();
     const combined = [trimmedOut, trimmedErr].filter(Boolean).join("\n") || trimmedOut || trimmedErr;

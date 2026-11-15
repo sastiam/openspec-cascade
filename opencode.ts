@@ -6,6 +6,10 @@
  */
 
 import { CONSTANTS } from "./config";
+import { classifyEngineFailure, toCliSessionOutcome, type EngineFailureKind, type EngineFailurePatterns } from "./src/pal/shared";
+import { getDefaultSpawner } from "./src/runtime/spawner";
+import { forEachStreamLine } from "./src/runtime/streams";
+import type { ISpawner } from "./src/runtime/types";
 import type {
   EngineAdapter,
   EngineHooks,
@@ -111,9 +115,10 @@ export function reduceOpenCodeEvent(
   }
 }
 
-export function classifyFailure(failure: string): "fatal" | "paused" | "error" {
-  if (UNRECOVERABLE.test(failure)) return "fatal";
-  return RATE_LIMIT.test(failure) ? "paused" : "error";
+const FAILURE_PATTERNS: EngineFailurePatterns = { rateLimit: RATE_LIMIT, unrecoverable: UNRECOVERABLE };
+
+export function classifyFailure(failure: string): EngineFailureKind {
+  return classifyEngineFailure(failure, FAILURE_PATTERNS);
 }
 
 export async function runOpenCodeSession(options: {
@@ -124,49 +129,52 @@ export async function runOpenCodeSession(options: {
   deniedBash: string[];
   hooks: Hooks;
   timeoutMs?: number;
+  spawner?: ISpawner;
 }): Promise<OpenCodeOutcome> {
   const argv = ["opencode", "run", "--format", "json", "--auto", "--model", options.model, "--title", "openspec-cascade"];
   if (options.resume) argv.push("--session", options.resume);
   argv.push(options.prompt);
 
-  const proc = Bun.spawn(argv, {
+  const proc = (options.spawner ?? getDefaultSpawner()).spawn(argv, {
     cwd: options.cwd,
-    stdout: "pipe",
-    stderr: "pipe",
-    timeout: options.timeoutMs ?? SESSION_TIMEOUT_MS,
+    timeoutMs: options.timeoutMs ?? SESSION_TIMEOUT_MS,
     env: { ...process.env, OPENCODE_CONFIG_CONTENT: JSON.stringify({ permission: openCodePermission(options.deniedBash) }) },
   });
 
   const state: SessionState = { sessionId: options.resume, texts: new Map(), costUsd: 0 };
   const stderr = new Response(proc.stderr).text();
-  let buffer = "";
-  for await (const chunk of proc.stdout as unknown as AsyncIterable<Uint8Array>) {
-    buffer += new TextDecoder().decode(chunk);
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-    for (const line of lines) reduceOpenCodeEvent(state, line, options.hooks);
-  }
-  if (buffer) reduceOpenCodeEvent(state, buffer, options.hooks);
+  await forEachStreamLine(proc.stdout, (line) => reduceOpenCodeEvent(state, line, options.hooks));
 
-  const code = await proc.exited;
+  const code = await proc.exitCode;
   const errText = (await stderr).trim();
   options.hooks.log("opencode_exit", { code, cost: state.costUsd, error: state.error, stderr: errText.slice(-CONSTANTS.STDERR_TAIL_MAX_LENGTH) });
 
   const failure = state.error ?? (code !== CONSTANTS.EXIT_CODE_SUCCESS ? `exit ${code}: ${errText.slice(-CONSTANTS.ERROR_DETAIL_MAX_LENGTH)}` : undefined);
-  const kind = failure ? classifyFailure(failure) : undefined;
-  if (kind === "fatal") return { kind, reason: `OpenCode: ${failure}`, costUsd: state.costUsd };
-  if (kind === "paused") {
-    return { kind, sessionId: state.sessionId, resumeAt: Date.now() + RATE_LIMIT_SLEEP_MS, costUsd: state.costUsd };
-  }
-  if (kind === "error") return { kind, sessionId: state.sessionId, reason: failure!, costUsd: state.costUsd };
-  return { kind: "done", sessionId: state.sessionId, result: [...state.texts.values()].join("\n"), costUsd: state.costUsd };
+  return toCliSessionOutcome({
+    engineLabel: "OpenCode",
+    failure,
+    patterns: FAILURE_PATTERNS,
+    sessionId: state.sessionId,
+    costUsd: state.costUsd,
+    result: [...state.texts.values()].join("\n"),
+    rateLimitSleepMs: RATE_LIMIT_SLEEP_MS,
+  });
 }
 
 /**
  * Adapter implementing EngineAdapter for OpenCode CLI runner.
  */
+export interface OpenCodeAdapterOptions {
+  readonly spawner?: ISpawner;
+}
+
 export class OpenCodeAdapter implements EngineAdapter {
   readonly name = "opencode" as const;
+  private readonly spawner?: ISpawner;
+
+  constructor(options: OpenCodeAdapterOptions = {}) {
+    this.spawner = options.spawner;
+  }
 
   getDefaultModel(effort?: string): string {
     return openCodeModelArg(undefined, effort);
@@ -194,6 +202,7 @@ export class OpenCodeAdapter implements EngineAdapter {
       deniedBash,
       hooks: options.hooks,
       timeoutMs: options.config?.engineSessionTimeoutMs,
+      spawner: this.spawner,
     });
   }
 }

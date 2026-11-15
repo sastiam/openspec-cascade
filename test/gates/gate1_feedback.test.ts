@@ -7,6 +7,9 @@
  */
 
 import { describe, expect, it } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   GATE1_FEEDBACK_CONSTANTS,
   classifyFindingPriority,
@@ -579,13 +582,15 @@ diff --git a/test/clean.test.ts b/test/clean.test.ts
 +import { it } from "bun:test";
 `;
 
+      const workspaceRoot = mkdtempSync(join(tmpdir(), "cascade-gate1-feedback-"));
       const reviewer = new Gate1Reviewer({
         taskId: "INTEG-RUN-001",
         diff: cleanDiff,
         autoCleanup: true,
+        workspaceRoot,
       });
 
-      const result = await reviewer.run();
+      const result = await reviewer.run().finally(() => rmSync(workspaceRoot, { recursive: true, force: true }));
       expect(result.success).toBe(true);
       expect(result.verdict).toBe("APPROVED");
       expect(result.feedback).toBeDefined();

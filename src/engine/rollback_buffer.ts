@@ -24,6 +24,8 @@
  *    in `ROLLBACK_CONSTANTS`.
  */
 
+import { getDefaultSpawner } from "../runtime/spawner";
+import { shellArgv } from "../runtime/process_control";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, normalize, relative, resolve } from "node:path";
@@ -220,51 +222,17 @@ export interface RollbackBufferOptions {
 }
 
 /**
- * Default clean-room subprocess command runner using Bun.spawn.
+ * Default clean-room subprocess command runner using the runtime ISpawner.
  */
 export async function defaultCommandRunner(
   cmd: string,
   cwd: string = process.cwd(),
   timeoutMs: number = ROLLBACK_CONSTANTS.COMMAND_TIMEOUT_MS
 ): Promise<CommandRunnerResult> {
-  const isWindows = process.platform === "win32";
-  const shellArgs = isWindows ? ["cmd.exe", "/c", cmd] : ["sh", "-c", cmd];
-
   try {
-    const proc = Bun.spawn(shellArgs, {
-      cwd,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+    const result = await getDefaultSpawner().run(shellArgv(cmd), { cwd, timeoutMs });
 
-    let timedOut = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    const timeoutPromise = new Promise<{ timedOut: boolean }>((resolveTimeout) => {
-      timer = setTimeout(() => {
-        timedOut = true;
-        try {
-          proc.kill();
-        } catch (err) {
-          void err;
-        }
-        resolveTimeout({ timedOut: true });
-      }, timeoutMs);
-    });
-
-    const executionPromise = (async () => {
-      const [outText, errText, exitCode] = await Promise.all([
-        new Response(proc.stdout).text(),
-        new Response(proc.stderr).text(),
-        proc.exited,
-      ]);
-      return { outText, errText, exitCode, timedOut: false };
-    })();
-
-    const result = await Promise.race([executionPromise, timeoutPromise]);
-    if (timer) clearTimeout(timer);
-
-    if (result.timedOut || timedOut) {
+    if (result.timedOut) {
       return {
         code: ROLLBACK_CONSTANTS.EXIT_CODE_TIMEOUT,
         stdout: "",
@@ -273,11 +241,7 @@ export async function defaultCommandRunner(
       };
     }
 
-    const { outText, errText, exitCode } = result as {
-      outText: string;
-      errText: string;
-      exitCode: number;
-    };
+    const { stdout: outText, stderr: errText, exitCode } = result;
     const stdout = outText.trim();
     const stderr = errText.trim();
     const output = [stdout, stderr].filter(Boolean).join("\n") || stdout || stderr;

@@ -113,7 +113,7 @@ Usage:
 Options:
   --repo <path>              Target repository (default: current directory; env CASCADE_REPO)
   --changes a,b,c            OpenSpec changes to run, in cascade order (env CASCADE_CHANGES)
-  --engine <name>            claude (default), opencode, or antigravity (alias: agy)
+  --engine <name>            claude (default), opencode, antigravity (aliases: agy, gemini), or jules
   --model <name>             Model override for the selected engine
   --effort <level>           Reasoning effort override (default: ${ENGINE_CONSTANTS.DEFAULT_EFFORT})
   --mode <v1|v2>             Execution pipeline mode (default: ${RUNTIME_CONSTANTS.DEFAULT_MODE})

@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { getDefaultSpawner } from "../../../src/runtime/spawner";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { E2E_CONSTANTS } from "./constants";
@@ -67,22 +68,11 @@ export async function runGitCommand(
   repoDir: string,
   args: readonly string[],
 ): Promise<GitCommandResult> {
-  const proc = Bun.spawn(["git", ...args], {
-    cwd: repoDir,
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
-
+  const result = await getDefaultSpawner().run(["git", ...args], { cwd: repoDir });
   return {
-    exitCode,
-    stdout: stdout.trim(),
-    stderr: stderr.trim(),
+    exitCode: result.exitCode,
+    stdout: result.stdout.trim(),
+    stderr: result.stderr.trim(),
   };
 }
 

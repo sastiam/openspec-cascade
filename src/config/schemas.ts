@@ -86,7 +86,8 @@ function preprocessEngineInput(value: unknown): unknown {
     return value;
   }
   const normalized = value.trim().toLowerCase();
-  return normalized === "agy" ? "antigravity" : normalized;
+  const aliases: Readonly<Record<string, string>> = ENGINE_CONSTANTS.ENGINE_ALIASES;
+  return aliases[normalized] ?? normalized;
 }
 
 function preprocessEffortInput(value: unknown): unknown {
@@ -143,7 +144,7 @@ export function strictBooleanSchema(label = "boolean"): z.ZodType<boolean> {
 export const EngineTypeSchema: z.ZodType<EngineType> = z.preprocess(
   preprocessEngineInput,
   z.enum(ENGINE_CONSTANTS.SUPPORTED_ENGINES, {
-    error: () => `--engine must be "claude", "opencode", or "antigravity" (or "agy")`,
+    error: () => `--engine must be "claude", "opencode", "antigravity" (aliases "agy", "gemini"), or "jules"`,
   }),
 );
 

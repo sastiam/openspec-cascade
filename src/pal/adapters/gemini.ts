@@ -10,6 +10,7 @@
  * streaming NDJSON/SSE handling, and Protobuf Struct parameter resolution.
  */
 
+import { getDefaultSpawner, toAdapterProcess } from "../../runtime/spawner";
 import { randomUUID } from "node:crypto";
 import {
   BUDGET_CONSTANTS,
@@ -1803,19 +1804,24 @@ export async function* streamAntigravitySubprocess(
     dangerouslySkipPermissions,
   });
 
-  const spawnFn =
+  const spawnFn: AntigravitySubprocessSpawnFn | undefined =
     options.spawnFn ??
     defaults?.spawnFn ??
-    (typeof Bun !== "undefined" && typeof Bun.spawn === "function"
-      ? (Bun.spawn as unknown as AntigravitySubprocessSpawnFn)
-      : undefined);
+    ((argv, spawnOptions) =>
+      toAdapterProcess(
+        getDefaultSpawner().spawn(argv, {
+          cwd: spawnOptions.cwd,
+          env: spawnOptions.env,
+          timeoutMs: spawnOptions.timeout,
+        }),
+      ));
 
   if (!spawnFn) {
     yield {
       type: "error",
       error: new PalError(
         PAL_ERROR_KINDS.INVALID_REQUEST,
-        "No subprocess spawn function available (Bun.spawn is undefined and no custom spawnFn was provided)",
+        "No subprocess spawn function available (no runtime spawner and no custom spawnFn was provided)",
         false
       ),
     };

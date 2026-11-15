@@ -31,6 +31,8 @@
  *    Centralizes all limits, timeouts, exit codes, and string literals in GATE3_CONSTANTS.
  */
 
+import { getDefaultSpawner } from "../runtime/spawner";
+import { shellArgv } from "../runtime/process_control";
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
@@ -472,25 +474,31 @@ export interface Gate3AuditResult {
 // ============================================================================
 
 export class Gate3AuditorError extends Error {
-  public constructor(message: string, public readonly cause?: unknown) {
+  public override readonly cause?: unknown;
+
+  public constructor(message: string, cause?: unknown) {
     super(message);
+    this.cause = cause;
     this.name = "Gate3AuditorError";
   }
 }
 
 export class Gate3VetoError extends Gate3AuditorError {
-  public constructor(
-    message: string,
-    public readonly violations: readonly Gate3Violation[]
-  ) {
+  public readonly violations: readonly Gate3Violation[];
+
+  public constructor(message: string, violations: readonly Gate3Violation[]) {
     super(message);
+    this.violations = violations;
     this.name = "Gate3VetoError";
   }
 }
 
 export class Gate3TimeoutError extends Gate3AuditorError {
-  public constructor(message: string, public readonly timeoutMs: number) {
+  public readonly timeoutMs: number;
+
+  public constructor(message: string, timeoutMs: number) {
     super(message);
+    this.timeoutMs = timeoutMs;
     this.name = "Gate3TimeoutError";
   }
 }
@@ -503,11 +511,11 @@ export class Gate3SubagentDispatchError extends Gate3AuditorError {
 }
 
 export class Gate3InvariantViolationError extends Gate3AuditorError {
-  public constructor(
-    message: string,
-    public readonly violation: Gate3Violation
-  ) {
+  public readonly violation: Gate3Violation;
+
+  public constructor(message: string, violation: Gate3Violation) {
     super(message);
+    this.violation = violation;
     this.name = "Gate3InvariantViolationError";
   }
 }
@@ -524,7 +532,7 @@ export class Gate3RollbackError extends Gate3AuditorError {
 // ============================================================================
 
 /**
- * Default command runner executing clean-room subprocesses via Bun.spawn.
+ * Default command runner executing clean-room subprocesses via the runtime ISpawner.
  */
 export async function defaultGate3CommandRunner(
   command: string,
@@ -534,54 +542,12 @@ export async function defaultGate3CommandRunner(
   const timeoutMs = options.timeoutMs ?? GATE3_CONSTANTS.DEFAULT_COMMAND_TIMEOUT_MS;
   const startTime = performance.now();
 
-  const isWindows = process.platform === "win32";
-  const shellArgs = isWindows ? ["cmd.exe", "/c", command] : ["sh", "-c", command];
-
   try {
-    const proc = Bun.spawn(shellArgs, {
-      cwd,
-      stdout: "pipe",
-      stderr: "pipe",
-      env: {
-        ...process.env,
-        ...(options.env ?? {}),
-      },
-    });
-
-    let timedOut = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    const timeoutPromise = new Promise<{ timedOut: boolean }>((resolveTimeout) => {
-      timer = setTimeout(() => {
-        timedOut = true;
-        try {
-          proc.kill();
-        } catch {
-          // ignore kill failure
-        }
-        resolveTimeout({ timedOut: true });
-      }, timeoutMs);
-    });
-
-    const completionPromise = Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]).then(([stdout, stderr, exitCode]) => ({
-      timedOut: false,
-      stdout,
-      stderr,
-      exitCode,
-    }));
-
-    const result = await Promise.race([completionPromise, timeoutPromise]);
-    if (timer !== undefined) {
-      clearTimeout(timer);
-    }
+    const result = await getDefaultSpawner().run(shellArgv(command), { cwd, timeoutMs, env: { ...process.env, ...(options.env ?? {}) } });
 
     const durationMs = Math.round(performance.now() - startTime);
 
-    if (result.timedOut || timedOut) {
+    if (result.timedOut) {
       const timeoutMessage = `Command timed out after ${timeoutMs}ms: ${command}`;
       return {
         code: GATE3_CONSTANTS.EXIT_CODE_TIMEOUT,
@@ -593,7 +559,7 @@ export async function defaultGate3CommandRunner(
       };
     }
 
-    const completed = result as { stdout: string; stderr: string; exitCode: number };
+    const completed = result;
     const trimmedOut = completed.stdout.trim();
     const trimmedErr = completed.stderr.trim();
     const combined = [trimmedOut, trimmedErr].filter(Boolean).join("\n") || trimmedOut || trimmedErr;

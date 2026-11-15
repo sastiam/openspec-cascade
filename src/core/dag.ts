@@ -381,11 +381,13 @@ export interface DirectedAcyclicGraphOptions {
 /**
  * Three-color DFS traversal state for cycle detection.
  */
-const enum DfsState {
-  UNVISITED = 0,
-  VISITING = 1,
-  VISITED = 2,
-}
+const DfsState = {
+  UNVISITED: 0,
+  VISITING: 1,
+  VISITED: 2,
+} as const;
+
+type DfsState = (typeof DfsState)[keyof typeof DfsState];
 
 /**
  * Directed Acyclic Graph (DAG) for task dependency scheduling and topological sorting.

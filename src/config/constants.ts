@@ -42,7 +42,8 @@ export const RUNTIME_CONSTANTS = {
 
 export const ENGINE_CONSTANTS = {
   DEFAULT_ENGINE: "claude" as const,
-  SUPPORTED_ENGINES: ["claude", "opencode", "antigravity"] as const,
+  SUPPORTED_ENGINES: ["claude", "opencode", "antigravity", "jules"] as const,
+  ENGINE_ALIASES: { agy: "antigravity", gemini: "antigravity" } as const,
   DEFAULT_EFFORT: "high" as const,
   SUPPORTED_EFFORTS: ["low", "medium", "high", "max", "none"] as const,
   DEFAULT_ANTIGRAVITY_MODEL: "gemini-3.8-flash-high",
@@ -331,4 +332,58 @@ export const CONSTANTS = {
   SDD_API_PATH_PATTERNS: SDD_CONSTANTS.SDD_API_PATH_PATTERNS,
   SDD_CONSTITUTION_PATH: SDD_CONSTANTS.SDD_CONSTITUTION_PATH,
   SDD_MIN_KEYWORD_LENGTH: SDD_CONSTANTS.SDD_MIN_KEYWORD_LENGTH,
+} as const;
+
+/**
+ * Subprocess supervision constants shared by every `ISpawner` implementation.
+ */
+export const RUNTIME_PROCESS_CONSTANTS = {
+  KILL_GRACE_MS: 2_000,
+  SIGNAL_EXIT_OFFSET: 128,
+  EXIT_CODE_COMMAND_NOT_FOUND: 127,
+  DEFAULT_KILL_SIGNAL: "SIGTERM" as const,
+  FORCE_KILL_SIGNAL: "SIGKILL" as const,
+  POSIX_SHELL: "sh",
+  POSIX_SHELL_FLAG: "-c",
+  WINDOWS_SHELL: "cmd.exe",
+  WINDOWS_SHELL_FLAGS: ["/d", "/s", "/c"] as const,
+  WINDOWS_TASKKILL: "taskkill",
+  WINDOWS_TASKKILL_FLAGS: ["/T", "/F", "/PID"] as const,
+  WINDOWS_DEFAULT_PATHEXT: ".COM;.EXE;.BAT;.CMD",
+  WINDOWS_PLATFORM: "win32" as const,
+  ERROR_CODE_NOT_FOUND: "ENOENT",
+  ERROR_CODE_NO_PROCESS: "ESRCH",
+} as const;
+
+/**
+ * Engine resilience (retry, backoff, circuit breaker) defaults for `ResilientEngineDecorator`.
+ */
+export const RESILIENCE_CONSTANTS = {
+  DEFAULT_MAX_RETRIES: 2,
+  DEFAULT_BASE_DELAY_MS: 1_000,
+  DEFAULT_MAX_DELAY_MS: 30_000,
+  BACKOFF_FACTOR: 2,
+  DEFAULT_FAILURE_THRESHOLD: 5,
+  DEFAULT_COOLDOWN_MS: 300_000,
+  RETRY_EVENT: "engine_retry",
+  CIRCUIT_EVENT: "engine_circuit",
+  CIRCUIT_OPEN_REASON: "circuit_open",
+} as const;
+
+/**
+ * Error categories and token field names recognized by `TelemetryMetricsDecorator`.
+ */
+export const ENGINE_TELEMETRY_CONSTANTS = {
+  ERROR_CATEGORY_PATTERNS: [
+    ["circuit_open", /circuit_open/i],
+    ["budget", /budget/i],
+    ["rate_limit", /rate.?limit|\b429\b|quota|too many requests|resource_exhausted|overloaded/i],
+    ["auth", /unauthori[sz]ed|auth|credential|\b40[13]\b|forbidden/i],
+    ["timeout", /time(?:d)?\s?out|deadline|\b124\b/i],
+  ] as const,
+  UNKNOWN_CATEGORY: "unknown",
+  PAUSED_CATEGORY: "rate_limit",
+  TOKEN_INPUT_KEYS: ["inputTokens", "promptTokens", "input_tokens"] as const,
+  TOKEN_OUTPUT_KEYS: ["outputTokens", "completionTokens", "output_tokens"] as const,
+  TOKEN_CONTAINER_KEYS: ["usage", "tokens"] as const,
 } as const;

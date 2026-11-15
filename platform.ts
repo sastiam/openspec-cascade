@@ -9,6 +9,8 @@
 import { existsSync } from "node:fs";
 import { delimiter, normalize, resolve } from "node:path";
 import { EXIT_CODE_CONSTANTS, RUNTIME_CONSTANTS } from "./src/config/constants";
+import { getDefaultSpawner } from "./src/runtime/spawner";
+import { SpawnError } from "./src/runtime/types";
 
 export const DEFAULT_SYSTEMD_INHIBIT_PATH = "/usr/bin/systemd-inhibit";
 export const SYSTEMD_INHIBIT_WHAT = "idle:sleep";
@@ -57,9 +59,9 @@ export interface KeepAliveOptions {
   logWarning?: (message: string) => void;
   /** Target process emitter for lifecycle signals. Default: global process. */
   processTarget?: ProcessSignalTarget;
-  /** Subprocess spawner. Default: Bun.spawn. */
+  /** Subprocess spawner. Default: the runtime `ISpawner`. */
   spawn?: (command: string[], options: { stdout: "ignore"; stderr: "ignore" }) => KeepAliveChildProcess;
-  /** Synchronous subprocess runner for preflight checks. Default: Bun.spawnSync. */
+  /** Synchronous subprocess runner for preflight checks. Default: the runtime `ISpawner`. */
   spawnSync?: (command: string[], options: { stdout: "ignore"; stderr: "pipe" }) => { exitCode: number; success?: boolean };
 }
 
@@ -116,11 +118,32 @@ export function findSystemdInhibit(envPath: string = process.env.PATH ?? ""): st
 }
 
 /**
+ * Default keep-alive spawner. Fails synchronously when the binary is missing so callers can fall back immediately.
+ */
+export function defaultKeepAliveSpawn(command: string[]): KeepAliveChildProcess {
+  const spawner = getDefaultSpawner();
+  const [binary] = command;
+  if (binary === undefined || spawner.which(binary) === null) {
+    throw new SpawnError(command, "ENOENT", `keep-alive binary not found: ${binary ?? "<empty>"}`);
+  }
+  const child = spawner.spawn(command, { stdout: "ignore", stderr: "ignore", processGroup: false });
+  child.exitCode.catch(() => undefined);
+  return { kill: (signal) => child.kill(typeof signal === "string" ? (signal as NodeJS.Signals) : undefined) };
+}
+
+/**
+ * Default synchronous probe runner backed by the runtime `ISpawner`.
+ */
+export function defaultKeepAliveSpawnSync(command: string[]): { exitCode: number } {
+  return { exitCode: getDefaultSpawner().spawnSync(command).exitCode };
+}
+
+/**
  * Checks whether systemd-inhibit is available and can acquire an inhibitor lock.
  */
 export function canRunSystemdInhibit(
   binaryPath: string,
-  spawnSyncFn: (command: string[], options: { stdout: "ignore"; stderr: "pipe" }) => { exitCode: number; success?: boolean } = Bun.spawnSync,
+  spawnSyncFn: (command: string[], options: { stdout: "ignore"; stderr: "pipe" }) => { exitCode: number; success?: boolean } = defaultKeepAliveSpawnSync,
 ): boolean {
   try {
     const proc = spawnSyncFn([
@@ -235,8 +258,8 @@ export function startKeepAlive(options: KeepAliveOptions = {}): KeepAliveControl
   const pid = options.pid ?? process.pid;
   const logWarning = options.logWarning ?? console.warn;
   const processTarget = options.processTarget ?? process;
-  const spawnFn = options.spawn ?? Bun.spawn;
-  const spawnSyncFn = options.spawnSync ?? Bun.spawnSync;
+  const spawnFn = options.spawn ?? defaultKeepAliveSpawn;
+  const spawnSyncFn = options.spawnSync ?? defaultKeepAliveSpawnSync;
 
   let active = true;
   let childProc: KeepAliveChildProcess | null = null;

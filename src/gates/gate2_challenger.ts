@@ -29,6 +29,7 @@
  *    Centralizes all thresholds, limits, timeouts, exit codes, and string literals in GATE2_CONSTANTS.
  */
 
+import { getDefaultSpawner } from "../runtime/spawner";
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { mkdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
@@ -560,7 +561,7 @@ export function extractProbeErrorTrace(stdout: string, stderr: string): string {
 }
 
 /**
- * Default probe runner executing subprocess via Bun.spawn.
+ * Default probe runner executing subprocess via the runtime ISpawner.
  */
 export async function defaultProbeRunner(
   probeFilePath: string,
@@ -568,45 +569,8 @@ export async function defaultProbeRunner(
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   const timeoutMs = options?.timeoutMs ?? GATE2_CONSTANTS.DEFAULT_PROBE_TIMEOUT_MS;
   const cwd = options?.cwd ?? process.cwd();
-  const isWindows = process.platform === "win32";
-  const shellArgs = isWindows
-    ? ["cmd.exe", "/c", "bun", "test", probeFilePath]
-    : ["bun", "test", probeFilePath];
-
   try {
-    const proc = Bun.spawn(shellArgs, {
-      cwd,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const timeoutPromise = new Promise<{ timedOut: boolean }>((resolveTimeout) => {
-      timer = setTimeout(() => {
-        try {
-          proc.kill();
-        } catch {
-          // ignore kill failure
-        }
-        resolveTimeout({ timedOut: true });
-      }, timeoutMs);
-    });
-
-    const completionPromise = Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]).then(([stdout, stderr, exitCode]) => ({
-      timedOut: false,
-      stdout,
-      stderr,
-      exitCode,
-    }));
-
-    const result = await Promise.race([completionPromise, timeoutPromise]);
-    if (timer !== undefined) {
-      clearTimeout(timer);
-    }
+    const result = await getDefaultSpawner().run(["bun", "test", probeFilePath], { cwd, timeoutMs });
 
     if (result.timedOut) {
       return {
@@ -616,7 +580,7 @@ export async function defaultProbeRunner(
       };
     }
 
-    const completed = result as { stdout: string; stderr: string; exitCode: number };
+    const completed = result;
     return {
       stdout: completed.stdout.trim(),
       stderr: completed.stderr.trim(),

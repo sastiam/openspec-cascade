@@ -36,7 +36,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["**/*.test.ts"],
+    files: ["**/*.test.ts", "test/node/**/*.ts"],
     rules: {
       "@typescript-eslint/no-magic-numbers": "off",
     },

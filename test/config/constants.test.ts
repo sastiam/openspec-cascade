@@ -25,7 +25,8 @@ describe("Centralized Immutable Constants Registry (F01)", () => {
   test("exposes all typed namespaces and preserves legacy CONSTANTS facade", () => {
     expect(RUNTIME_CONSTANTS.DEFAULT_MODE).toBe("v1");
     expect(RUNTIME_CONSTANTS.SUPPORTED_MODES).toEqual(["v1", "v2"]);
-    expect(ENGINE_CONSTANTS.SUPPORTED_ENGINES).toEqual(["claude", "opencode", "antigravity"]);
+    expect(ENGINE_CONSTANTS.SUPPORTED_ENGINES).toEqual(["claude", "opencode", "antigravity", "jules"]);
+    expect(ENGINE_CONSTANTS.ENGINE_ALIASES).toEqual({ agy: "antigravity", gemini: "antigravity" });
     expect(BUDGET_CONSTANTS.MAX_BUDGET_PER_SESSION_USD).toBe(CONSTANTS.MAX_BUDGET_PER_SESSION_USD);
     expect(TIMEOUT_CONSTANTS.RATE_LIMIT_SLEEP_MS).toBe(CONSTANTS.RATE_LIMIT_SLEEP_MS);
     expect(GIT_CONSTANTS.PROTECTED_BRANCHES).toEqual(CONSTANTS.PROTECTED_BRANCHES);

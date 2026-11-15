@@ -15,6 +15,7 @@
  * "Stdout parsing" section below; the formats it assumes are noted there.
  */
 
+import { getDefaultSpawner, toAdapterProcess } from "../../runtime/spawner";
 import {
   PAL_ERROR_KINDS,
   PAL_FINISH_REASONS,
@@ -336,15 +337,15 @@ export class JulesAuthError extends PalError {
  * Polling exceeded the configured timeout before all sessions reached a terminal state.
  */
 export class JulesTimeoutError extends PalError {
-  constructor(
-    public readonly pendingSessionIds: string[],
-    timeoutMs: number
-  ) {
+  readonly pendingSessionIds: string[];
+
+  constructor(pendingSessionIds: string[], timeoutMs: number) {
     super(
       PAL_ERROR_KINDS.TIMEOUT,
       `Jules sessions [${pendingSessionIds.join(", ")}] did not complete within ${timeoutMs}ms`,
       true
     );
+    this.pendingSessionIds = pendingSessionIds;
     this.name = "JulesTimeoutError";
   }
 }
@@ -353,10 +354,10 @@ export class JulesTimeoutError extends PalError {
  * A remote Jules session ended in a failed or cancelled state.
  */
 export class JulesSessionFailedError extends PalError {
-  constructor(
-    public readonly sessionId: string,
-    public readonly rawStatus: string
-  ) {
+  readonly sessionId: string;
+  readonly rawStatus: string;
+
+  constructor(sessionId: string, rawStatus: string) {
     super(
       PAL_ERROR_KINDS.TOOL_ERROR,
       `Jules session ${sessionId} ended with status "${rawStatus}"`,
@@ -364,6 +365,8 @@ export class JulesSessionFailedError extends PalError {
       undefined,
       { sessionId, rawStatus }
     );
+    this.sessionId = sessionId;
+    this.rawStatus = rawStatus;
     this.name = "JulesSessionFailedError";
   }
 }
@@ -373,10 +376,10 @@ export class JulesSessionFailedError extends PalError {
  * awaiting-input policy, cannot proceed unattended.
  */
 export class JulesAwaitingInputError extends PalError {
-  constructor(
-    public readonly sessionId: string,
-    public readonly consecutivePolls: number
-  ) {
+  readonly sessionId: string;
+  readonly consecutivePolls: number;
+
+  constructor(sessionId: string, consecutivePolls: number) {
     const sessionUrl = `${JULES_ADAPTER_CONSTANTS.SESSION_URL_BASE}${sessionId}`;
     super(
       PAL_ERROR_KINDS.TOOL_ERROR,
@@ -385,6 +388,8 @@ export class JulesAwaitingInputError extends PalError {
       undefined,
       { sessionId, consecutivePolls, sessionUrl }
     );
+    this.sessionId = sessionId;
+    this.consecutivePolls = consecutivePolls;
     this.name = "JulesAwaitingInputError";
   }
 }
@@ -709,19 +714,14 @@ export function parseJulesCreatedSessionIds(stdout: string): string[] {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Default subprocess spawn implementation using Bun.spawn.
+ * Default subprocess spawn implementation backed by the runtime `ISpawner`.
  */
 function defaultBunSpawn(
   argv: string[],
   options: Parameters<JulesSubprocessSpawnFn>[1]
 ): JulesSpawnedProcess {
-  if (typeof Bun !== "undefined" && typeof Bun.spawn === "function") {
-    return Bun.spawn(argv, options) as unknown as JulesSpawnedProcess;
-  }
-  throw new PalError(
-    PAL_ERROR_KINDS.INVALID_REQUEST,
-    "Bun.spawn is not available in current runtime environment",
-    false
+  return toAdapterProcess(
+    getDefaultSpawner().spawn(argv, { cwd: options.cwd, env: options.env }),
   );
 }
 

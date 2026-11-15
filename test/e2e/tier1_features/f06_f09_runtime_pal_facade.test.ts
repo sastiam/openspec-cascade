@@ -24,12 +24,18 @@ import {
   createToolCallBlock,
   createToolResultBlock,
 } from "../../../src/pal/types";
+import { loadConfig } from "../../../config";
+import { ResilientEngineDecorator, TelemetryMetricsDecorator } from "../../../src/decorators";
+import { CascadeFacade } from "../../../src/facade";
+import { EngineFactory } from "../../../src/pal/factory";
+import { detectRuntime, getDefaultSpawner, shellArgv } from "../../../src/runtime";
 import { runCascadeCli } from "../helpers/cli_runner";
 import { E2E_CONSTANTS } from "../helpers/constants";
 import {
   addOpenSpecChange,
   cleanupTempDir,
   createTempGitRepo,
+  runGitCommand,
 } from "../helpers/temp_repo";
 
 const cleanups: Array<() => void> = [];
@@ -217,8 +223,8 @@ describe("Tier 1 Features: F06–F09 Runtime, Keep-Alive, PAL & Facade CLI", () 
 
       addOpenSpecChange(fixture.repoDir, "engine-check");
 
-      for (const flag of ["claude", "opencode", "agy"]) {
-        const expectedEngine = flag === "agy" ? "antigravity" : flag;
+      for (const flag of ["claude", "opencode", "agy", "gemini", "jules"]) {
+        const expectedEngine = flag === "agy" || flag === "gemini" ? "antigravity" : flag;
         const result = await runCascadeCli({
           args: [
             "--repo",
@@ -236,6 +242,52 @@ describe("Tier 1 Features: F06–F09 Runtime, Keep-Alive, PAL & Facade CLI", () 
         expect(result.exitCode).toBe(E2E_CONSTANTS.EXIT_CODE_SUCCESS);
         expect(result.stdout).toContain(`engine=${expectedEngine}`);
       }
+    },
+    E2E_CONSTANTS.SLOW_TEST_TIMEOUT_MS,
+  );
+  test("ISpawner runs real subprocesses with process-group timeouts on the current runtime", async () => {
+    const spawner = getDefaultSpawner();
+    expect(spawner.runtime).toBe(detectRuntime());
+    const ok = await spawner.run(shellArgv("printf runtime-ok"));
+    expect(ok.stdout).toBe("runtime-ok");
+    const slow = await spawner.run(["sh", "-c", "sleep 30 & wait"], { timeoutMs: 200 });
+    expect(slow.timedOut).toBe(true);
+    expect(slow.exitCode).toBe(E2E_CONSTANTS.EXIT_CODE_TIMEOUT);
+  });
+
+  test("EngineFactory decorated with resilience and telemetry fails closed for a missing Jules CLI", async () => {
+    const factory = new EngineFactory();
+    const base = factory.create("jules", { cwd: E2E_CONSTANTS.REPO_ROOT });
+    const telemetry = new TelemetryMetricsDecorator(new ResilientEngineDecorator(base, { sleep: async () => undefined }));
+    const outcome = await telemetry.runSession({
+      prompt: "noop",
+      cwd: E2E_CONSTANTS.REPO_ROOT,
+      hooks: { onText: () => undefined, onTool: () => undefined, log: () => undefined },
+    });
+    expect(outcome.kind).toBe("fatal");
+    expect(telemetry.getSummary()).toMatchObject({ sessions: 1, outcomes: { fatal: 1 } });
+  });
+
+  test(
+    "CascadeFacade.run returns a structured dry-run result through the real factory",
+    async () => {
+      const fixture = await createTempGitRepo({ branch: "feat/e2e-facade" });
+      cleanups.push(fixture.cleanup);
+      addOpenSpecChange(fixture.repoDir, "facade-check");
+      await runGitCommand(fixture.repoDir, ["add", "-A"]);
+      await runGitCommand(fixture.repoDir, ["commit", "-m", "chore: fixture"]);
+      const config = loadConfig({
+        argv: ["--repo", fixture.repoDir, "--changes", "facade-check", "--engine", "opencode", "--dry-run", "--no-keep-alive"],
+        env: {},
+        cwd: fixture.repoDir,
+      });
+      const lines: string[] = [];
+      const result = await new CascadeFacade({ output: { info: (line) => lines.push(line), error: (line) => lines.push(line) } }).run(config);
+      expect(result.exitCode).toBe(E2E_CONSTANTS.EXIT_CODE_SUCCESS);
+      expect(result.changes[0]?.change).toBe("facade-check");
+      expect(result.changes[0]?.pendingTasks).toBeGreaterThan(0);
+      expect(result.logFile).toBeUndefined();
+      expect(lines.join("\n")).toContain("engine=opencode");
     },
     E2E_CONSTANTS.SLOW_TEST_TIMEOUT_MS,
   );

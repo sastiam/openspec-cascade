@@ -1,6 +1,7 @@
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
+import { getDefaultSpawner } from "../../../src/runtime/spawner";
 import { E2E_CONSTANTS } from "./constants";
 
 export interface CliRunOptions {
@@ -126,41 +127,20 @@ async function executeSubprocess(
   stdinText?: string,
 ): Promise<CliRunResult> {
   const startedAt = Date.now();
-  const proc = Bun.spawn(argv, {
+  const result = await getDefaultSpawner().run(argv, {
     cwd,
     env,
-    stdin: stdinText !== undefined ? new TextEncoder().encode(stdinText) : "ignore",
-    stdout: "pipe",
-    stderr: "pipe",
+    stdin: stdinText,
+    timeoutMs,
+    killSignal: E2E_CONSTANTS.TIMEOUT_SIGNAL,
   });
-
-  let timedOut = false;
-  const timer = setTimeout(() => {
-    timedOut = true;
-    try {
-      proc.kill(E2E_CONSTANTS.TIMEOUT_SIGNAL);
-    } catch {
-      return;
-    }
-  }, timeoutMs);
-
-  try {
-    const [stdout, stderr, exitCode] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
-
-    return {
-      exitCode,
-      stdout,
-      stderr,
-      durationMs: Date.now() - startedAt,
-      timedOut,
-    };
-  } finally {
-    clearTimeout(timer);
-  }
+  return {
+    exitCode: result.exitCode,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    durationMs: Date.now() - startedAt,
+    timedOut: result.timedOut,
+  };
 }
 
 /**
@@ -200,7 +180,7 @@ export async function runNodeScript(
   const cwd = options.cwd ?? E2E_CONSTANTS.REPO_ROOT;
   const timeoutMs = options.timeoutMs ?? E2E_CONSTANTS.DEFAULT_SUBPROCESS_TIMEOUT_MS;
   const env = buildIsolatedEnv(ownedHomeDir, options.env);
-  const nodeBin = Bun.which("node") ?? "node";
+  const nodeBin = getDefaultSpawner().which("node") ?? "node";
 
   try {
     return await executeSubprocess(
