@@ -560,6 +560,10 @@ async function runChange(change: string) {
 
 async function preflight() {
   if (!changes.length) throw new Fatal("Pass --changes a,b,c in cascade order");
+  if (config.settings) {
+    if (!existsSync(config.settings)) throw new Fatal(`--settings file not found: ${config.settings}`);
+    if (engine !== "claude") say(`--settings applies to the Claude engine only; ignored for engine=${engine}`);
+  }
   const branch = (await sh(["git", "branch", "--show-current"])).output;
   if (config.protectedBranches.includes(branch)) throw new Fatal(`Refusing to run on protected branch "${branch}"`);
   const dirty = (await sh(["git", "status", "--porcelain"])).output
@@ -571,7 +575,7 @@ async function preflight() {
     say(warning);
   }
   const keepAliveStatus = keepAliveController ? `keepAlive=${keepAliveController.mechanism} ` : "";
-  say(`engine=${engine} ${keepAliveStatus}repo=${repo} branch=${branch} changes=${changes.join(" → ")} log=${config.dryRun ? "disabled (dry-run)" : logFile}`);
+  say(`engine=${engine} ${keepAliveStatus}repo=${repo} branch=${branch} changes=${changes.join(" → ")} log=${config.dryRun ? "disabled (dry-run)" : logFile}${config.settings ? ` settings=${config.settings}` : ""}`);
 }
 
 function printPlan() {
