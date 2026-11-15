@@ -4,4 +4,4 @@ Este directorio contiene la documentación técnica y arquitectónica de `opensp
 
 ## Índice
 
-- [Análisis y Arquitectura del CLI](./cli.md): Documento integral que detalla los principios de diseño, el oráculo de verificación (*Harness as the Oracle*), diagrama de flujo, motores soportados (`claude` y `opencode`), opciones de línea de comandos, gestión de commits y extensibilidad.
+- [Referencia y Arquitectura del CLI](./cli.md): principios de diseño, ejecución en Bun y Node.js 24, modos `v1`/`v2` (FSM y Gates 0–3), motores (`claude`, `opencode`, `antigravity`/`gemini`, `jules`), todas las opciones y variables de entorno, subcomandos (`doctor`, `catalog`, `drift`, `review`), Greptile, auto-mejora, plugin y CI.

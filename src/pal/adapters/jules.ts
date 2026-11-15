@@ -15,6 +15,7 @@
  * "Stdout parsing" section below; the formats it assumes are noted there.
  */
 
+import { getDefaultSpawner, toAdapterProcess } from "../../runtime/spawner";
 import {
   PAL_ERROR_KINDS,
   PAL_FINISH_REASONS,
@@ -34,13 +35,14 @@ import {
   type PalTokenUsage,
   type ProviderAdapter,
 } from "../types";
+import { ENGINE_CONSTANTS, EXIT_CODE_CONSTANTS, FORMAT_CONSTANTS } from "../../config/constants";
 
 /**
  * Central constants ensuring zero magic numbers across JulesAdapter operations.
  */
 export const JULES_ADAPTER_CONSTANTS = {
   // Identity
-  DEFAULT_MODEL: "jules",
+  DEFAULT_MODEL: ENGINE_CONSTANTS.DEFAULT_JULES_MODEL,
   DEFAULT_CLI_BIN: "jules",
 
   // CLI surface (verified against `jules remote --help`)
@@ -53,7 +55,7 @@ export const JULES_ADAPTER_CONSTANTS = {
   CLI_FLAG_PARALLEL: "--parallel",
   CLI_STDIN_IGNORE: "ignore",
   CLI_PIPE: "pipe",
-  EXIT_CODE_SUCCESS: 0,
+  EXIT_CODE_SUCCESS: EXIT_CODE_CONSTANTS.EXIT_CODE_SUCCESS,
   INSTALL_HINT: "npm install -g @google/jules",
   LOGIN_HINT: "jules login",
 
@@ -90,7 +92,7 @@ export const JULES_ADAPTER_CONSTANTS = {
   NO_DIFF_MESSAGE: "No diff found in the remote VM.",
   AUTH_FAILURE_PATTERN:
     /\b(unauthenticated|unauthorized|not logged in|login required|please log ?in|jules login)\b/i,
-  STDERR_TAIL_MAX_LENGTH: 400,
+  STDERR_TAIL_MAX_LENGTH: FORMAT_CONSTANTS.STDERR_TAIL_MAX_LENGTH,
 
   // Remote session status labels (only "Completed" and "In Progress" observed live;
   // the failure labels are ASSUMED). An EMPTY status label means the session is waiting on input.
@@ -335,15 +337,15 @@ export class JulesAuthError extends PalError {
  * Polling exceeded the configured timeout before all sessions reached a terminal state.
  */
 export class JulesTimeoutError extends PalError {
-  constructor(
-    public readonly pendingSessionIds: string[],
-    timeoutMs: number
-  ) {
+  readonly pendingSessionIds: string[];
+
+  constructor(pendingSessionIds: string[], timeoutMs: number) {
     super(
       PAL_ERROR_KINDS.TIMEOUT,
       `Jules sessions [${pendingSessionIds.join(", ")}] did not complete within ${timeoutMs}ms`,
       true
     );
+    this.pendingSessionIds = pendingSessionIds;
     this.name = "JulesTimeoutError";
   }
 }
@@ -352,10 +354,10 @@ export class JulesTimeoutError extends PalError {
  * A remote Jules session ended in a failed or cancelled state.
  */
 export class JulesSessionFailedError extends PalError {
-  constructor(
-    public readonly sessionId: string,
-    public readonly rawStatus: string
-  ) {
+  readonly sessionId: string;
+  readonly rawStatus: string;
+
+  constructor(sessionId: string, rawStatus: string) {
     super(
       PAL_ERROR_KINDS.TOOL_ERROR,
       `Jules session ${sessionId} ended with status "${rawStatus}"`,
@@ -363,6 +365,8 @@ export class JulesSessionFailedError extends PalError {
       undefined,
       { sessionId, rawStatus }
     );
+    this.sessionId = sessionId;
+    this.rawStatus = rawStatus;
     this.name = "JulesSessionFailedError";
   }
 }
@@ -372,10 +376,10 @@ export class JulesSessionFailedError extends PalError {
  * awaiting-input policy, cannot proceed unattended.
  */
 export class JulesAwaitingInputError extends PalError {
-  constructor(
-    public readonly sessionId: string,
-    public readonly consecutivePolls: number
-  ) {
+  readonly sessionId: string;
+  readonly consecutivePolls: number;
+
+  constructor(sessionId: string, consecutivePolls: number) {
     const sessionUrl = `${JULES_ADAPTER_CONSTANTS.SESSION_URL_BASE}${sessionId}`;
     super(
       PAL_ERROR_KINDS.TOOL_ERROR,
@@ -384,6 +388,8 @@ export class JulesAwaitingInputError extends PalError {
       undefined,
       { sessionId, consecutivePolls, sessionUrl }
     );
+    this.sessionId = sessionId;
+    this.consecutivePolls = consecutivePolls;
     this.name = "JulesAwaitingInputError";
   }
 }
@@ -708,19 +714,14 @@ export function parseJulesCreatedSessionIds(stdout: string): string[] {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Default subprocess spawn implementation using Bun.spawn.
+ * Default subprocess spawn implementation backed by the runtime `ISpawner`.
  */
 function defaultBunSpawn(
   argv: string[],
   options: Parameters<JulesSubprocessSpawnFn>[1]
 ): JulesSpawnedProcess {
-  if (typeof Bun !== "undefined" && typeof Bun.spawn === "function") {
-    return Bun.spawn(argv, options) as unknown as JulesSpawnedProcess;
-  }
-  throw new PalError(
-    PAL_ERROR_KINDS.INVALID_REQUEST,
-    "Bun.spawn is not available in current runtime environment",
-    false
+  return toAdapterProcess(
+    getDefaultSpawner().spawn(argv, { cwd: options.cwd, env: options.env }),
   );
 }
 
@@ -860,8 +861,8 @@ export class JulesAdapter implements ProviderAdapter {
       timer = setTimeout(() => {
         try {
           proc.kill?.("SIGTERM");
-        } catch {
-          // Process may already have exited.
+        } catch (err) {
+          void err;
         }
         reject(
           new PalError(
@@ -914,7 +915,6 @@ export class JulesAdapter implements ProviderAdapter {
     if (repo !== undefined) {
       args.push(`${JULES_ADAPTER_CONSTANTS.CLI_FLAG_REPO}=${repo}`);
     }
-    // `=` form keeps the prompt a single argv element even if it begins with "-".
     args.push(`${JULES_ADAPTER_CONSTANTS.CLI_FLAG_SESSION}=${task.prompt}`);
     if (parallel > JULES_ADAPTER_CONSTANTS.MIN_PARALLEL) {
       args.push(JULES_ADAPTER_CONSTANTS.CLI_FLAG_PARALLEL, String(parallel));
@@ -1017,7 +1017,6 @@ export class JulesAdapter implements ProviderAdapter {
       for (const sessionId of [...ctx.pending]) {
         const row = rowsById.get(sessionId);
         if (row === undefined) {
-          // Not yet visible in the list; keep waiting. Not an awaiting-input poll.
           ctx.consecutiveAwaitingPolls.delete(sessionId);
           continue;
         }
@@ -1209,12 +1208,10 @@ export class JulesAdapter implements ProviderAdapter {
       }
     };
 
-    // One watch serves the whole wave. A per-session error settles only that session and
-    // the watch resumes with the rest, sharing the same deadline and poll counters.
     while (ctx.pending.size > 0) {
       try {
-        for await (const _transition of this.pollSessions(ctx)) {
-          // Progress lives in ctx; per-task outcomes are recorded below.
+        for await (const transition of this.pollSessions(ctx)) {
+          void transition;
         }
       } catch (err: unknown) {
         if (err instanceof JulesSessionFailedError) {
@@ -1225,7 +1222,6 @@ export class JulesAdapter implements ProviderAdapter {
           settle(err.sessionId, JULES_BATCH_OUTCOMES.NEEDS_INPUT, err.message);
           continue;
         }
-        // Timeout, abort or a list failure: nothing further can be observed for the rest.
         const isTimeout = err instanceof PalError && err.kind === PAL_ERROR_KINDS.TIMEOUT;
         const outcome = isTimeout ? JULES_BATCH_OUTCOMES.TIMEOUT : JULES_BATCH_OUTCOMES.FAILED;
         const message = toPalError(err).message;
@@ -1301,7 +1297,6 @@ export class JulesAdapter implements ProviderAdapter {
       maxContextTokens: JULES_ADAPTER_CONSTANTS.NOT_PUBLISHED,
       maxOutputTokens: JULES_ADAPTER_CONSTANTS.NOT_PUBLISHED,
       supportsNativeTools: false,
-      // Emits progress and result events only; there is no token-level streaming.
       supportsStreaming: false,
       supportsExtendedThinking: false,
       supportsPromptCaching: false,
@@ -1309,7 +1304,6 @@ export class JulesAdapter implements ProviderAdapter {
   }
 
   getRateLimitState(): PalRateLimitInfo {
-    // The CLI does not expose quota telemetry.
     return {
       requestsRemaining: JULES_ADAPTER_CONSTANTS.NOT_REPORTED,
       requestsLimit: JULES_ADAPTER_CONSTANTS.NOT_REPORTED,

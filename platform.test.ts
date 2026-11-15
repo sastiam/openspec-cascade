@@ -53,7 +53,6 @@ describe("OS abstraction helpers", () => {
   });
 
   test("resolveBinaryInPath locates executable in custom PATH", () => {
-    // Current node or bun is in PATH
     const resolved = resolveBinaryInPath("bun", process.env.PATH);
     expect(resolved).not.toBeNull();
     expect(resolved?.endsWith("bun")).toBe(true);
@@ -66,7 +65,6 @@ describe("OS abstraction helpers", () => {
 
   test("findSystemdInhibit returns path if present or null when missing in empty PATH", () => {
     const result = findSystemdInhibit("/nonexistent");
-    // If the system has /usr/bin/systemd-inhibit, it returns default path; otherwise null
     if (result) {
       expect(result).toBe(DEFAULT_SYSTEMD_INHIBIT_PATH);
     } else {
@@ -81,9 +79,9 @@ describe("OS abstraction helpers", () => {
       throw new Error("EPERM");
     };
 
-    expect(canRunSystemdInhibit("/usr/bin/systemd-inhibit", mockSuccess as any)).toBe(true);
-    expect(canRunSystemdInhibit("/usr/bin/systemd-inhibit", mockFailure as any)).toBe(false);
-    expect(canRunSystemdInhibit("/usr/bin/systemd-inhibit", mockThrow as any)).toBe(false);
+    expect(canRunSystemdInhibit("/usr/bin/systemd-inhibit", mockSuccess)).toBe(true);
+    expect(canRunSystemdInhibit("/usr/bin/systemd-inhibit", mockFailure)).toBe(false);
+    expect(canRunSystemdInhibit("/usr/bin/systemd-inhibit", mockThrow)).toBe(false);
   });
 });
 
@@ -169,8 +167,6 @@ describe("startKeepAlive configuration & fallback", () => {
       spawnSync: () => ({ exitCode: 1 }),
     });
 
-    // If system has systemd-inhibit in /usr/bin, but we override it via a failing check:
-    // Let's force a scenario where inhibit binary is missing
     const missingController = startKeepAlive({
       platform: "linux",
       systemdInhibitPath: "/tmp/nonexistent-inhibit-binary-xyz",

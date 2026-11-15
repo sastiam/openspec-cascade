@@ -73,6 +73,34 @@ export function greet(name): string {
     expect(exportErrors[0]?.message).toContain("Argument 'name' should be typed");
   });
 
+  test("prohibits explicit any in both source and test TypeScript files", async () => {
+    const invalidSource = `
+export function parsePayload(input: any): string {
+  return String(input);
+}
+`;
+    const [srcResult] = await eslint.lintText(invalidSource, { filePath: "sample.ts" });
+    expect(srcResult).toBeDefined();
+    if (!srcResult) return;
+    const srcAnyErrors = srcResult.messages.filter(
+      (m) => m.ruleId === "@typescript-eslint/no-explicit-any",
+    );
+    expect(srcAnyErrors.length).toBeGreaterThan(0);
+
+    const invalidTest = `
+export function mockCast(val: unknown): number {
+  return (val as any).count;
+}
+`;
+    const [testResult] = await eslint.lintText(invalidTest, { filePath: "sample.test.ts" });
+    expect(testResult).toBeDefined();
+    if (!testResult) return;
+    const testAnyErrors = testResult.messages.filter(
+      (m) => m.ruleId === "@typescript-eslint/no-explicit-any",
+    );
+    expect(testAnyErrors.length).toBeGreaterThan(0);
+  });
+
   test("allows magic numbers in test files (*.test.ts)", async () => {
     const testSnippet = `
 export function testHelper(): number {
@@ -88,11 +116,17 @@ export function testHelper(): number {
     expect(magicNumErrors.length).toBe(0);
   });
 
-  test("project files pass linting cleanly", async () => {
-    const results = await eslint.lintFiles(["*.ts"]);
+  test("project files across root, src, projects, and tests pass linting cleanly", async () => {
+    const results = await eslint.lintFiles([
+      "*.ts",
+      "src/**/*.ts",
+      "projects/**/*.ts",
+      "test/**/*.ts",
+    ]);
     const totalErrors = results.reduce((sum, r) => sum + r.errorCount, 0);
     const totalWarnings = results.reduce((sum, r) => sum + r.warningCount, 0);
 
+    expect(results.length).toBeGreaterThan(0);
     expect(totalErrors).toBe(0);
     expect(totalWarnings).toBe(0);
   });

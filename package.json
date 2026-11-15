@@ -11,10 +11,14 @@
     "install:claude": "node bin/install.mjs",
     "cascade:looper": "bun run cascade.ts --engine antigravity --changes looper-storage-memory,looper-pal-canonical-schema,looper-core-fsm,looper-core-dag-scheduler,looper-pal-claude-adapter,looper-pal-gemini-adapter,looper-pal-opencode-adapter,looper-core-subagent-dispatcher,looper-core-router-escalation,looper-gate0-mechanical-qa,looper-gate1-semantic-review,looper-gate2-adversarial-challenger,looper-gate3-forensic-audit,looper-integration-github-project,looper-integration-catalog-sync,cascade-v2-sdd-framework",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "bun test",
+    "test:node": "node --import ./scripts/node_ts_register.mjs --test test/node/*.node.ts",
+    "audit": "bun run scripts/forensic_audit.ts"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "0.3.309"
+    "@anthropic-ai/claude-agent-sdk": "0.3.309",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -23,5 +27,9 @@
     "eslint": "^10.13.0",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.72.0"
+  },
+  "engines": {
+    "node": ">=24",
+    "bun": ">=1.4"
   }
 }

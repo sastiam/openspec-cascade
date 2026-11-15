@@ -1,2 +1,6 @@
 node_modules/
 logs/
+.cascade/
+.redteam_sandbox_*
+.agents/teamwork/
+dist/

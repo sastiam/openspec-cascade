@@ -12,16 +12,18 @@
 import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+
+import { CatalogGeneratorError } from "./errors";
+import type { ProjectV2Item } from "./github_project";
 import {
   CATALOG_CONSTANTS,
-  type CatalogTaskItem,
-  type CatalogTaskSection,
   extractTaskKey,
   normalizeCatalogItem,
   parseTaskBodySections,
-} from "./catalog_generator";
-import { CatalogGeneratorError } from "./errors";
-import type { ProjectV2Item } from "./github_project";
+  type CatalogTaskItem,
+  type CatalogTaskSection,
+} from "./catalog_model";
+
 
 /**
  * Constants governing task schema validation and 100% section presence assertion.

@@ -24,57 +24,52 @@
  *    in `ROLLBACK_CONSTANTS`.
  */
 
+import { getDefaultSpawner } from "../runtime/spawner";
+import { shellArgv } from "../runtime/process_control";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, normalize, relative, resolve } from "node:path";
-import { CONSTANTS } from "../../config";
+import {
+  EXIT_CODE_CONSTANTS,
+  GIT_CONSTANTS,
+  TIMEOUT_CONSTANTS,
+} from "../config/constants";
 
 /**
  * Central constants ensuring zero magic numbers across Rollback Buffer operations.
  */
 export const ROLLBACK_CONSTANTS = {
-  // Git Command Primitives
-  GIT_RESET_CMD: "git reset --hard" as const,
-  GIT_CLEAN_CMD: "git clean -fd" as const,
-  GIT_REV_PARSE_HEAD: "git rev-parse HEAD" as const,
-  GIT_STATUS_PORCELAIN: "git status --porcelain" as const,
-  GIT_HEAD_REF: "HEAD" as const,
+  GIT_RESET_CMD: GIT_CONSTANTS.GIT_RESET_CMD,
+  GIT_CLEAN_CMD: GIT_CONSTANTS.GIT_CLEAN_CMD,
+  GIT_REV_PARSE_HEAD: GIT_CONSTANTS.GIT_REV_PARSE_HEAD,
+  GIT_STATUS_PORCELAIN: GIT_CONSTANTS.GIT_STATUS_PORCELAIN,
+  GIT_HEAD_REF: GIT_CONSTANTS.GIT_HEAD_REF,
   GIT_ADD_ALL: "git add -A" as const,
   GIT_COMMIT_CMD: "git commit -m" as const,
 
-  // Protected Invariant Paths (Memory & Deliverables Protection)
   PROTECTED_TEAMWORK_DIR: ".agents/teamwork/" as const,
   PROTECTED_PROJECTS_DIR: "projects/" as const,
   PROTECTED_LOGS_DIR: "logs/" as const,
   NEVER_COMMIT_ATL: ".atl" as const,
   NEVER_COMMIT_CLAUDE_SETTINGS: ".claude/settings.local.json" as const,
 
-  // Canonical Default Exclude Patterns
-  DEFAULT_EXCLUDES: [
-    ".agents/teamwork/",
-    "projects/",
-    "logs/",
-    ".atl",
-    ".claude/settings.local.json",
-  ] as const,
+  DEFAULT_EXCLUDES: GIT_CONSTANTS.DEFAULT_ROLLBACK_EXCLUDES,
 
-  // Audit Actions
   AUDIT_ACTION_SNAPSHOT: "snapshot" as const,
   AUDIT_ACTION_ROLLBACK: "rollback" as const,
   AUDIT_ACTION_COMMIT: "commit" as const,
   AUDIT_ACTION_REGISTER_LOG: "register_log" as const,
 
-  // Defaults & Limits
   ZERO: 0,
   COMMIT_SHA_SHORT_LENGTH: 7,
   DEFAULT_AUDIT_LOG_FILE: "rollback_audit.jsonl" as const,
-  DEFAULT_TIMEOUT_MS: 60_000,
-  COMMAND_TIMEOUT_MS: 1_800_000,
-  EXIT_CODE_SUCCESS: 0,
-  EXIT_CODE_ERROR: 1,
-  EXIT_CODE_TIMEOUT: 124,
-  GIT_STATUS_CODE_LENGTH: 2,
-  GIT_STATUS_PREFIX_LENGTH: 3,
+  DEFAULT_TIMEOUT_MS: TIMEOUT_CONSTANTS.ADAPTER_DEFAULT_TIMEOUT_MS,
+  COMMAND_TIMEOUT_MS: TIMEOUT_CONSTANTS.COMMAND_TIMEOUT_MS,
+  EXIT_CODE_SUCCESS: EXIT_CODE_CONSTANTS.EXIT_CODE_SUCCESS,
+  EXIT_CODE_ERROR: EXIT_CODE_CONSTANTS.EXIT_CODE_ERROR,
+  EXIT_CODE_TIMEOUT: EXIT_CODE_CONSTANTS.EXIT_CODE_TIMEOUT,
+  GIT_STATUS_CODE_LENGTH: GIT_CONSTANTS.GIT_STATUS_CODE_LENGTH,
+  GIT_STATUS_PREFIX_LENGTH: GIT_CONSTANTS.GIT_STATUS_PREFIX_LENGTH,
   MAX_AUDIT_TRAIL_LENGTH: 1_000,
   JSON_INDENT: 2,
 } as const;
@@ -227,51 +222,17 @@ export interface RollbackBufferOptions {
 }
 
 /**
- * Default clean-room subprocess command runner using Bun.spawn.
+ * Default clean-room subprocess command runner using the runtime ISpawner.
  */
 export async function defaultCommandRunner(
   cmd: string,
   cwd: string = process.cwd(),
   timeoutMs: number = ROLLBACK_CONSTANTS.COMMAND_TIMEOUT_MS
 ): Promise<CommandRunnerResult> {
-  const isWindows = process.platform === "win32";
-  const shellArgs = isWindows ? ["cmd.exe", "/c", cmd] : ["sh", "-c", cmd];
-
   try {
-    const proc = Bun.spawn(shellArgs, {
-      cwd,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+    const result = await getDefaultSpawner().run(shellArgv(cmd), { cwd, timeoutMs });
 
-    let timedOut = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    const timeoutPromise = new Promise<{ timedOut: boolean }>((resolveTimeout) => {
-      timer = setTimeout(() => {
-        timedOut = true;
-        try {
-          proc.kill();
-        } catch {
-          // ignore kill failure
-        }
-        resolveTimeout({ timedOut: true });
-      }, timeoutMs);
-    });
-
-    const executionPromise = (async () => {
-      const [outText, errText, exitCode] = await Promise.all([
-        new Response(proc.stdout).text(),
-        new Response(proc.stderr).text(),
-        proc.exited,
-      ]);
-      return { outText, errText, exitCode, timedOut: false };
-    })();
-
-    const result = await Promise.race([executionPromise, timeoutPromise]);
-    if (timer) clearTimeout(timer);
-
-    if (result.timedOut || timedOut) {
+    if (result.timedOut) {
       return {
         code: ROLLBACK_CONSTANTS.EXIT_CODE_TIMEOUT,
         stdout: "",
@@ -280,11 +241,7 @@ export async function defaultCommandRunner(
       };
     }
 
-    const { outText, errText, exitCode } = result as {
-      outText: string;
-      errText: string;
-      exitCode: number;
-    };
+    const { stdout: outText, stderr: errText, exitCode } = result;
     const stdout = outText.trim();
     const stderr = errText.trim();
     const output = [stdout, stderr].filter(Boolean).join("\n") || stdout || stderr;
@@ -380,7 +337,6 @@ export async function rollbackWorkingTree(
   const say = options.hooks?.say;
   const log = options.hooks?.log;
 
-  // Compile combined excludes ensuring memory and deliverables protection invariants
   let combinedExcludes: string[];
   if (options.excludes !== undefined) {
     const list = Array.from(options.excludes);
@@ -411,7 +367,6 @@ export async function rollbackWorkingTree(
   say?.(`  [rollback] resetting working tree to ${targetRef}...`);
   log?.("rollback_start", { targetRef, cleanUntracked, reason: options.reason });
 
-  // 1. Back up registered audit log files before reset if preservation is enabled
   const backedUpLogs = new Map<string, string>();
   if (preserveAuditLogs && options.auditLogPaths && options.auditLogPaths.length > 0) {
     for (const rawPath of options.auditLogPaths) {
@@ -422,13 +377,12 @@ export async function rollbackWorkingTree(
           const content = await readFile(fullPath, "utf-8");
           backedUpLogs.set(fullPath, content);
         }
-      } catch {
-        // File may not exist yet or is inaccessible
+      } catch (err) {
+        void err;
       }
     }
   }
 
-  // 2. Execute git reset --hard <targetRef>
   const resetCmd = `${ROLLBACK_CONSTANTS.GIT_RESET_CMD} ${targetRef}`;
   const resetRes = await runner(resetCmd, cwd, timeoutMs);
 
@@ -446,7 +400,6 @@ export async function rollbackWorkingTree(
     };
   }
 
-  // 3. Execute git clean -fd with strict exclusion flags
   let cleanOutput = "";
   if (cleanUntracked) {
     const cleanCmd = buildGitCleanCommand(Array.from(combinedExcludes));
@@ -468,7 +421,6 @@ export async function rollbackWorkingTree(
     }
   }
 
-  // 4. Restore backed up audit logs post-reset
   let restoredCount = 0;
   if (backedUpLogs.size > 0) {
     for (const [filePath, content] of backedUpLogs.entries()) {
@@ -546,7 +498,6 @@ export class RollbackStateBuffer {
     this.preserveAuditLogs = options.preserveAuditLogs ?? true;
     this.hooks = options.hooks;
 
-    // Initialize excludes: ensure memory & deliverables protection invariants are active
     const inputExcludes = options.excludes ?? ROLLBACK_CONSTANTS.DEFAULT_EXCLUDES;
     this.excludes = new Set<string>(inputExcludes);
     this.excludes.add(ROLLBACK_CONSTANTS.PROTECTED_TEAMWORK_DIR);
@@ -634,7 +585,6 @@ export class RollbackStateBuffer {
       registeredAt: Date.now(),
     });
 
-    // Add relative path to excludes set to protect during git clean
     const rel = relative(this.cwd, fullPath).replace(/\\/g, "/");
     this.excludes.add(rel);
 
@@ -665,7 +615,6 @@ export class RollbackStateBuffer {
   ): Promise<RollbackResult> {
     const targetRef = targetRefOverride ?? this.baselineSha ?? ROLLBACK_CONSTANTS.GIT_HEAD_REF;
 
-    // Collect all audit paths to preserve
     const auditPaths = Array.from(this.registeredAuditLogs.keys());
     if (optionsOverride.auditLogPaths) {
       for (const p of optionsOverride.auditLogPaths) {
@@ -673,14 +622,13 @@ export class RollbackStateBuffer {
       }
     }
 
-    // Merge in-memory content into files on disk before rollback if provided
     for (const [p, meta] of this.registeredAuditLogs.entries()) {
       if (meta.content !== undefined) {
         try {
           await mkdir(dirname(p), { recursive: true });
           await writeFile(p, meta.content, "utf-8");
-        } catch {
-          // Ignore pre-write error
+        } catch (err) {
+          void err;
         }
       }
     }
@@ -742,7 +690,6 @@ export class RollbackStateBuffer {
     say?.(`  [commit] staging files for certified commit...`);
     log?.("commit_start", { message });
 
-    // 1. Stage changes
     let addCmd: string = ROLLBACK_CONSTANTS.GIT_ADD_ALL;
     if (options.files && options.files.length > 0) {
       const quotedFiles = options.files.map((f) => `"${f}"`).join(" ");
@@ -762,7 +709,6 @@ export class RollbackStateBuffer {
       };
     }
 
-    // 2. Execute git commit
     const escapedMessage = message.replace(/"/g, '\\"');
     const authorFlag = options.author ? `--author="${options.author}"` : "";
     const commitCmd = `${ROLLBACK_CONSTANTS.GIT_COMMIT_CMD} "${escapedMessage}" ${authorFlag}`.trim();
@@ -780,11 +726,9 @@ export class RollbackStateBuffer {
       };
     }
 
-    // 3. Resolve new HEAD commit SHA
     const revRes = await runner(ROLLBACK_CONSTANTS.GIT_REV_PARSE_HEAD, cwd, timeoutMs);
     const newCommitSha = revRes.stdout.trim() || ROLLBACK_CONSTANTS.GIT_HEAD_REF;
 
-    // Update baseline to advance checkpoint
     const oldBaseline = this.baselineSha;
     this.baselineSha = newCommitSha;
     this.commitCount++;

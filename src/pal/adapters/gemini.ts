@@ -10,7 +10,15 @@
  * streaming NDJSON/SSE handling, and Protobuf Struct parameter resolution.
  */
 
+import { getDefaultSpawner, toAdapterProcess } from "../../runtime/spawner";
 import { randomUUID } from "node:crypto";
+import {
+  BUDGET_CONSTANTS,
+  ENGINE_CONSTANTS,
+  EXIT_CODE_CONSTANTS,
+  FORMAT_CONSTANTS,
+  TIMEOUT_CONSTANTS,
+} from "../../config/constants";
 import {
   formatGeminiResponse,
   fromGeminiResponse,
@@ -52,8 +60,8 @@ import {
  */
 export const GEMINI_ADAPTER_CONSTANTS = {
   // Model defaults
-  DEFAULT_MODEL: "gemini-2.5-pro",
-  FALLBACK_MODEL: "gemini-2.0-flash",
+  DEFAULT_MODEL: ENGINE_CONSTANTS.GEMINI_API_DEFAULT_MODEL,
+  FALLBACK_MODEL: ENGINE_CONSTANTS.GEMINI_API_FALLBACK_MODEL,
 
   // Context & Token Limits
   MAX_CONTEXT_TOKENS: 2_000_000,
@@ -70,9 +78,9 @@ export const GEMINI_ADAPTER_CONSTANTS = {
   GENERATE_CONTENT_ACTION: "generateContent",
   STREAM_GENERATE_CONTENT_ACTION: "streamGenerateContent",
   SSE_QUERY_PARAM: "alt=sse",
-  DEFAULT_TIMEOUT_MS: 60_000,
-  MS_PER_SECOND: 1_000,
-  RATE_LIMIT_RESET_FALLBACK_MS: 60_000,
+  DEFAULT_TIMEOUT_MS: TIMEOUT_CONSTANTS.ADAPTER_DEFAULT_TIMEOUT_MS,
+  MS_PER_SECOND: TIMEOUT_CONSTANTS.MS_PER_SECOND,
+  RATE_LIMIT_RESET_FALLBACK_MS: TIMEOUT_CONSTANTS.RATE_LIMIT_RESET_FALLBACK_MS,
 
   // HTTP & API Headers
   HEADER_CONTENT_TYPE: "application/json",
@@ -108,8 +116,8 @@ export const GEMINI_ADAPTER_CONSTANTS = {
   FALLBACK_TOOL_NAME: "unknown_tool",
 
   // Formatting & Truncation Bounds
-  ONE_LINE_MAX_LENGTH: 140,
-  TOOL_INPUT_MAX_LENGTH: 100,
+  ONE_LINE_MAX_LENGTH: FORMAT_CONSTANTS.ONE_LINE_MAX_LENGTH,
+  TOOL_INPUT_MAX_LENGTH: FORMAT_CONSTANTS.TOOL_INPUT_MAX_LENGTH,
 
   // NDJSON Wire Event Types & Constants
   NDJSON_EVENT_INIT: "init",
@@ -133,18 +141,18 @@ export const GEMINI_ADAPTER_CONSTANTS = {
   CLI_FLAG_MODEL: "--model",
   CLI_FLAG_EFFORT: "--effort",
   CLI_FLAG_CONVERSATION: "--conversation",
-  DEFAULT_CLI_TIMEOUT_MS: 2_700_000,
-  CLI_STDERR_TAIL_MAX_LENGTH: 400,
-  CLI_ERROR_DETAIL_MAX_LENGTH: 200,
-  RATE_LIMIT_SLEEP_MS: 30_000,
-  EXIT_CODE_SUCCESS: 0,
+  DEFAULT_CLI_TIMEOUT_MS: TIMEOUT_CONSTANTS.ANTIGRAVITY_SESSION_TIMEOUT_MS,
+  CLI_STDERR_TAIL_MAX_LENGTH: FORMAT_CONSTANTS.STDERR_TAIL_MAX_LENGTH,
+  CLI_ERROR_DETAIL_MAX_LENGTH: FORMAT_CONSTANTS.ERROR_DETAIL_MAX_LENGTH,
+  RATE_LIMIT_SLEEP_MS: TIMEOUT_CONSTANTS.RATE_LIMIT_SLEEP_MS,
+  EXIT_CODE_SUCCESS: EXIT_CODE_CONSTANTS.EXIT_CODE_SUCCESS,
 
   // Gemini Cost Calculation Rates (per 1M tokens)
-  TOKEN_PRICE_BASE: 1_000_000,
-  GEMINI_FLASH_INPUT_COST: 0.15,
-  GEMINI_FLASH_OUTPUT_COST: 0.60,
-  GEMINI_PRO_INPUT_COST: 1.25,
-  GEMINI_PRO_OUTPUT_COST: 5.00,
+  TOKEN_PRICE_BASE: BUDGET_CONSTANTS.TOKEN_PRICE_BASE,
+  GEMINI_FLASH_INPUT_COST: BUDGET_CONSTANTS.GEMINI_FLASH_INPUT_COST,
+  GEMINI_FLASH_OUTPUT_COST: BUDGET_CONSTANTS.GEMINI_FLASH_OUTPUT_COST,
+  GEMINI_PRO_INPUT_COST: BUDGET_CONSTANTS.GEMINI_PRO_INPUT_COST,
+  GEMINI_PRO_OUTPUT_COST: BUDGET_CONSTANTS.GEMINI_PRO_OUTPUT_COST,
 } as const;
 
 /**
@@ -623,7 +631,6 @@ export function convertProtobufStructToJson(value: unknown): unknown {
 
   const record = value as Record<string, unknown>;
 
-  // Check protobufjs / @bufbuild/protobuf style { kind: { case: "...", value: "..." } }
   if (isRecord(record.kind) && typeof record.kind.case === "string") {
     if (record.kind.case === GEMINI_ADAPTER_CONSTANTS.PROTOBUF_NULL_VALUE_CASE) {
       return null;
@@ -633,7 +640,6 @@ export function convertProtobufStructToJson(value: unknown): unknown {
     }
   }
 
-  // Check if this is a google.protobuf.Value
   if ("stringValue" in record && typeof record.stringValue === "string") {
     return record.stringValue;
   }
@@ -661,7 +667,6 @@ export function convertProtobufStructToJson(value: unknown): unknown {
     return convertProtobufStructToJson(record.structValue);
   }
 
-  // Check if this is a google.protobuf.Struct with `fields`
   if ("fields" in record && isRecord(record.fields)) {
     const result: Record<string, unknown> = {};
     for (const [key, fieldValue] of Object.entries(record.fields)) {
@@ -670,7 +675,6 @@ export function convertProtobufStructToJson(value: unknown): unknown {
     return result;
   }
 
-  // Plain object: recurse on properties
   const result: Record<string, unknown> = {};
   for (const [key, propValue] of Object.entries(record)) {
     result[key] = convertProtobufStructToJson(propValue);
@@ -754,7 +758,6 @@ export function describeToolInput(
 
   const fields = input as Record<string, unknown>;
 
-  // Check command / cmd / CommandLine along with optional args
   const cmd = fields.cmd ?? fields.command ?? fields.CommandLine;
   const args = fields.args;
   let argsStr: string | undefined;
@@ -773,13 +776,11 @@ export function describeToolInput(
     return oneLine(argsStr, max);
   }
 
-  // Check path / file_path / Path
   const path = fields.path ?? fields.file_path ?? fields.Path;
   if (typeof path === "string" && path.trim()) {
     return oneLine(path.trim(), max);
   }
 
-  // Check pattern, url, query, description
   const value =
     fields.pattern ?? fields.url ?? fields.query ?? fields.description;
   return typeof value === "string" ? oneLine(value, max) : "";
@@ -962,7 +963,6 @@ export function reduceGeminiNdjsonEvent(
     if (trimmed.length === GEMINI_ADAPTER_CONSTANTS.ZERO_TOKENS) {
       return [];
     }
-    // Ignore SSE comments or banner/comment lines
     if (
       trimmed.startsWith(GEMINI_ADAPTER_CONSTANTS.SSE_COMMENT_PREFIX) ||
       trimmed.startsWith("#") ||
@@ -998,7 +998,6 @@ export function reduceGeminiNdjsonEvent(
     try {
       parsed = JSON.parse(payloadStr);
     } catch {
-      // Tolerant parser ignores malformed non-JSON lines / CLI banners
       return [];
     }
   } else {
@@ -1015,7 +1014,6 @@ export function reduceGeminiNdjsonEvent(
     onEvent?.(ev);
   };
 
-  // Determine event type from `event` or `type` property
   const eventName =
     typeof parsed.event === "string"
       ? parsed.event
@@ -1023,7 +1021,6 @@ export function reduceGeminiNdjsonEvent(
       ? parsed.type
       : undefined;
 
-  // Capture conversation_id if present at root
   if (
     typeof parsed.conversation_id === "string" &&
     parsed.conversation_id.length > GEMINI_ADAPTER_CONSTANTS.ZERO_TOKENS
@@ -1031,7 +1028,6 @@ export function reduceGeminiNdjsonEvent(
     state.conversationId = parsed.conversation_id;
   }
 
-  // 1. Init event
   if (eventName === GEMINI_ADAPTER_CONSTANTS.NDJSON_EVENT_INIT) {
     if (
       typeof parsed.conversation_id === "string" &&
@@ -1042,7 +1038,6 @@ export function reduceGeminiNdjsonEvent(
     return events;
   }
 
-  // 2. Step Update event (supports step_update object or delta object)
   if (
     eventName === GEMINI_ADAPTER_CONSTANTS.NDJSON_EVENT_STEP_UPDATE ||
     "step_update" in parsed ||
@@ -1057,7 +1052,6 @@ export function reduceGeminiNdjsonEvent(
         state.conversationId = rawUpdate.conversation_id;
       }
 
-      // Update telemetry / usage if present
       if (isRecord(rawUpdate.usage) || isRecord(rawUpdate.tokens)) {
         accumulateNdjsonTokenUsage(
           state,
@@ -1065,7 +1059,6 @@ export function reduceGeminiNdjsonEvent(
         );
       }
 
-      // Format A: step_type === "agent_response"
       if (
         rawUpdate.step_type ===
         GEMINI_ADAPTER_CONSTANTS.NDJSON_STEP_TYPE_AGENT_RESPONSE
@@ -1094,7 +1087,6 @@ export function reduceGeminiNdjsonEvent(
         }
       }
 
-      // Format B: delta with direct text / thought
       if (
         typeof rawUpdate.text === "string" &&
         rawUpdate.text.length > GEMINI_ADAPTER_CONSTANTS.ZERO_TOKENS
@@ -1118,7 +1110,6 @@ export function reduceGeminiNdjsonEvent(
         emit({ type: "thought_delta", thought });
       }
 
-      // Tool Invocations: Form A (step_type === "tool" or has tool_info / tool_name)
       if (
         rawUpdate.step_type === GEMINI_ADAPTER_CONSTANTS.NDJSON_STEP_TYPE_TOOL ||
         rawUpdate.tool_name !== undefined ||
@@ -1176,7 +1167,6 @@ export function reduceGeminiNdjsonEvent(
         state.contentBlocks.push(toolBlock);
       }
 
-      // Tool Invocations: Form B (array of tool_calls)
       if (Array.isArray(rawUpdate.tool_calls)) {
         for (const tc of rawUpdate.tool_calls) {
           if (isRecord(tc)) {
@@ -1225,7 +1215,6 @@ export function reduceGeminiNdjsonEvent(
     return events;
   }
 
-  // 3. Progress event
   if (eventName === GEMINI_ADAPTER_CONSTANTS.NDJSON_EVENT_PROGRESS) {
     if (isRecord(parsed.input) || isRecord(parsed.parameters)) {
       const converted = convertProtobufStructToJson(
@@ -1238,7 +1227,6 @@ export function reduceGeminiNdjsonEvent(
     return events;
   }
 
-  // 4. Result event
   if (
     eventName === GEMINI_ADAPTER_CONSTANTS.NDJSON_EVENT_RESULT ||
     "result" in parsed
@@ -1278,7 +1266,6 @@ export function reduceGeminiNdjsonEvent(
           : PAL_FINISH_REASONS.STOP;
       }
 
-      // If text response is provided in result and state.texts is empty
       if (
         typeof rawResult.response === "string" &&
         rawResult.response.length > GEMINI_ADAPTER_CONSTANTS.ZERO_TOKENS
@@ -1304,7 +1291,6 @@ export function reduceGeminiNdjsonEvent(
     return events;
   }
 
-  // 5. Error event
   if (
     eventName === GEMINI_ADAPTER_CONSTANTS.NDJSON_EVENT_ERROR ||
     parsed.error !== undefined
@@ -1545,7 +1531,7 @@ function isReadableStream(
  * Normalizes a ReadableStream, AsyncIterable, or Iterable into a uniform AsyncIterable.
  */
 export async function* toAsyncIterable<T>(
-  source: ReadableStream<T> | AsyncIterable<T> | Iterable<T>
+  source: ReadableStream<T> | AsyncIterable<T> | Iterable<T> | NodeJS.ReadableStream
 ): AsyncIterable<T> {
   if (isReadableStream(source)) {
     const reader = source.getReader();
@@ -1818,19 +1804,24 @@ export async function* streamAntigravitySubprocess(
     dangerouslySkipPermissions,
   });
 
-  const spawnFn =
+  const spawnFn: AntigravitySubprocessSpawnFn | undefined =
     options.spawnFn ??
     defaults?.spawnFn ??
-    (typeof Bun !== "undefined" && typeof Bun.spawn === "function"
-      ? (Bun.spawn as unknown as AntigravitySubprocessSpawnFn)
-      : undefined);
+    ((argv, spawnOptions) =>
+      toAdapterProcess(
+        getDefaultSpawner().spawn(argv, {
+          cwd: spawnOptions.cwd,
+          env: spawnOptions.env,
+          timeoutMs: spawnOptions.timeout,
+        }),
+      ));
 
   if (!spawnFn) {
     yield {
       type: "error",
       error: new PalError(
         PAL_ERROR_KINDS.INVALID_REQUEST,
-        "No subprocess spawn function available (Bun.spawn is undefined and no custom spawnFn was provided)",
+        "No subprocess spawn function available (no runtime spawner and no custom spawnFn was provided)",
         false
       ),
     };
@@ -1868,8 +1859,8 @@ export async function* streamAntigravitySubprocess(
       if (typeof proc.kill === "function") {
         proc.kill("SIGTERM");
       }
-    } catch {
-      // Ignore termination signals
+    } catch (err) {
+      void err;
     }
   };
 
@@ -1886,9 +1877,7 @@ export async function* streamAntigravitySubprocess(
     if (!proc.stderr) return "";
     try {
       let acc = "";
-      for await (const chunk of toAsyncIterable<Uint8Array | string>(
-        proc.stderr as any
-      )) {
+      for await (const chunk of toAsyncIterable<Uint8Array | string>(proc.stderr)) {
         acc +=
           typeof chunk === "string"
             ? chunk
@@ -1910,9 +1899,7 @@ export async function* streamAntigravitySubprocess(
 
   try {
     if (proc.stdout) {
-      for await (const chunk of toAsyncIterable<Uint8Array | string>(
-        proc.stdout as any
-      )) {
+      for await (const chunk of toAsyncIterable<Uint8Array | string>(proc.stdout)) {
         if (wasAborted) break;
         const events = reducer.feed(chunk);
         for (const ev of events) {
@@ -2319,7 +2306,6 @@ export class GeminiAdapter implements ProviderAdapter {
       contents,
     };
 
-    // System instruction handling: merge any explicit sessionPrompt
     const systemParts: Array<{ text: string }> = [];
     if (geminiTurnPayload.systemInstruction?.parts) {
       systemParts.push(...geminiTurnPayload.systemInstruction.parts);
@@ -2344,7 +2330,6 @@ export class GeminiAdapter implements ProviderAdapter {
       payload.systemInstruction = { parts: systemParts };
     }
 
-    // Generation configuration (temperature, maxOutputTokens, thinkingConfig)
     const generationConfig: Record<string, unknown> = {};
     if (options.temperature !== undefined) {
       generationConfig.temperature = options.temperature;
@@ -2368,7 +2353,6 @@ export class GeminiAdapter implements ProviderAdapter {
       payload.generationConfig = generationConfig;
     }
 
-    // Tools definition mapping
     const formattedTools = formatGeminiTools(options.tools);
     if (formattedTools) {
       payload.tools = formattedTools;
@@ -2777,7 +2761,6 @@ export class GeminiStreamChunkParser {
       return [];
     }
 
-    // 1. Antigravity CLI / Gemini NDJSON event support via reducer
     if (
       typeof parsed.event === "string" ||
       typeof parsed.type === "string" ||
@@ -2798,7 +2781,6 @@ export class GeminiStreamChunkParser {
 
     const events: PalStreamEvent[] = [];
 
-    // 2. Google Gemini GenerateContent response / chunk
     if (isRecord(parsed.usageMetadata)) {
       const deltaUsage = calculateGeminiTokenUsage(parsed.usageMetadata);
       this.accumulatedUsage = {

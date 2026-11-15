@@ -57,14 +57,18 @@ export class Fatal extends Error {}
  * Dedicated error class representing a task that exhausted its retry budget.
  */
 export class TaskFailureError extends Fatal {
-  constructor(
-    public readonly taskId: string,
-    public readonly change: string,
-    public readonly attempts: number,
-    public readonly logPath?: string,
-  ) {
+  readonly taskId: string;
+  readonly change: string;
+  readonly attempts: number;
+  readonly logPath?: string;
+
+  constructor(taskId: string, change: string, attempts: number, logPath?: string) {
     const logInfo = logPath ? `; see ${logPath}` : "";
     super(`Task ${taskId} of ${change} failed after ${attempts} attempts${logInfo}`);
+    this.taskId = taskId;
+    this.change = change;
+    this.attempts = attempts;
+    this.logPath = logPath;
     this.name = "TaskFailureError";
   }
 }

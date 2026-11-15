@@ -9,6 +9,7 @@ export default tseslint.config(
       ".archify/**",
       "docs/**",
       "openspec/**",
+      ".agents/**",
       "**/*.json",
     ],
   },
@@ -16,6 +17,7 @@ export default tseslint.config(
   {
     files: ["**/*.ts"],
     rules: {
+      "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-magic-numbers": [
         "error",
         {
@@ -34,7 +36,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["**/*.test.ts"],
+    files: ["**/*.test.ts", "test/node/**/*.ts"],
     rules: {
       "@typescript-eslint/no-magic-numbers": "off",
     },

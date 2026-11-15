@@ -8,18 +8,22 @@
  */
 
 import { CONSTANTS } from "./config";
+import { classifyEngineFailure, toCliSessionOutcome, type EngineFailureKind, type EngineFailurePatterns } from "./src/pal/shared";
+import { getDefaultSpawner } from "./src/runtime/spawner";
+import { forEachStreamLine } from "./src/runtime/streams";
+import type { ISpawner } from "./src/runtime/types";
 import type {
   EngineAdapter,
   EngineHooks,
   EngineOutcome,
   EngineSessionOptions,
-} from "./engine";
+} from "./src/engine/contract";
 
 export const ANTIGRAVITY_DEFAULT_MODEL = CONSTANTS.DEFAULT_ANTIGRAVITY_MODEL;
 const SESSION_TIMEOUT_MS = CONSTANTS.ANTIGRAVITY_SESSION_TIMEOUT_MS;
 const RATE_LIMIT_SLEEP_MS = CONSTANTS.RATE_LIMIT_SLEEP_MS;
 const RATE_LIMIT = /rate.?limit|\b429\b|quota|usage limit|too many requests|resource_exhausted/i;
-// Waiting or retrying never fixes these: stop the cascade
+/** Waiting or retrying never fixes auth/model/missing-binary errors; stop the cascade immediately. */
 const UNRECOVERABLE = /unauthorized|authentication failed|invalid credential|"status":\s*(401|403)\b|model not found|no such file or directory.*agy/i;
 
 export type AntigravityOutcome = EngineOutcome;
@@ -95,13 +99,52 @@ export function estimateCostUsd(model: string, usage: AntigravityTokenUsage): nu
   return 0;
 }
 
-function updateUsage(state: SessionState, raw: Record<string, any>) {
+interface RawAntigravityUsage {
+  input_tokens?: number;
+  output_tokens?: number;
+  thinking_tokens?: number;
+  cache_read_tokens?: number;
+  total_tokens?: number;
+}
+
+interface RawAntigravityStepUpdate {
+  conversation_id?: string;
+  step_type?: string;
+  state?: string;
+  tool_name?: string;
+  tool_info?: { name?: string };
+  text_delta?: string;
+  usage?: RawAntigravityUsage;
+}
+
+interface RawAntigravityResult {
+  conversation_id?: string;
+  status?: string;
+  error?: string;
+  response?: string;
+  usage?: RawAntigravityUsage;
+}
+
+interface RawAntigravityEvent {
+  conversation_id?: string;
+  event?: string;
+  type?: string;
+  error?: unknown;
+  step_update?: RawAntigravityStepUpdate;
+  result?: RawAntigravityResult;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function updateUsage(state: SessionState, raw: RawAntigravityUsage): void {
   state.tokens = {
-    inputTokens: raw.input_tokens ?? state.tokens.inputTokens,
-    outputTokens: raw.output_tokens ?? state.tokens.outputTokens,
-    thinkingTokens: raw.thinking_tokens ?? state.tokens.thinkingTokens,
-    cacheReadTokens: raw.cache_read_tokens ?? state.tokens.cacheReadTokens,
-    totalTokens: raw.total_tokens ?? state.tokens.totalTokens,
+    inputTokens: typeof raw.input_tokens === "number" ? raw.input_tokens : state.tokens.inputTokens,
+    outputTokens: typeof raw.output_tokens === "number" ? raw.output_tokens : state.tokens.outputTokens,
+    thinkingTokens: typeof raw.thinking_tokens === "number" ? raw.thinking_tokens : state.tokens.thinkingTokens,
+    cacheReadTokens: typeof raw.cache_read_tokens === "number" ? raw.cache_read_tokens : state.tokens.cacheReadTokens,
+    totalTokens: typeof raw.total_tokens === "number" ? raw.total_tokens : state.tokens.totalTokens,
   };
 }
 
@@ -109,6 +152,39 @@ function updateUsage(state: SessionState, raw: Record<string, any>) {
 export function oneLine(text: string, max: number = CONSTANTS.ONE_LINE_MAX_LENGTH): string {
   const flat = text.replace(/\s+/g, " ").trim();
   return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
+}
+
+function extractCommandDescription(fields: Record<string, unknown>): string | undefined {
+  const cmd = fields.cmd ?? fields.command ?? fields.CommandLine;
+  const args = fields.args;
+  let argsStr: string | undefined;
+  if (Array.isArray(args)) {
+    argsStr = args.map(String).join(" ");
+  } else if (typeof args === "string" && args.trim()) {
+    argsStr = args.trim();
+  }
+
+  if (typeof cmd === "string" && cmd.trim()) {
+    const full = argsStr ? `${cmd.trim()} ${argsStr}` : cmd.trim();
+    return oneLine(full, CONSTANTS.TOOL_INPUT_MAX_LENGTH);
+  }
+  if (argsStr) {
+    return oneLine(argsStr, CONSTANTS.TOOL_INPUT_MAX_LENGTH);
+  }
+  return undefined;
+}
+
+function extractPathDescription(fields: Record<string, unknown>): string | undefined {
+  const path = fields.path ?? fields.file_path ?? fields.Path;
+  if (typeof path === "string" && path.trim()) {
+    return oneLine(path.trim(), CONSTANTS.TOOL_INPUT_MAX_LENGTH);
+  }
+  return undefined;
+}
+
+function extractFallbackDescription(fields: Record<string, unknown>): string {
+  const value = fields.pattern ?? fields.url ?? fields.query ?? fields.description;
+  return typeof value === "string" ? oneLine(value, CONSTANTS.TOOL_INPUT_MAX_LENGTH) : "";
 }
 
 /**
@@ -123,38 +199,13 @@ export function describeToolInput(input: unknown): string {
   if (Array.isArray(input)) {
     return oneLine(input.map(String).join(" "), CONSTANTS.TOOL_INPUT_MAX_LENGTH);
   }
-  if (typeof input !== "object") return "";
+  if (!isRecord(input)) return "";
 
-  const fields = input as Record<string, unknown>;
-
-  // Check command / cmd / CommandLine along with optional args
-  const cmd = fields.cmd ?? fields.command ?? fields.CommandLine;
-  const args = fields.args;
-  let argsStr: string | undefined;
-  if (Array.isArray(args)) {
-    argsStr = args.map(String).join(" ");
-  } else if (typeof args === "string" && args.trim()) {
-    argsStr = args.trim();
-  }
-
-  if (typeof cmd === "string" && cmd.trim()) {
-    const full = argsStr ? `${cmd.trim()} ${argsStr}` : cmd.trim();
-    return oneLine(full, CONSTANTS.TOOL_INPUT_MAX_LENGTH);
-  }
-
-  if (argsStr) {
-    return oneLine(argsStr, CONSTANTS.TOOL_INPUT_MAX_LENGTH);
-  }
-
-  // Check path / file_path / Path
-  const path = fields.path ?? fields.file_path ?? fields.Path;
-  if (typeof path === "string" && path.trim()) {
-    return oneLine(path.trim(), CONSTANTS.TOOL_INPUT_MAX_LENGTH);
-  }
-
-  // Check pattern, url, query, description
-  const value = fields.pattern ?? fields.url ?? fields.query ?? fields.description;
-  return typeof value === "string" ? oneLine(value, CONSTANTS.TOOL_INPUT_MAX_LENGTH) : "";
+  return (
+    extractCommandDescription(input) ??
+    extractPathDescription(input) ??
+    extractFallbackDescription(input)
+  );
 }
 
 /**
@@ -195,12 +246,14 @@ export function reduceAntigravityEvent(
   line: string,
   hooks: Pick<Hooks, "onTool" | "onText">,
 ): void {
-  let event: Record<string, any>;
+  let parsed: unknown;
   try {
-    event = JSON.parse(line);
+    parsed = JSON.parse(line);
   } catch {
-    return; // non-JSON noise (banners, warnings)
+    return;
   }
+  if (!isRecord(parsed)) return;
+  const event = parsed as RawAntigravityEvent;
 
   if (event.conversation_id && !state.sessionId) {
     state.sessionId = event.conversation_id;
@@ -254,9 +307,10 @@ export function reduceAntigravityEvent(
   }
 }
 
-export function classifyFailure(failure: string): "fatal" | "paused" | "error" {
-  if (UNRECOVERABLE.test(failure)) return "fatal";
-  return RATE_LIMIT.test(failure) ? "paused" : "error";
+const FAILURE_PATTERNS: EngineFailurePatterns = { rateLimit: RATE_LIMIT, unrecoverable: UNRECOVERABLE };
+
+export function classifyFailure(failure: string): EngineFailureKind {
+  return classifyEngineFailure(failure, FAILURE_PATTERNS);
 }
 
 export async function runAntigravitySession(options: {
@@ -267,6 +321,7 @@ export async function runAntigravitySession(options: {
   effort?: string;
   hooks: Hooks;
   timeoutMs?: number;
+  spawner?: ISpawner;
 }): Promise<AntigravityOutcome> {
   const argv = buildAntigravityArgs({
     prompt: options.prompt,
@@ -275,11 +330,9 @@ export async function runAntigravitySession(options: {
     resume: options.resume,
   });
 
-  const proc = Bun.spawn(argv, {
+  const proc = (options.spawner ?? getDefaultSpawner()).spawn(argv, {
     cwd: options.cwd,
-    stdout: "pipe",
-    stderr: "pipe",
-    timeout: options.timeoutMs ?? SESSION_TIMEOUT_MS,
+    timeoutMs: options.timeoutMs ?? SESSION_TIMEOUT_MS,
   });
 
   const state: SessionState = {
@@ -290,18 +343,11 @@ export async function runAntigravitySession(options: {
   };
 
   const stderr = new Response(proc.stderr).text();
-  let buffer = "";
-  for await (const chunk of proc.stdout as unknown as AsyncIterable<Uint8Array>) {
-    buffer += new TextDecoder().decode(chunk);
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-    for (const line of lines) reduceAntigravityEvent(state, line, options.hooks);
-  }
-  if (buffer) reduceAntigravityEvent(state, buffer, options.hooks);
+  await forEachStreamLine(proc.stdout, (line) => reduceAntigravityEvent(state, line, options.hooks));
 
   state.costUsd = estimateCostUsd(options.model, state.tokens);
 
-  const code = await proc.exited;
+  const code = await proc.exitCode;
   const errText = (await stderr).trim();
   options.hooks.log("antigravity_exit", {
     code,
@@ -312,22 +358,31 @@ export async function runAntigravitySession(options: {
   });
 
   const failure = state.error ?? (code !== CONSTANTS.EXIT_CODE_SUCCESS ? `exit ${code}: ${errText.slice(-CONSTANTS.ERROR_DETAIL_MAX_LENGTH)}` : undefined);
-  const kind = failure ? classifyFailure(failure) : undefined;
-  if (kind === "fatal") return { kind, reason: `Antigravity: ${failure}`, costUsd: state.costUsd };
-  if (kind === "paused") {
-    return { kind, sessionId: state.sessionId, resumeAt: Date.now() + RATE_LIMIT_SLEEP_MS, costUsd: state.costUsd };
-  }
-  if (kind === "error") return { kind, sessionId: state.sessionId, reason: failure!, costUsd: state.costUsd };
-
-  const result = state.texts.join("").trim();
-  return { kind: "done", sessionId: state.sessionId, result, costUsd: state.costUsd };
+  return toCliSessionOutcome({
+    engineLabel: "Antigravity",
+    failure,
+    patterns: FAILURE_PATTERNS,
+    sessionId: state.sessionId,
+    costUsd: state.costUsd,
+    result: state.texts.join("").trim(),
+    rateLimitSleepMs: RATE_LIMIT_SLEEP_MS,
+  });
 }
 
 /**
  * Adapter implementing EngineAdapter for Antigravity CLI runner.
  */
+export interface AntigravityAdapterOptions {
+  readonly spawner?: ISpawner;
+}
+
 export class AntigravityAdapter implements EngineAdapter {
   readonly name = "antigravity" as const;
+  private readonly spawner?: ISpawner;
+
+  constructor(options: AntigravityAdapterOptions = {}) {
+    this.spawner = options.spawner;
+  }
 
   getDefaultModel(): string {
     return antigravityModelArg(undefined);
@@ -348,6 +403,7 @@ export class AntigravityAdapter implements EngineAdapter {
       effort,
       hooks: options.hooks,
       timeoutMs: options.config?.engineSessionTimeoutMs,
+      spawner: this.spawner,
     });
   }
 }

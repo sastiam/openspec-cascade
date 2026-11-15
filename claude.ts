@@ -11,7 +11,7 @@ import type {
   EngineOutcome,
   EngineSessionOptions,
   UsageMeter,
-} from "./engine";
+} from "./src/engine/contract";
 
 export function toEpochMs(value: number): number {
   return value < CONSTANTS.EPOCH_MS_THRESHOLD ? value * CONSTANTS.MS_PER_SECOND : value;
@@ -45,7 +45,6 @@ export function claudeAgentOptions(
     maxBudgetUsd: options.maxBudgetUsd ?? config?.maxBudgetPerSessionUsd ?? CONSTANTS.MAX_BUDGET_PER_SESSION_USD,
     effort: effort === "none" ? undefined : (effort as Options["effort"]),
     model: options.model ?? config?.model,
-    // Flag settings layer: a sandbox for unattended runs (openspec-cascade --settings)
     ...(config?.settings ? { settings: config.settings } : {}),
   };
 }

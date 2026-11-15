@@ -353,14 +353,17 @@ export type PalErrorCode = (typeof PalErrorCodes)[keyof typeof PalErrorCodes];
  * Standardized Error class for Provider Abstraction Layer.
  */
 export class PalError extends Error {
-  constructor(
-    public readonly kind: PalErrorKind,
-    message: string,
-    public readonly retryable: boolean,
-    public readonly resetsAt?: number,
-    public readonly rawError?: unknown
-  ) {
+  readonly kind: PalErrorKind;
+  readonly retryable: boolean;
+  readonly resetsAt?: number;
+  readonly rawError?: unknown;
+
+  constructor(kind: PalErrorKind, message: string, retryable: boolean, resetsAt?: number, rawError?: unknown) {
     super(`[${kind}] ${message}`);
+    this.kind = kind;
+    this.retryable = retryable;
+    this.resetsAt = resetsAt;
+    this.rawError = rawError;
     this.name = "PalError";
   }
 }

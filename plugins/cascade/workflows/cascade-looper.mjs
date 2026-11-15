@@ -12,16 +12,19 @@ const A = typeof args === 'string' ? { changes: args } : args && typeof args ===
 const CHANGES = (A.changes || '').toString()
 const REPO = (A.repo || process.cwd()).toString()
 const FULL_GATE = A.fullGate === true
+const MODE = A.mode === 'v2' ? 'v2' : 'v1'
+const ENGINE = typeof A.engine === 'string' && A.engine ? A.engine : ''
+const RUN_FLAGS = `--mode ${MODE}${ENGINE ? ` --engine ${ENGINE}` : ''}${FULL_GATE ? ' --full-gate' : ''}`
 
 phase('Inspect')
 const plan = await agent(
-  `Inspect OpenSpec changes in ${JSON.stringify(REPO)}. Run \`bun run cascade.ts --changes "${CHANGES}" --dry-run\` or \`openspec list --json\` and return pending tasks count.`,
+  `Inspect OpenSpec changes in ${JSON.stringify(REPO)}. Run \`bun run cascade.ts --changes "${CHANGES}" ${RUN_FLAGS} --dry-run\` or \`openspec list --json\` and return pending tasks count.`,
   { label: 'inspect-plan', phase: 'Inspect', agentType: 'general-purpose', model: 'haiku', effort: 'low' }
 )
 
 phase('Execute')
 const run = await agent(
-  `Execute OpenSpec Cascade task runner in ${JSON.stringify(REPO)} for changes "${CHANGES}". Command: \`bun run cascade.ts --changes "${CHANGES}"${FULL_GATE ? ' --full-gate' : ''}\`. Follow house rules strictly: zero magic numbers, zero inline comments inside function bodies, strictly typed.`,
+  `Execute OpenSpec Cascade task runner in ${JSON.stringify(REPO)} for changes "${CHANGES}". Command: \`bun run cascade.ts --changes "${CHANGES}" ${RUN_FLAGS}\`. Follow house rules strictly: zero magic numbers, zero inline comments inside function bodies, strictly typed.`,
   { label: 'execute-cascade', phase: 'Execute', agentType: 'general-purpose', model: 'sonnet', effort: 'high' }
 )
 

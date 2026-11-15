@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "productionExtensions": [
+    ".ts",
+    ".tsx",
+    ".js",
+    ".jsx",
+    ".vue",
+    ".py",
+    ".go",
+    ".rs",
+    ".java",
+    ".rb",
+    ".php",
+    ".kt"
+  ],
+  "exemptPathSegments": [
+    "/test/",
+    "/tests/",
+    "/__tests__/",
+    "/spec/",
+    "/specs/",
+    "/docs/",
+    "/openspec/",
+    "/.agents/",
+    "/.claude/",
+    "/dist/"
+  ],
+  "exemptNamePrefixes": [
+    "test_",
+    "test.",
+    "spec."
+  ],
+  "exemptNameSuffixes": [
+    ".test.",
+    ".spec."
+  ],
+  "gatedTools": [
+    "Edit",
+    "Write",
+    "MultiEdit"
+  ],
+  "blockExitCode": 2,
+  "disableEnv": "CASCADE_SDD_GATE_DISABLED",
+  "disableValue": "1",
+  "blockMessage": "SDD Gate Block: Attempted modification of production source without an active OpenSpec change. Spec before code: create or activate a validated change under openspec/changes/ with pending tasks in tasks.md before editing code. (Tests, docs, and specifications are exempt; set CASCADE_SDD_GATE_DISABLED=1 to bypass).",
+  "trailingTrimPattern": "[.\\s]+$"
+}

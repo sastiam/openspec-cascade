@@ -99,7 +99,6 @@ describe("loadConfig", () => {
     expect(config.effort).toBe(CONSTANTS.DEFAULT_EFFORT);
     expect(config.model).toBeUndefined();
 
-    // Verification of centralized constants
     expect(config.usageLimitPercent).toBe(CONSTANTS.USAGE_LIMIT_PERCENT);
     expect(config.resetMarginMs).toBe(CONSTANTS.RESET_MARGIN_MS);
     expect(config.unknownResetSleepMs).toBe(CONSTANTS.UNKNOWN_RESET_SLEEP_MS);

@@ -5,7 +5,10 @@ every task in `tasks.md` is done. The harness, not the model, decides whether a 
 task's checks itself, feeds failures back for a retry, and commits only verified work.
 
 Engines: the [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/agent-loop) (default), the
-[OpenCode](https://opencode.ai) CLI, or the Google [Antigravity](https://antigravity.google) CLI (`agy`).
+[OpenCode](https://opencode.ai) CLI, the Google [Antigravity](https://antigravity.google) CLI (`agy`, alias `gemini`),
+or Google Jules (`jules`). The same TypeScript sources run on **Bun 1.4+** and **Node.js 24 LTS**.
+
+Full CLI reference (Spanish): [`docs/cli.md`](docs/cli.md).
 
 ## How it works
 
@@ -27,13 +30,27 @@ Engines: the [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/agent-
   that meter resets. A `rate_limit_event` mid-session aborts, sleeps and resumes the same session.
 - **Cross-platform keep-alive:** automatically prevents system idle sleep during runs (`caffeinate` on macOS,
   `systemd-inhibit` on Linux, with graceful fallback in containers/WSL).
+- **Two pipelines:** `--mode v1` (default) is the sequential loop above. `--mode v2` drives each task through a
+  finite-state machine: Analyze → SDD gate → task DAG → worker session → Gate 0 (mechanical checks) → Gate 1
+  (semantic review) → Gate 2 (adversarial probes, with `--full-gate`) → Gate 3 (forensic anti-cheat audit) →
+  checkpoint commit, with failure escalation and git rollback. Gates review the complete working-tree diff,
+  including new untracked files.
+- **Resilient engines:** every engine is wrapped with retries (exponential backoff + jitter), a circuit breaker
+  and per-session telemetry (latency, cost, tokens, retries, error category).
+- **Self-improvement:** failures are recorded (secrets redacted) in `.cascade/telemetry/*.jsonl`; recurring
+  failure signatures become up to 5 remediation directives injected into later prompts.
+- **Pre-PR review:** `review --base <branch>` runs a Greptile review on a shadow snapshot of your working tree,
+  auto-fixes mechanical findings and stops on risky ones, bounded to 3 rounds.
 
 ## Requirements
 
-- [Bun](https://bun.sh) 1.4+
+- [Bun](https://bun.sh) 1.4+ (recommended) or Node.js 24 LTS (dependencies are installed with Bun)
 - Claude engine: a Claude Code login (plan usage meters need a claude.ai credential).
 - OpenCode engine: `opencode` CLI 2.x, authenticated with the provider of the chosen model.
 - Antigravity engine: `agy` CLI installed in PATH and authenticated.
+- Jules engine: `jules` CLI (`npm install -g @google/jules`) authenticated with `jules login` (interactive).
+- Pre-PR review (optional): Greptile CLI v3 (`npm install -g greptile`), authenticated with `greptile login` or
+  `GREPTILE_API_KEY`.
 - Linux keep-alive (optional): `systemd-inhibit` (pre-installed on systemd distributions; gracefully skipped if missing).
 
 ```bash
@@ -76,6 +93,18 @@ bun run cascade.ts --repo <path> --changes upgrade-deps --engine antigravity
 
 # Run without keep-alive
 bun run cascade.ts --repo <path> --changes change-a --no-keep-alive
+
+# v2 pipeline (FSM + Gates 0-3); --full-gate also enables Gate 2 adversarial probes
+bun run cascade.ts --repo <path> --changes change-a --mode v2
+
+# Same CLI on Node.js 24 LTS
+node --import ./scripts/node_ts_register.mjs cascade.ts --repo <path> --changes change-a --dry-run
+
+# Integration subcommands
+bun run cascade.ts doctor --repo <path>
+bun run cascade.ts review --repo <path> --base main
+bun run cascade.ts catalog --sync --owner <org> --project <n> --owner-type organization
+bun run cascade.ts drift --catalog projects/agnostic_looper/tasks_catalog.json --owner <org> --project <n>
 ```
 
 | Flag / env | Meaning |
@@ -84,18 +113,26 @@ bun run cascade.ts --repo <path> --changes change-a --no-keep-alive
 | `--changes` | Comma-separated OpenSpec change names, in cascade order |
 | `--dry-run` | Print the plan and usage; change nothing |
 | `--full-gate` | Committing tasks also run the full verification suite |
-| `--engine` | `claude` (default), `opencode`, or `antigravity` (`agy`) |
+| `--engine` | `claude` (default), `opencode`, `antigravity` (`agy`, `gemini`) or `jules` |
+| `--mode` | `v1` (sequential loop, default) or `v2` (FSM pipeline with Gates 0-3) |
+| `--budget`, `--total-budget` | Per-session and total USD caps (fail closed at `>=`) |
+| `--max-attempts`, `--max-turns` | Attempts per task, turns per session |
+| `--resilient` | Continue with the next task after a failed (rolled back) task |
+| `--settings` | Extra Claude Code settings file for every session (Claude engine only), e.g. a sandbox for unattended runs |
 | `--no-keep-alive` | Disable automatic OS sleep inhibitor (`caffeinate` / `systemd-inhibit`) |
 | `--allow-dirty` | Start with a dirty tree; those files land in the first commit |
 | `--log-dir` | Directory for run logs (see [Logs](#logs)) |
-| `--settings` | Extra Claude Code settings file for every session (Claude engine only), e.g. a sandbox for unattended runs |
 | `--help`, `-h` | Print all flags, environment variables and examples, then exit |
 | `CASCADE_MODEL` | Model alias or ID (OpenCode: `provider/model[#variant]`, Antigravity: `gemini-3.8-flash-high`) |
 | `CASCADE_EFFORT` | `low`…`max`, or `none` to omit it |
 | `CASCADE_LOG_DIR` | Same as `--log-dir`; the flag takes precedence |
 | `CASCADE_SETTINGS` | Same as `--settings`; the flag takes precedence |
 
-Refuses to run on `stable`, `main` or `master`.
+All flags, environment variables and subcommands: `--help` or [`docs/cli.md`](docs/cli.md).
+
+Refuses to run on `stable`, `main` or `master` (except `--dry-run`). Change ids must be plain directory names
+(`[A-Za-z0-9][A-Za-z0-9._-]*`), and task `Verify:` commands containing shell operators (`;`, `&`, `|`, `$(`,
+redirections) are ignored.
 
 ### Logs
 
@@ -129,8 +166,25 @@ write, and `--dry-run` writes no log at all.
 
 ## Adapting it
 
-The verification commands (`FULL_VERIFY`, `TSC_SERVER`, `TSC_APP`, `DEFAULT_VERIFY`) and limits (budget, turns,
-attempts) are constants at the top of `cascade.ts`; they currently target a Nuxt + Bun project.
+Every limit and default lives in `src/config/constants.ts` and can be overridden through flags, `CASCADE_*`
+variables or a `.openspec-cascade.json` file in the target repo. Verification commands adapt to the detected
+package manager (`bun`, `pnpm`, `yarn`, `npm`); Nuxt programs are only added when a Nuxt project is detected.
+
+## Architecture
+
+| Layer | Location |
+|---|---|
+| Configuration, Zod schemas, guardrails | `src/config/` |
+| Isomorphic process runtime (`ISpawner`, Bun + Node) | `src/runtime/` |
+| Engine factory, PAL adapters and bridge | `src/pal/` |
+| Resilience and telemetry decorators | `src/decorators/` |
+| Orchestration (`CascadeFacade`, v2 pipeline, task helpers) | `src/facade/` |
+| Harness injector, self-improver, pre-PR loop, FSM, DAG, dispatcher, escalation | `src/core/` |
+| Gates 0-3 | `src/gates/` |
+| Greptile client, shadow commits, cache, bridge | `src/integration/greptile/` |
+| Catalog, drift and GitHub Project integration | `src/integration/` |
+| CLI subcommands | `src/cli/` |
+| Claude Code plugin (commands, skills, SDD hooks) | `plugins/cascade/` |
 
 ## Known limits
 
@@ -146,9 +200,22 @@ attempts) are constants at the top of `cascade.ts`; they currently target a Nuxt
   ```
 
   Verification commands and commits run in the cascade process itself, outside that sandbox.
+- Jules has no documented headless login for its CLI; unattended runs need a pre-authenticated machine.
+- Gate 2 adversarial probes run test files with Bun; on Node-only machines Gate 2 is skipped and logged.
+- The Greptile CLI reviews committed work only; `review` therefore snapshots your working tree into a temporary
+  shadow worktree (your HEAD, index and branches are never modified).
 
-## Tests
+## Tests and CI
 
 ```bash
-bun test && bunx tsc --noEmit
+bunx tsc --noEmit && bunx eslint .
+bun run scripts/forensic_audit.ts        # zero any, zero comments in function bodies, zero E2E mocks
+bun run scripts/sync_plugin.ts --check   # plugin SDD hook rules match the TypeScript constants
+bunx openspec validate --all --strict
+bun test                                 # unit, integration and E2E Tiers 1-5
+npm run test:node                        # Node.js 24 parity suite
 ```
+
+The CI workflow (Bun job + Node 24 job) is versioned at `ci/github-workflows/ci.yml`. Install it with
+`mkdir -p .github/workflows && cp ci/github-workflows/ci.yml .github/workflows/ci.yml` using a GitHub credential
+that has the `workflow` scope.

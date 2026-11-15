@@ -11,6 +11,7 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { ENGINE_CONSTANTS, TIMEOUT_CONSTANTS } from "../../config/constants";
 import {
   repairJsonArguments,
   toClaudePayload,
@@ -51,7 +52,7 @@ import {
  */
 export const CLAUDE_ADAPTER_CONSTANTS = {
   // Model defaults
-  DEFAULT_MODEL: "claude-3-7-sonnet-20250219",
+  DEFAULT_MODEL: ENGINE_CONSTANTS.DEFAULT_CLAUDE_MODEL,
 
   // Context & Token Limits
   MAX_CONTEXT_TOKENS: 200_000,
@@ -74,9 +75,9 @@ export const CLAUDE_ADAPTER_CONSTANTS = {
   // Network & Endpoint Defaults
   DEFAULT_BASE_URL: "https://api.anthropic.com",
   MESSAGES_ENDPOINT: "/v1/messages",
-  DEFAULT_TIMEOUT_MS: 60_000,
-  MS_PER_SECOND: 1_000,
-  RATE_LIMIT_RESET_FALLBACK_MS: 60_000,
+  DEFAULT_TIMEOUT_MS: TIMEOUT_CONSTANTS.ADAPTER_DEFAULT_TIMEOUT_MS,
+  MS_PER_SECOND: TIMEOUT_CONSTANTS.MS_PER_SECOND,
+  RATE_LIMIT_RESET_FALLBACK_MS: TIMEOUT_CONSTANTS.RATE_LIMIT_RESET_FALLBACK_MS,
 
   // Anthropic API Protocol Headers & Versions
   ANTHROPIC_VERSION: "2023-06-01",
@@ -197,7 +198,6 @@ export function stripCacheControlFromMessages(
 export function countCacheBreakpoints(payload: Record<string, unknown>): number {
   let count = CLAUDE_ADAPTER_CONSTANTS.ZERO_TOKENS;
 
-  // Check system
   if (Array.isArray(payload.system)) {
     for (const part of payload.system) {
       if (isRecord(part) && isRecord(part.cache_control)) {
@@ -206,7 +206,6 @@ export function countCacheBreakpoints(payload: Record<string, unknown>): number 
     }
   }
 
-  // Check messages
   if (Array.isArray(payload.messages)) {
     for (const msg of payload.messages) {
       if (isRecord(msg) && Array.isArray(msg.content)) {
@@ -219,7 +218,6 @@ export function countCacheBreakpoints(payload: Record<string, unknown>): number 
     }
   }
 
-  // Check tools
   if (Array.isArray(payload.tools)) {
     for (const tool of payload.tools) {
       if (isRecord(tool) && isRecord(tool.cache_control)) {
@@ -320,7 +318,6 @@ export function calculateClaudeTokenUsage(rawUsage: unknown): PalTokenUsage {
       ? rawUsage.output_tokens
       : CLAUDE_ADAPTER_CONSTANTS.ZERO_TOKENS;
 
-  // Thinking tokens may be provided as thinking_tokens or inside output_tokens_details
   let thinkingTokens: number | undefined;
   if (typeof rawUsage.thinking_tokens === "number") {
     thinkingTokens = rawUsage.thinking_tokens;
@@ -338,7 +335,6 @@ export function calculateClaudeTokenUsage(rawUsage: unknown): PalTokenUsage {
     thinkingTokens !== undefined &&
     thinkingTokens > CLAUDE_ADAPTER_CONSTANTS.ZERO_TOKENS
   ) {
-    // Anthropic bundles thinking tokens inside output_tokens, so separate them
     completionTokens = Math.max(
       CLAUDE_ADAPTER_CONSTANTS.ZERO_TOKENS,
       rawOutputTokens - thinkingTokens
@@ -716,7 +712,6 @@ export class ClaudeAdapter implements ProviderAdapter {
         ? options.promptCaching.enabled ?? this.enablePromptCaching
         : this.enablePromptCaching;
 
-    // Merge system prompt from options with any system messages normalized from conversation
     const systemParts: Array<{
       type: "text";
       text: string;
@@ -751,12 +746,10 @@ export class ClaudeAdapter implements ProviderAdapter {
       }
     }
 
-    // Extended thinking configuration
     const activeThinking = this.resolveThinkingOptions(options.thinking);
     const thinkingBudget = this.resolveThinkingBudget(activeThinking);
     const isThinkingEnabled = thinkingBudget !== undefined;
 
-    // Anthropic API requires max_tokens to be strictly greater than thinking.budget_tokens
     let maxTokens: number;
     if (isThinkingEnabled && thinkingBudget !== undefined) {
       if (options.maxTokens !== undefined && options.maxTokens > thinkingBudget) {
@@ -792,13 +785,11 @@ export class ClaudeAdapter implements ProviderAdapter {
         type: "enabled",
         budget_tokens: thinkingBudget,
       };
-      // When thinking is enabled, Anthropic requires temperature to be omitted or set to 1.0
       payload.temperature = CLAUDE_ADAPTER_CONSTANTS.TEMPERATURE_THINKING;
     } else if (options.temperature !== undefined) {
       payload.temperature = options.temperature;
     }
 
-    // Tools definition mapping
     if (options.tools && options.tools.length > 0) {
       payload.tools = options.tools.map((tool) => ({
         name: tool.name,
@@ -815,7 +806,6 @@ export class ClaudeAdapter implements ProviderAdapter {
       }
     }
 
-    // Validate prompt cache breakpoints count does not exceed limit
     const cacheBreakpointsCount = countCacheBreakpoints(payload);
     if (cacheBreakpointsCount > CLAUDE_ADAPTER_CONSTANTS.MAX_CACHE_BREAKPOINTS) {
       throw new PalError(
@@ -857,7 +847,6 @@ export class ClaudeAdapter implements ProviderAdapter {
       controller.abort();
     }, this.timeoutMs);
 
-    // Link optional abort signal
     if (options.abortSignal) {
       options.abortSignal.addEventListener("abort", () => {
         controller.abort();
@@ -1218,7 +1207,6 @@ export class ClaudeStreamChunkParser {
 
     const events: PalStreamEvent[] = [];
     const lines = this.lineBuffer.split("\n");
-    // Preserve partial trailing line in buffer
     this.lineBuffer = lines.pop() ?? "";
 
     for (const line of lines) {
@@ -1514,7 +1502,6 @@ export class ClaudeStreamChunkParser {
   private handleMessageStop(): PalStreamEvent[] {
     const events: PalStreamEvent[] = [];
 
-    // Finalize any tool calls that were started but never encountered content_block_stop
     for (const [_, block] of this.contentBlocks) {
       if (block.type === "tool_use" && !block.completed) {
         block.completed = true;

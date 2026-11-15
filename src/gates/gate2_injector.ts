@@ -30,89 +30,28 @@
  *    Centralizes all thresholds, limits, timeouts, exit codes, and string literals in GATE2_INJECTOR_CONSTANTS.
  */
 
+import { getDefaultSpawner } from "../runtime/spawner";
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { mkdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { basename, isAbsolute, join, normalize, relative, resolve } from "node:path";
-import type {
-  Gate2AttackVector,
-  Gate2ProbeDefinition,
-  Gate2ProbeRunner,
-} from "./gate2_challenger";
 
-/**
- * Central constants ensuring zero magic numbers across Gate 2 assertion injection operations.
- */
-export const GATE2_INJECTOR_CONSTANTS = {
-  // Injection Modes
-  MODE_STANDALONE: "standalone" as const,
-  MODE_INLINE: "inline" as const,
-  MODE_WRAPPER: "wrapper" as const,
+import {
+  GATE2_INJECTOR_CONSTANTS,
+  type Gate2AttackVector,
+  type Gate2ProbeDefinition,
+  type Gate2ProbeRunner,
+  type InjectedRecord,
+  type RedTeamAssertion,
+  type Gate2AssertionInjectorOptions,
+  type TestingSandboxOptions,
+  type InjectionSuiteResult,
+  type AssertionInjectionResult,
+  type InjectionStatus,
+} from "./gate2_types";
+export { GATE2_INJECTOR_CONSTANTS } from "./gate2_types";
+export type { InjectionMode, InjectionStatus, RedTeamAssertion, AssertionInjectionResult, InjectionSuiteResult, TestingSandboxOptions, Gate2AssertionInjectorOptions } from "./gate2_types";
 
-  // Assertion Lifecycle Statuses
-  STATUS_PENDING: "pending" as const,
-  STATUS_INJECTED: "injected" as const,
-  STATUS_SURVIVED: "survived" as const,
-  STATUS_BROKEN: "broken" as const,
-  STATUS_ROLLED_BACK: "rolled_back" as const,
-  STATUS_RETAINED: "retained" as const,
-  STATUS_ERROR: "error" as const,
-
-  // Attack Vectors
-  VECTOR_BOUNDARY_MALFORMED: "boundary_malformed" as const,
-  VECTOR_CONCURRENCY_RACE: "concurrency_race" as const,
-  VECTOR_RESOURCE_EXHAUSTION: "resource_exhaustion" as const,
-  VECTOR_TIMEOUT_LATENCY: "timeout_latency" as const,
-  VECTOR_CUSTOM: "custom" as const,
-
-  // Paths & File Suffixes
-  DEFAULT_SANDBOX_DIR_PREFIX: ".redteam_sandbox_",
-  DEFAULT_TEST_DIR: "test",
-  DEFAULT_TEAMWORK_DIR: ".agents/teamwork",
-  PROBE_FILE_PREFIX: "challenger_",
-  PROBE_FILE_EXTENSION: ".test.ts",
-  REPRO_SCRIPT_PREFIX: "challenger_repro_",
-  INLINE_INJECTION_HEADER_PREFIX: "/* RED-TEAM INJECTION [START]: ",
-  INLINE_INJECTION_FOOTER_PREFIX: "/* RED-TEAM INJECTION [END]: ",
-  REPORT_FILENAME: "assertion_injection_report.md",
-  FEEDBACK_XML_FILENAME: "assertion_feedback.xml",
-
-  // Timeouts & Budgets (milliseconds)
-  DEFAULT_INJECTOR_TIMEOUT_MS: 30_000,
-  DEFAULT_SANDBOX_TIMEOUT_MS: 300_000,
-  DEFAULT_MAX_ATTEMPTS: 2,
-  MAX_PERMITTED_ATTEMPTS: 3, // LOOPER-GATE-003 maximum 3 rounds
-  DEFAULT_FEEDBACK_TRUNCATION_LIMIT: 2_500,
-  DEFAULT_MAX_OUTPUT_LENGTH: 4_000,
-  DEFAULT_MAX_TRACE_LINES: 20,
-
-  // Numeric literals and offsets
-  ZERO: 0,
-  ONE: 1,
-  TWO: 2,
-  THREE: 3,
-  FOUR: 4,
-  INDEX_NOT_FOUND: -1,
-  UUID_TRUNCATION_LENGTH: 8,
-  JSON_INDENT_SPACES: 2,
-
-  // Exit codes
-  EXIT_CODE_SUCCESS: 0,
-  EXIT_CODE_FAILURE: 1,
-  EXIT_CODE_ERROR: 2,
-  EXIT_CODE_TIMEOUT: 124,
-
-  // Event emitter names
-  EVENT_SANDBOX_CREATED: "sandbox:created",
-  EVENT_ASSERTION_INJECTED: "assertion:injected",
-  EVENT_ASSERTION_EXECUTING: "assertion:executing",
-  EVENT_ASSERTION_SURVIVED: "assertion:survived",
-  EVENT_ASSERTION_BROKEN: "assertion:broken",
-  EVENT_ASSERTION_RETAINED: "assertion:retained",
-  EVENT_ASSERTION_ROLLED_BACK: "assertion:rolled_back",
-  EVENT_SANDBOX_CLEANED: "sandbox:cleaned",
-  EVENT_INJECTION_ERROR: "injection:error",
-} as const;
 
 /**
  * Sanitizes a probe ID or name for use in filesystem paths.
@@ -178,7 +117,7 @@ export function extractProbeErrorTrace(stdout: string, stderr: string): string {
 }
 
 /**
- * Default probe runner executing subprocess via Bun.spawn.
+ * Default probe runner executing subprocess via the runtime ISpawner.
  */
 export async function defaultProbeRunner(
   probeFilePath: string,
@@ -186,45 +125,8 @@ export async function defaultProbeRunner(
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   const timeoutMs = options?.timeoutMs ?? GATE2_INJECTOR_CONSTANTS.DEFAULT_INJECTOR_TIMEOUT_MS;
   const cwd = options?.cwd ?? process.cwd();
-  const isWindows = process.platform === "win32";
-  const shellArgs = isWindows
-    ? ["cmd.exe", "/c", "bun", "test", probeFilePath]
-    : ["bun", "test", probeFilePath];
-
   try {
-    const proc = Bun.spawn(shellArgs, {
-      cwd,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const timeoutPromise = new Promise<{ timedOut: boolean }>((resolveTimeout) => {
-      timer = setTimeout(() => {
-        try {
-          proc.kill();
-        } catch {
-          // ignore kill failure
-        }
-        resolveTimeout({ timedOut: true });
-      }, timeoutMs);
-    });
-
-    const completionPromise = Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]).then(([stdout, stderr, exitCode]) => ({
-      timedOut: false,
-      stdout,
-      stderr,
-      exitCode,
-    }));
-
-    const result = await Promise.race([completionPromise, timeoutPromise]);
-    if (timer !== undefined) {
-      clearTimeout(timer);
-    }
+    const result = await getDefaultSpawner().run(["bun", "test", probeFilePath], { cwd, timeoutMs });
 
     if (result.timedOut) {
       return {
@@ -234,7 +136,7 @@ export async function defaultProbeRunner(
       };
     }
 
-    const completed = result as { stdout: string; stderr: string; exitCode: number };
+    const completed = result;
     return {
       stdout: completed.stdout.trim(),
       stderr: completed.stderr.trim(),
@@ -247,127 +149,6 @@ export async function defaultProbeRunner(
       exitCode: GATE2_INJECTOR_CONSTANTS.EXIT_CODE_ERROR,
     };
   }
-}
-
-/**
- * Recognized assertion injection mode.
- */
-export type InjectionMode =
-  | typeof GATE2_INJECTOR_CONSTANTS.MODE_STANDALONE
-  | typeof GATE2_INJECTOR_CONSTANTS.MODE_INLINE
-  | typeof GATE2_INJECTOR_CONSTANTS.MODE_WRAPPER;
-
-/**
- * Lifecycle status of an injected red-team assertion.
- */
-export type InjectionStatus =
-  | typeof GATE2_INJECTOR_CONSTANTS.STATUS_PENDING
-  | typeof GATE2_INJECTOR_CONSTANTS.STATUS_INJECTED
-  | typeof GATE2_INJECTOR_CONSTANTS.STATUS_SURVIVED
-  | typeof GATE2_INJECTOR_CONSTANTS.STATUS_BROKEN
-  | typeof GATE2_INJECTOR_CONSTANTS.STATUS_ROLLED_BACK
-  | typeof GATE2_INJECTOR_CONSTANTS.STATUS_RETAINED
-  | typeof GATE2_INJECTOR_CONSTANTS.STATUS_ERROR;
-
-/**
- * Red-team adversarial assertion definition to inject into the testing sandbox.
- */
-export interface RedTeamAssertion {
-  readonly id: string;
-  readonly name: string;
-  readonly vector: Gate2AttackVector;
-  readonly assertionCode: string;
-  readonly description: string;
-  readonly mode?: InjectionMode;
-  readonly targetFile?: string;
-  readonly targetExport?: string;
-  readonly expectedFailure?: string;
-  readonly timeoutMs?: number;
-  readonly metadata?: Readonly<Record<string, unknown>>;
-}
-
-/**
- * Result of executing an individual injected red-team assertion.
- */
-export interface AssertionInjectionResult {
-  readonly assertionId: string;
-  readonly name: string;
-  readonly vector: Gate2AttackVector;
-  readonly mode: InjectionMode;
-  readonly status: InjectionStatus;
-  readonly survived: boolean;
-  readonly broken: boolean;
-  readonly exitCode: number;
-  readonly stdout: string;
-  readonly stderr: string;
-  readonly errorTrace?: string;
-  readonly durationMs: number;
-  readonly injectedFilePath: string;
-  readonly permanentReproPath?: string;
-  readonly rolledBack: boolean;
-  readonly retained: boolean;
-}
-
-/**
- * Aggregated summary of an assertion injection suite run.
- */
-export interface InjectionSuiteResult {
-  readonly totalInjected: number;
-  readonly survivedCount: number;
-  readonly brokenCount: number;
-  readonly errorCount: number;
-  readonly results: readonly AssertionInjectionResult[];
-  readonly breakingResults: readonly AssertionInjectionResult[];
-  readonly retainedPaths: readonly string[];
-  readonly sandboxDir: string;
-  readonly cleanRollbackPerformed: boolean;
-  readonly durationMs: number;
-}
-
-/**
- * Configuration options for the isolated Testing Sandbox.
- */
-export interface TestingSandboxOptions {
-  /** Root directory of repository/workspace (defaults to process.cwd()) */
-  readonly workspaceRoot?: string;
-  /** Custom sandbox directory path (defaults to a temporary directory under workspace or teamwork) */
-  readonly sandboxDir?: string;
-  /** Directory for permanent tests (defaults to <workspaceRoot>/test) */
-  readonly permanentTestDir?: string;
-  /** Whether to automatically clean up temporary files upon sandbox disposal (default: true) */
-  readonly autoCleanup?: boolean;
-  /** Custom probe execution runner */
-  readonly probeRunner?: Gate2ProbeRunner;
-  /** Per-assertion execution timeout in milliseconds (default: 30,000 ms) */
-  readonly timeoutMs?: number;
-  /** Optional logging callback */
-  readonly logger?: (level: "info" | "warn" | "error", message: string) => void;
-}
-
-/**
- * Configuration options for Gate2AssertionInjector.
- */
-export interface Gate2AssertionInjectorOptions {
-  /** Root directory of workspace (defaults to process.cwd()) */
-  readonly workspaceRoot?: string;
-  /** Base test directory (defaults to <workspaceRoot>/test) */
-  readonly testDir?: string;
-  /** Permanent test reproduction directory */
-  readonly permanentTestDir?: string;
-  /** Whether to automatically roll back assertions that pass without breaking (default: true) */
-  readonly autoRollbackOnPass?: boolean;
-  /** Whether to permanently retain breaking assertions in test suite (default: true) */
-  readonly preserveBreakingProbes?: boolean;
-  /** Maximum permitted challenge attempts before escalation (default: 2, max: 3) */
-  readonly maxAttempts?: number;
-  /** Default execution timeout per assertion (default: 30,000 ms) */
-  readonly timeoutMs?: number;
-  /** Custom probe runner */
-  readonly probeRunner?: Gate2ProbeRunner;
-  /** Optional pre-allocated testing sandbox */
-  readonly sandbox?: TestingSandbox;
-  /** Optional logging callback */
-  readonly logger?: (level: "info" | "warn" | "error", message: string) => void;
 }
 
 // ============================================================================
@@ -417,20 +198,6 @@ export class Gate2RollbackError extends Gate2InjectorError {
     super(message, "GATE2_ROLLBACK_FAILED", details);
     this.name = "Gate2RollbackError";
   }
-}
-
-// ============================================================================
-// INTERNAL INJECTION RECORD
-// ============================================================================
-
-interface InjectedRecord {
-  readonly assertion: RedTeamAssertion;
-  readonly mode: InjectionMode;
-  readonly injectedFilePath: string;
-  readonly isNewFile: boolean;
-  readonly originalContent?: string;
-  retained: boolean;
-  rolledBack: boolean;
 }
 
 // ============================================================================

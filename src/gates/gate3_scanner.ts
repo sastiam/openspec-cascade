@@ -29,251 +29,23 @@
 
 import { readFile } from "node:fs/promises";
 import { basename, extname, isAbsolute, normalize, relative, resolve } from "node:path";
-import type {
-  Gate3ExecutionContext,
-  Gate3InvariantCheckResult,
-  Gate3Violation,
-} from "./gate3_audit";
 
-/**
- * Central constants ensuring zero magic numbers across anti-cheat scanning operations.
- */
-export const GATE3_SCANNER_CONSTANTS = {
-  // Invariant Category (matching Gate3)
-  INVARIANT_CATEGORY: "anti_cheat" as const,
-  INVARIANT_NAME: "anti_cheat_integrity" as const,
+import {
+  GATE3_SCANNER_CONSTANTS,
+  type Gate3ExecutionContext,
+  type Gate3InvariantCheckResult,
+  type Gate3Violation,
+  type DiffFileSection,
+  type AntiCheatScannerOptions,
+  type AntiCheatRule,
+  type AntiCheatViolation,
+  type AntiCheatCategory,
+  type AntiCheatRuleContext,
+  type AntiCheatScanReport,
+} from "./gate3_types";
+export { GATE3_SCANNER_CONSTANTS } from "./gate3_types";
+export type { AntiCheatCategory, AntiCheatSeverity, AntiCheatViolation, AntiCheatRuleContext, AntiCheatRule, AntiCheatScanReport, AntiCheatScannerOptions, DiffFileSection } from "./gate3_types";
 
-  // Anti-Cheat Categories
-  CATEGORY_PLACEHOLDERS: "placeholders" as const,
-  CATEGORY_DISABLED_ASSERTIONS: "disabled_assertions" as const,
-  CATEGORY_MOCKED_SUITES: "mocked_test_suites" as const,
-  CATEGORY_CUSTOM: "custom" as const,
-
-  // Severities
-  SEVERITY_VETO: "veto" as const,
-  SEVERITY_WARNING: "warning" as const,
-
-  // Statuses
-  STATUS_PASSED: "passed" as const,
-  STATUS_VIOLATED: "violated" as const,
-
-  // Rule Identifiers
-  RULE_PLACEHOLDER_TODO: "AC-001-PLACEHOLDER-TODO" as const,
-  RULE_PLACEHOLDER_STUB: "AC-002-PLACEHOLDER-STUB" as const,
-  RULE_PLACEHOLDER_UNIMPLEMENTED: "AC-003-PLACEHOLDER-UNIMPLEMENTED" as const,
-  RULE_DUMMY_RETURN_PROD: "AC-004-DUMMY-RETURN-PROD" as const,
-  RULE_MOCK_IN_PRODUCTION: "AC-005-MOCK-IN-PRODUCTION" as const,
-  RULE_HARDCODED_FACADE: "AC-006-HARDCODED-FACADE" as const,
-
-  RULE_DISABLED_TEST_SKIP: "AC-010-DISABLED-TEST-SKIP" as const,
-  RULE_DISABLED_TEST_TODO: "AC-011-DISABLED-TEST-TODO" as const,
-  RULE_ISOLATED_TEST_ONLY: "AC-012-ISOLATED-TEST-ONLY" as const,
-  RULE_COMMENTED_ASSERTION: "AC-013-COMMENTED-ASSERTION" as const,
-  RULE_TRIVIAL_ASSERTION: "AC-014-TRIVIAL-ASSERTION" as const,
-  RULE_EMPTY_TEST_BODY: "AC-015-EMPTY-TEST-BODY" as const,
-  RULE_ASSERTION_SUPPRESSION: "AC-016-ASSERTION-SUPPRESSION" as const,
-
-  RULE_MOCKED_SUBJECT_UNDER_TEST: "AC-020-MOCKED-SUBJECT-UNDER-TEST" as const,
-  RULE_TEST_HARNESS_HIJACKING: "AC-021-TEST-HARNESS-HIJACKING" as const,
-  RULE_EXCESSIVE_MOCKING: "AC-022-EXCESSIVE-MOCKING" as const,
-
-  // Rule Citations
-  CITATION_AXIOM_ORACLE:
-    "SPECIFICATION.md Section 3.1: The Harness as Oracle Axiom - An agent cannot self-attest or bypass verification." as const,
-  CITATION_GATE3_VETO:
-    "SPECIFICATION.md Section 3.5: Gate 3 Forensic Auditor Binary Veto & Invariant Enforcement." as const,
-  CITATION_OPENSPEC_MOCK_PROD:
-    "OpenSpec Scenario: An agent commits mock responses in production code -> triggers binary veto." as const,
-  CITATION_OPENSPEC_TEST_HYGIENE:
-    "SPECIFICATION.md Section 3.1 & 3.5: No test skipping, test isolation, or test evasion permitted." as const,
-
-  // Regex Detection Patterns
-  PATTERNS: {
-    // 1. Placeholders & Stubs
-    PLACEHOLDER_TODO: /\/\/\s*(?:TODO|FIXME|XXX)\s*:\s*(?:implement|placeholder|stub)/i,
-    PLACEHOLDER_STUB: /\/\/\s*(?:placeholder|stub|dummy)\b/i,
-    PLACEHOLDER_BLOCK_COMMENT: /\/\*\s*(?:placeholder|stub|dummy|TODO:\s*implement)\s*\*\//i,
-    UNIMPLEMENTED_ERROR:
-      /throw\s+new\s+(?:Error|NotImplementedError)\s*\(\s*["'](?:not implemented|unimplemented|TODO|stub|placeholder)/i,
-    DUMMY_RETURN_STUB:
-      /return\s+(?:null|\{\}|\[\]|false|0|""|undefined)\s*(?:as\s+any)?\s*;\s*\/\/\s*(?:stub|placeholder|dummy)/i,
-    DUMMY_RETURN_ANY:
-      /return\s+(?:null|\{\}|\[\])\s+as\s+any\s*;/i,
-    FACADE_COMMENT:
-      /\/\/\s*(?:facade|fake implementation|mock-response|hardcoded response)/i,
-
-    // Mock in production code
-    MOCK_IMPORTS_PROD:
-      /(?:from\s+["']bun:test["']|from\s+["']jest["']|from\s+["']@jest\/globals["']|from\s+["']vitest["']|from\s+["']sinon["'])/,
-    MOCK_CALLS_PROD:
-      /\b(?:jest\.fn|jest\.mock|mock\.module|mock\s*\(|spyOn\s*\()/,
-
-    // 2. Disabled Assertions & Evasion
-    TEST_SKIP: /\b(?:test|it|describe|suite)\.skip\b/,
-    TEST_TODO: /\b(?:test|it)\.todo\b/,
-    TEST_X_PREFIX: /\b(?:xit|xtest|xdescribe)\s*\(/,
-    TEST_ONLY: /\b(?:test|it|describe|suite)\.only\b/,
-    TEST_F_PREFIX: /\b(?:fit|fdescribe)\s*\(/,
-    COMMENTED_ASSERTION: /\/\/\s*(?:expect|assert|assertThat)\s*\(/,
-    COMMENTED_ASSERTION_BLOCK: /\/\*\s*(?:expect|assert)\s*\(.*?\*\//,
-
-    // Trivial & self-attesting assertions
-    TRIVIAL_SAME_LITERAL:
-      /expect\(\s*(true|false|1|0|null|undefined|NaN)\s*\)\.toBe\(\s*\1\s*\)/,
-    TRIVIAL_STRING_LITERAL:
-      /expect\(\s*(["'`])([^"'\\]*)\1\s*\)\.toBe\(\s*(["'`])\2\3\s*\)/,
-    TRIVIAL_IDENTIFIER_MATCH:
-      /expect\(\s*([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\)\.toBe\(\s*\1\s*\)/,
-    TRIVIAL_BOOLEAN_HELPER:
-      /expect\(\s*true\s*\)\.toBeTruthy\(\)|expect\(\s*false\s*\)\.toBeFalsy\(\)/,
-    TRIVIAL_NULL_HELPER:
-      /expect\(\s*null\s*\)\.toBeNull\(\)|expect\(\s*undefined\s*\)\.toBeUndefined\(\)|expect\(\s*NaN\s*\)\.toBeNaN\(\)/,
-    TRIVIAL_ASSERT_CALL:
-      /\bassert(?:\.ok)?\(\s*true\s*\)|\bassert(?:\.strictEqual|\.equal|\.deepEqual)?\(\s*(?:true\s*,\s*true|1\s*,\s*1|["']a["']\s*,\s*["']a["'])\s*\)/,
-    TRIVIAL_ARITHMETIC_TAUTOLOGY:
-      /expect\(\s*1\s*\+\s*1\s*\)\.toBe\(\s*2\s*\)/,
-
-    // Empty test bodies & suppression
-    EMPTY_TEST_BODY:
-      /\b(?:test|it)\s*\(\s*["'`][^"'`]+["'`]\s*,\s*(?:async\s*)?\(\s*\)\s*=>\s*\{\s*\}\s*\)/,
-    ASSERTION_SUPPRESSION:
-      /try\s*\{\s*expect\([^)]+\)[^}]*\}\s*catch\s*(?:\([^)]*\))?\s*\{\s*\}/,
-
-    // 3. Mocked test suites & harness hijacking
-    HARNESS_HIJACKING_EXPECT:
-      /(?:global|globalThis|window)\.expect\s*=/,
-    HARNESS_HIJACKING_TEST:
-      /(?:global|globalThis|window)\.(?:test|it|describe)\s*=/,
-    PROCESS_EXIT_HIJACKING:
-      /process\.exit\s*=\s*/,
-    MOCK_DEFINITION:
-      /\b(?:mock\.module|mock\s*\(|jest\.mock|jest\.spyOn|spyOn\s*\()/,
-    REAL_ASSERTION:
-      /\b(?:expect\s*\(|assert\s*\(|assert\.[a-zA-Z]+)/,
-  },
-
-  // File Classification
-  PRODUCTION_PATH_PREFIXES: ["src/"] as const,
-  TEST_PATH_PATTERNS: [
-    /(?:^|[\\/])test[\\/]/i,
-    /(?:^|[\\/])tests[\\/]/i,
-    /(?:^|[\\/])spec[\\/]/i,
-    /(?:^|[\\/])specs[\\/]/i,
-    /(?:^|[\\/])__tests__[\\/]/i,
-    /\.(?:test|spec)\.[a-zA-Z0-9]+$/i,
-  ] as const,
-
-  // Thresholds & Constants
-  DEFAULT_EXCESSIVE_MOCK_THRESHOLD: 0.8, // 80% mocks vs assertions
-  DEFAULT_MIN_MOCKS_FOR_EXCESSIVE: 6,
-  DIFF_HEADER_PREFIX_LENGTH: 6, // "+++ b/"
-  DIFF_HUNK_PREFIX: "@@" as const,
-  DIFF_PLUS_PREFIX: "+" as const,
-  DIFF_MINUS_PREFIX: "-" as const,
-  DIFF_FILE_HEADER: "diff --git" as const,
-  MAX_SNIPPET_LENGTH: 120,
-  MAX_DISPLAY_VIOLATIONS: 50,
-
-  // Zero Magic Numbers
-  NUM_ZERO: 0,
-  NUM_ONE: 1,
-  NUM_TWO: 2,
-  NUM_THREE: 3,
-  INDEX_NOT_FOUND: -1,
-  SLICE_ONE: 1,
-  PERCENT_MULTIPLIER: 100,
-} as const;
-
-/**
- * Categorization of anti-cheat rules.
- */
-export type AntiCheatCategory =
-  | typeof GATE3_SCANNER_CONSTANTS.CATEGORY_PLACEHOLDERS
-  | typeof GATE3_SCANNER_CONSTANTS.CATEGORY_DISABLED_ASSERTIONS
-  | typeof GATE3_SCANNER_CONSTANTS.CATEGORY_MOCKED_SUITES
-  | typeof GATE3_SCANNER_CONSTANTS.CATEGORY_CUSTOM;
-
-/**
- * Severity assigned to an anti-cheat finding.
- */
-export type AntiCheatSeverity =
-  | typeof GATE3_SCANNER_CONSTANTS.SEVERITY_VETO
-  | typeof GATE3_SCANNER_CONSTANTS.SEVERITY_WARNING;
-
-/**
- * Structured violation detected by an anti-cheat scanner rule.
- */
-export interface AntiCheatViolation {
-  readonly ruleId: string;
-  readonly ruleName: string;
-  readonly category: AntiCheatCategory;
-  readonly severity: AntiCheatSeverity;
-  readonly description: string;
-  readonly file: string;
-  readonly line?: number;
-  readonly snippet?: string;
-  readonly ruleCitation?: string;
-  readonly remediation?: string;
-}
-
-/**
- * Context provided to an anti-cheat rule during file or diff evaluation.
- */
-export interface AntiCheatRuleContext {
-  readonly filePath: string;
-  readonly isProduction: boolean;
-  readonly isTest: boolean;
-  readonly content: string;
-  readonly lines: readonly string[];
-  readonly addedLines?: readonly { line: string; lineNumber: number }[];
-  readonly diffMode: boolean;
-}
-
-/**
- * Pluggable Anti-Cheat Rule Contract.
- */
-export interface AntiCheatRule {
-  readonly id: string;
-  readonly name: string;
-  readonly category: AntiCheatCategory;
-  readonly severity: AntiCheatSeverity;
-  readonly description: string;
-  readonly ruleCitation: string;
-  readonly appliesTo: "production" | "test" | "all";
-  readonly evaluate: (
-    context: AntiCheatRuleContext
-  ) => AntiCheatViolation[] | Promise<AntiCheatViolation[]>;
-}
-
-/**
- * Comprehensive report generated by Gate 3 Anti-Cheat Scanner.
- */
-export interface AntiCheatScanReport {
-  readonly passed: boolean;
-  readonly veto: boolean;
-  readonly totalViolations: number;
-  readonly vetoViolations: number;
-  readonly warningViolations: number;
-  readonly violationsByCategory: Record<AntiCheatCategory, number>;
-  readonly scannedFiles: readonly string[];
-  readonly violations: readonly AntiCheatViolation[];
-  readonly summary: string;
-  readonly durationMs: number;
-}
-
-/**
- * Configuration options for initializing Gate3AntiCheatScanner.
- */
-export interface AntiCheatScannerOptions {
-  readonly workspaceRoot?: string;
-  readonly repoRoot?: string;
-  readonly rules?: readonly AntiCheatRule[];
-  readonly disabledRuleIds?: readonly string[];
-  readonly excessiveMockThreshold?: number;
-  readonly minMocksForExcessive?: number;
-  readonly ignorePatterns?: readonly (RegExp | string)[];
-  readonly customRules?: readonly AntiCheatRule[];
-}
 
 // ============================================================================
 // FILE CLASSIFICATION & DIFF UTILITIES
@@ -302,15 +74,6 @@ export function isProductionFile(filePath: string): boolean {
   return GATE3_SCANNER_CONSTANTS.PRODUCTION_PATH_PREFIXES.some(
     (prefix) => normalized.startsWith(prefix) || normalized.includes(`/${prefix}`)
   );
-}
-
-/**
- * Structured hunk diff file item.
- */
-export interface DiffFileSection {
-  readonly filePath: string;
-  readonly addedLines: readonly { line: string; lineNumber: number }[];
-  readonly fullAddedContent: string;
 }
 
 /**

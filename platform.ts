@@ -8,6 +8,9 @@
 
 import { existsSync } from "node:fs";
 import { delimiter, normalize, resolve } from "node:path";
+import { EXIT_CODE_CONSTANTS, RUNTIME_CONSTANTS } from "./src/config/constants";
+import { getDefaultSpawner } from "./src/runtime/spawner";
+import { SpawnError } from "./src/runtime/types";
 
 export const DEFAULT_SYSTEMD_INHIBIT_PATH = "/usr/bin/systemd-inhibit";
 export const SYSTEMD_INHIBIT_WHAT = "idle:sleep";
@@ -19,8 +22,8 @@ export const CAFFEINATE_BIN = "caffeinate";
 export const CAFFEINATE_FLAG_IDLE = "-i";
 export const CAFFEINATE_FLAG_WAIT_PID = "-w";
 
-export const EXIT_CODE_SIGINT = 130;
-export const EXIT_CODE_SIGTERM = 143;
+export const EXIT_CODE_SIGINT = EXIT_CODE_CONSTANTS.EXIT_CODE_SIGINT;
+export const EXIT_CODE_SIGTERM = EXIT_CODE_CONSTANTS.EXIT_CODE_SIGTERM;
 
 export type KeepAliveMechanism = "caffeinate" | "systemd-inhibit" | "noop-fallback" | "disabled";
 
@@ -31,9 +34,9 @@ export interface KeepAliveController {
 }
 
 export interface ProcessSignalTarget {
-  on(event: string, listener: (...args: any[]) => void): this | unknown;
-  off?(event: string, listener: (...args: any[]) => void): this | unknown;
-  removeListener?(event: string, listener: (...args: any[]) => void): this | unknown;
+  on(event: string, listener: (...args: unknown[]) => void): this | unknown;
+  off?(event: string, listener: (...args: unknown[]) => void): this | unknown;
+  removeListener?(event: string, listener: (...args: unknown[]) => void): this | unknown;
   exit?(code?: number): void;
 }
 
@@ -56,9 +59,9 @@ export interface KeepAliveOptions {
   logWarning?: (message: string) => void;
   /** Target process emitter for lifecycle signals. Default: global process. */
   processTarget?: ProcessSignalTarget;
-  /** Subprocess spawner. Default: Bun.spawn. */
+  /** Subprocess spawner. Default: the runtime `ISpawner`. */
   spawn?: (command: string[], options: { stdout: "ignore"; stderr: "ignore" }) => KeepAliveChildProcess;
-  /** Synchronous subprocess runner for preflight checks. Default: Bun.spawnSync. */
+  /** Synchronous subprocess runner for preflight checks. Default: the runtime `ISpawner`. */
   spawnSync?: (command: string[], options: { stdout: "ignore"; stderr: "pipe" }) => { exitCode: number; success?: boolean };
 }
 
@@ -98,7 +101,7 @@ export function resolveBinaryInPath(binaryName: string, envPath: string = proces
         return normalizePlatformPath(full);
       }
     } catch {
-      // Ignore inaccessible directories in PATH
+      continue;
     }
   }
   return null;
@@ -115,11 +118,32 @@ export function findSystemdInhibit(envPath: string = process.env.PATH ?? ""): st
 }
 
 /**
+ * Default keep-alive spawner. Fails synchronously when the binary is missing so callers can fall back immediately.
+ */
+export function defaultKeepAliveSpawn(command: string[]): KeepAliveChildProcess {
+  const spawner = getDefaultSpawner();
+  const [binary] = command;
+  if (binary === undefined || spawner.which(binary) === null) {
+    throw new SpawnError(command, "ENOENT", `keep-alive binary not found: ${binary ?? "<empty>"}`);
+  }
+  const child = spawner.spawn(command, { stdout: "ignore", stderr: "ignore", processGroup: false });
+  child.exitCode.catch(() => undefined);
+  return { kill: (signal) => child.kill(typeof signal === "string" ? (signal as NodeJS.Signals) : undefined) };
+}
+
+/**
+ * Default synchronous probe runner backed by the runtime `ISpawner`.
+ */
+export function defaultKeepAliveSpawnSync(command: string[]): { exitCode: number } {
+  return { exitCode: getDefaultSpawner().spawnSync(command).exitCode };
+}
+
+/**
  * Checks whether systemd-inhibit is available and can acquire an inhibitor lock.
  */
 export function canRunSystemdInhibit(
   binaryPath: string,
-  spawnSyncFn: (command: string[], options: { stdout: "ignore"; stderr: "pipe" }) => { exitCode: number; success?: boolean } = Bun.spawnSync,
+  spawnSyncFn: (command: string[], options: { stdout: "ignore"; stderr: "pipe" }) => { exitCode: number; success?: boolean } = defaultKeepAliveSpawnSync,
 ): boolean {
   try {
     const proc = spawnSyncFn([
@@ -171,7 +195,7 @@ export function buildKeepAliveArgs(options: {
 function removeEventListener(
   target: ProcessSignalTarget,
   event: string,
-  listener: (...args: any[]) => void,
+  listener: (...args: unknown[]) => void,
 ): void {
   if (typeof target.off === "function") {
     target.off(event, listener);
@@ -234,8 +258,8 @@ export function startKeepAlive(options: KeepAliveOptions = {}): KeepAliveControl
   const pid = options.pid ?? process.pid;
   const logWarning = options.logWarning ?? console.warn;
   const processTarget = options.processTarget ?? process;
-  const spawnFn = options.spawn ?? Bun.spawn;
-  const spawnSyncFn = options.spawnSync ?? Bun.spawnSync;
+  const spawnFn = options.spawn ?? defaultKeepAliveSpawn;
+  const spawnSyncFn = options.spawnSync ?? defaultKeepAliveSpawnSync;
 
   let active = true;
   let childProc: KeepAliveChildProcess | null = null;
@@ -254,8 +278,8 @@ export function startKeepAlive(options: KeepAliveOptions = {}): KeepAliveControl
     if (childProc) {
       try {
         childProc.kill();
-      } catch {
-        // Subprocess already terminated
+      } catch (err) {
+        void err;
       }
       childProc = null;
     }
@@ -293,7 +317,6 @@ export function startKeepAlive(options: KeepAliveOptions = {}): KeepAliveControl
       }
     }
   } else {
-    // Other OS defaults to noop-fallback
     mechanism = "noop-fallback";
   }
 
@@ -319,14 +342,35 @@ export interface PackageCommands {
 }
 
 /**
- * Detects the active package manager based on lockfile presence in target directory.
+ * Returns true if any supported package manager lockfile exists in the target directory.
  */
-export function detectPackageManager(cwd: string = process.cwd()): PackageManager {
+export function hasLockfile(cwd: string = process.cwd()): boolean {
+  return RUNTIME_CONSTANTS.LOCKFILE_NAMES.some((lockfile) => existsSync(resolve(cwd, lockfile)));
+}
+
+/**
+ * Detects the active package manager from lockfile presence, or returns null when none exist.
+ */
+export function tryDetectPackageManager(cwd: string = process.cwd()): PackageManager | null {
   if (existsSync(resolve(cwd, "pnpm-lock.yaml"))) return "pnpm";
   if (existsSync(resolve(cwd, "package-lock.json"))) return "npm";
   if (existsSync(resolve(cwd, "yarn.lock"))) return "yarn";
   if (existsSync(resolve(cwd, "bun.lock")) || existsSync(resolve(cwd, "bun.lockb"))) return "bun";
-  return "npm";
+  return null;
+}
+
+/**
+ * Detects whether the target directory contains Nuxt configuration or build artifacts.
+ */
+export function isNuxtProject(cwd: string = process.cwd()): boolean {
+  return RUNTIME_CONSTANTS.NUXT_CONFIG_FILES.some((marker) => existsSync(resolve(cwd, marker)));
+}
+
+/**
+ * Detects the active package manager based on lockfile presence in target directory.
+ */
+export function detectPackageManager(cwd: string = process.cwd()): PackageManager {
+  return tryDetectPackageManager(cwd) ?? "npm";
 }
 
 /**

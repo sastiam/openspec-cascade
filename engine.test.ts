@@ -32,7 +32,7 @@ describe("EngineAdapter Interface & Registry", () => {
   });
 
   test("getEngineAdapter throws on invalid engine", () => {
-    expect(() => getEngineAdapter("unsupported" as any)).toThrow();
+    expect(() => getEngineAdapter("unsupported")).toThrow();
   });
 });
 

@@ -1017,12 +1017,12 @@ interface RawProjectDetails {
   };
 }
 
-interface RawSingleSelectValue {
+export interface RawSingleSelectValue {
   name: string;
   optionId?: string;
 }
 
-interface RawContentNode {
+export interface RawContentNode {
   __typename: "DraftIssue" | "Issue" | "PullRequest";
   id?: string;
   number?: number;
@@ -1031,7 +1031,7 @@ interface RawContentNode {
   url?: string;
 }
 
-interface RawProjectV2ItemNode {
+export interface RawProjectV2ItemNode {
   id: string;
   type: string;
   status?: RawSingleSelectValue | null;
@@ -2048,7 +2048,6 @@ export class GitHubProjectService {
       );
     }
 
-    // Single-select schema (e.g., XS, S, M, L, XL)
     if (field.dataType === "SINGLE_SELECT" || (field.options && field.options.length > 0)) {
       const option = await this.getSingleSelectOption(
         GITHUB_PROJECT_CONSTANTS.FIELD_NAME_SIZE,
@@ -2078,7 +2077,6 @@ export class GitHubProjectService {
       };
     }
 
-    // Number schema
     if (field.dataType === "NUMBER" || typeof size === "number") {
       const numVal = Number(size);
       if (Number.isNaN(numVal)) {
@@ -2101,7 +2099,6 @@ export class GitHubProjectService {
       };
     }
 
-    // Text fallback
     const mutationRes = await this.updateFieldValue(itemId.trim(), field.id, {
       text: String(size),
     });

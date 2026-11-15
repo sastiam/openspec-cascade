@@ -10,6 +10,7 @@ import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { CONSTANTS } from "./config";
 import { defaultCommandRunner, type CommandRunner } from "./qa";
+import { getDefaultSpawner } from "./src/runtime/spawner";
 
 export interface ArchifyTarget {
   name: string;
@@ -175,7 +176,7 @@ export function resolveArchifyBin(customBin?: string): string {
     return process.env.CASCADE_ARCHIFY_BIN.trim();
   }
 
-  const inPath = Bun.which("archify");
+  const inPath = getDefaultSpawner().which("archify");
   if (inPath) return inPath;
 
   const home = homedir();

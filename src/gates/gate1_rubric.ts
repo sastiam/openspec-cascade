@@ -16,218 +16,28 @@
 
 import { randomUUID } from "node:crypto";
 import { normalize } from "node:path";
-import type {
-  Gate1BoundaryCheckResult,
-  Gate1CheckCategory,
-  Gate1DiffStats,
-  Gate1Finding,
-  Gate1FindingSeverity,
-  Gate1RubricCheckItem,
-  Gate1Verdict,
-} from "./gate1_review";
 
-const CONST_TWO = 2;
+import {
+  GATE1_RUBRIC_CONSTANTS,
+  type Gate1BoundaryCheckResult,
+  type Gate1CheckCategory,
+  type Gate1DiffStats,
+  type Gate1Finding,
+  type Gate1FindingSeverity,
+  type Gate1RubricCheckItem,
+  type Gate1Verdict,
+  type Gate1RubricEvaluationResult,
+  type Gate1DimensionResult,
+  type Gate1DoDAdherenceResult,
+  type Gate1DoDItemStatus,
+  type Gate1MagicNumbersResult,
+  type Gate1CleanCodeResult,
+  type Gate1RubricEvaluationInput,
+  type Gate1RubricWeightConfig,
+} from "./gate1_types";
+export { GATE1_RUBRIC_CONSTANTS } from "./gate1_types";
+export type { Gate1RubricDimension, Gate1RubricWeightConfig, Gate1DimensionResult, Gate1CleanCodeResult, Gate1MagicNumbersResult, Gate1DoDItemStatus, Gate1DoDAdherenceResult, Gate1RubricEvaluationInput, Gate1RubricEvaluationResult } from "./gate1_types";
 
-/**
- * Central constants ensuring zero magic numbers across Gate 1 rubric evaluation operations.
- */
-export const GATE1_RUBRIC_CONSTANTS = {
-  // Dimension Identifiers
-  DIMENSION_CLEAN_CODE: "clean_code" as const,
-  DIMENSION_ZERO_MAGIC_NUMBERS: "zero_magic_numbers" as const,
-  DIMENSION_DOD_ADHERENCE: "dod_adherence" as const,
-  DIMENSION_BOUNDARY_CONTAINMENT: "boundary_containment" as const,
-  DIMENSION_REGRESSION_RISK: "regression_risk" as const,
-
-  // Check Category Identifiers
-  CATEGORY_SPEC_FIDELITY: "specification_fidelity" as const,
-  CATEGORY_BOUNDARY_CONTAINMENT: "boundary_containment" as const,
-  CATEGORY_REGRESSION_RISK: "regression_risk" as const,
-  CATEGORY_CODE_QUALITY: "code_quality" as const,
-  CATEGORY_ZERO_MAGIC_NUMBERS: "zero_magic_numbers" as const,
-  CATEGORY_STRICT_TYPING: "strict_typing" as const,
-  CATEGORY_UNHANDLED_REJECTIONS: "unhandled_rejections" as const,
-  CATEGORY_CROSS_PLATFORM: "cross_platform" as const,
-  CATEGORY_DOD_ADHERENCE: "dod_adherence" as const,
-
-  // Finding Severities
-  SEVERITY_FATAL: "fatal" as const,
-  SEVERITY_ERROR: "error" as const,
-  SEVERITY_WARNING: "warning" as const,
-  SEVERITY_INFO: "info" as const,
-
-  // Review Verdicts
-  VERDICT_APPROVED: "APPROVED" as const,
-  VERDICT_REVISE: "REVISE" as const,
-  VERDICT_REJECTED: "REJECTED" as const,
-
-  // Default Dimension Weights (must sum to 100)
-  DEFAULT_WEIGHT_CLEAN_CODE: 30,
-  DEFAULT_WEIGHT_ZERO_MAGIC_NUMBERS: 25,
-  DEFAULT_WEIGHT_DOD_ADHERENCE: 35,
-  DEFAULT_WEIGHT_BOUNDARY_CONTAINMENT: 10,
-  TOTAL_WEIGHT_PERCENT: 100,
-
-  // Score Scale & Thresholds
-  SCORE_ZERO: 0,
-  SCORE_MIN: 0,
-  SCORE_MAX: 100,
-  SCORE_THRESHOLD_PASS: 80,
-  SCORE_THRESHOLD_REVISE: 60,
-  SCORE_CRITICAL_CEILING: 50,
-
-  // Deductions by Severity
-  DEDUCTION_FATAL: 40,
-  DEDUCTION_ERROR: 20,
-  DEDUCTION_WARNING: 5,
-  DEDUCTION_INFO: 0,
-
-  // Specific Category Deductions
-  DEDUCTION_STRICT_TYPING: 20,
-  DEDUCTION_UNHANDLED_REJECTION: 20,
-  DEDUCTION_EMPTY_CATCH: 20,
-  DEDUCTION_THROW_NON_ERROR: 15,
-  DEDUCTION_DEBUGGER: 30,
-  DEDUCTION_CONSOLE_LOG: 5,
-  DEDUCTION_PATH_CONCAT: 10,
-  DEDUCTION_MAGIC_NUMBER: 15,
-  DEDUCTION_MISSING_TESTS: 30,
-  DEDUCTION_SKIPPED_TESTS: 25,
-  DEDUCTION_UNMET_CRITERIA: 20,
-  DEDUCTION_BOUNDARY_VIOLATION: 40,
-
-  // Non-magic idiomatic small numbers
-  ALLOWED_NON_MAGIC_NUMBERS: [-1, 0, 1, CONST_TWO] as const,
-
-  // Numeric literals and offsets
-  ZERO: 0,
-  ONE: 1,
-  TWO: 2,
-  THREE: 3,
-  FOUR: 4,
-  FIVE: 5,
-  RADIX_DECIMAL: 10,
-  INDEX_NOT_FOUND: -1,
-  REGEX_CAPTURE_GROUP_ONE: 1,
-  REGEX_CAPTURE_GROUP_TWO: 2,
-  GIT_HEADER_MIN_PARTS: 4,
-  GIT_PREFIX_SLICE_INDEX: 2,
-  DIFF_PLUS_PREFIX_LENGTH: 6,
-  DIFF_MINUS_PREFIX_LENGTH: 6,
-  MIN_SIGNIFICANT_DELETIONS: 20,
-} as const;
-
-/**
- * Recognizable rubric evaluation dimensions.
- */
-export type Gate1RubricDimension =
-  | typeof GATE1_RUBRIC_CONSTANTS.DIMENSION_CLEAN_CODE
-  | typeof GATE1_RUBRIC_CONSTANTS.DIMENSION_ZERO_MAGIC_NUMBERS
-  | typeof GATE1_RUBRIC_CONSTANTS.DIMENSION_DOD_ADHERENCE
-  | typeof GATE1_RUBRIC_CONSTANTS.DIMENSION_BOUNDARY_CONTAINMENT
-  | typeof GATE1_RUBRIC_CONSTANTS.DIMENSION_REGRESSION_RISK;
-
-/**
- * Configurable weights for rubric dimensions.
- */
-export interface Gate1RubricWeightConfig {
-  readonly cleanCode: number;
-  readonly zeroMagicNumbers: number;
-  readonly dodAdherence: number;
-  readonly boundaryContainment: number;
-}
-
-/**
- * Outcome of evaluating a single rubric dimension.
- */
-export interface Gate1DimensionResult {
-  readonly dimension: Gate1RubricDimension;
-  readonly name: string;
-  readonly passed: boolean;
-  readonly score: number;
-  readonly weight: number;
-  readonly findings: readonly Gate1Finding[];
-  readonly checkItems: readonly Gate1RubricCheckItem[];
-  readonly summary: string;
-}
-
-/**
- * Clean Code rubric evaluation output.
- */
-export interface Gate1CleanCodeResult extends Gate1DimensionResult {
-  readonly strictTypingPassed: boolean;
-  readonly unhandledRejectionsPassed: boolean;
-  readonly errorHandlingPassed: boolean;
-  readonly crossPlatformPassed: boolean;
-  readonly hygienePassed: boolean;
-}
-
-/**
- * Zero Magic Numbers rubric evaluation output.
- */
-export interface Gate1MagicNumbersResult extends Gate1DimensionResult {
-  readonly totalNumericLiteralsDetected: number;
-  readonly magicNumberCount: number;
-  readonly allowedLiteralCount: number;
-  readonly affectedFiles: readonly string[];
-}
-
-/**
- * Definition of Done item assessment status.
- */
-export interface Gate1DoDItemStatus {
-  readonly id: string;
-  readonly title: string;
-  readonly passed: boolean;
-  readonly severity: Gate1FindingSeverity;
-  readonly notes: string;
-  readonly finding?: Gate1Finding;
-}
-
-/**
- * DoD Adherence rubric evaluation output.
- */
-export interface Gate1DoDAdherenceResult extends Gate1DimensionResult {
-  readonly unitTestsAccompanied: boolean;
-  readonly testSuiteClean: boolean;
-  readonly acceptanceCriteriaSatisfied: boolean;
-  readonly boundaryContained: boolean;
-  readonly dodItemStatuses: readonly Gate1DoDItemStatus[];
-}
-
-/**
- * Input payload supplied to the semantic rubric evaluation engine.
- */
-export interface Gate1RubricEvaluationInput {
-  readonly diff: string;
-  readonly diffStats?: Gate1DiffStats;
-  readonly boundaryCheck?: Gate1BoundaryCheckResult;
-  readonly acceptanceCriteria?: readonly string[];
-  readonly definitionOfDone?: readonly string[];
-  readonly taskId?: string;
-  readonly taskDescription?: string;
-  readonly weights?: Partial<Gate1RubricWeightConfig>;
-  readonly allowNumbersInTests?: boolean;
-}
-
-/**
- * Comprehensive outcome returned by the semantic rubric evaluation engine.
- */
-export interface Gate1RubricEvaluationResult {
-  readonly overallPassed: boolean;
-  readonly overallScore: number;
-  readonly verdict: Gate1Verdict;
-  readonly summary: string;
-  readonly cleanCode: Gate1CleanCodeResult;
-  readonly zeroMagicNumbers: Gate1MagicNumbersResult;
-  readonly dodAdherence: Gate1DoDAdherenceResult;
-  readonly boundaryContainment: Gate1DimensionResult;
-  readonly checklistResults: Readonly<Record<string, boolean>>;
-  readonly allRubricItems: readonly Gate1RubricCheckItem[];
-  readonly allFindings: readonly Gate1Finding[];
-  readonly remediationAdvice: readonly string[];
-  readonly criticalViolation: boolean;
-}
 
 // ============================================================================
 // HELPER FUNCTIONS & STATIC SCANNERS
