@@ -330,6 +330,14 @@ describe("loadConfig logDir", () => {
     const fromCli = loadConfig({ argv: ["--log-dir", "/cli/logs"], env: { CASCADE_LOG_DIR: "/env/logs" }, cwd: "/mock/repo" });
     expect(fromCli.logDir).toBe("/cli/logs");
   });
+
+  test("reads --settings / CASCADE_SETTINGS, resolved against cwd; unset by default", () => {
+    expect(loadConfig({ argv: [], env: {}, cwd: "/mock/repo" }).settings).toBeUndefined();
+    expect(loadConfig({ argv: ["--settings", "s.json"], env: {}, cwd: "/mock/repo" }).settings).toBe("/mock/repo/s.json");
+    const both = loadConfig({ argv: ["--settings", "/cli.json"], env: { CASCADE_SETTINGS: "/env.json" }, cwd: "/mock/repo" });
+    expect(both.settings).toBe("/cli.json");
+    expect(loadConfig({ argv: [], env: { CASCADE_SETTINGS: "/env.json" }, cwd: "/mock/repo" }).settings).toBe("/env.json");
+  });
 });
 
 describe("--help", () => {

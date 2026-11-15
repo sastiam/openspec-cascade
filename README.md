@@ -88,10 +88,12 @@ bun run cascade.ts --repo <path> --changes change-a --no-keep-alive
 | `--no-keep-alive` | Disable automatic OS sleep inhibitor (`caffeinate` / `systemd-inhibit`) |
 | `--allow-dirty` | Start with a dirty tree; those files land in the first commit |
 | `--log-dir` | Directory for run logs (see [Logs](#logs)) |
+| `--settings` | Extra Claude Code settings file for every session (Claude engine only), e.g. a sandbox for unattended runs |
 | `--help`, `-h` | Print all flags, environment variables and examples, then exit |
 | `CASCADE_MODEL` | Model alias or ID (OpenCode: `provider/model[#variant]`, Antigravity: `gemini-3.8-flash-high`) |
 | `CASCADE_EFFORT` | `low`…`max`, or `none` to omit it |
 | `CASCADE_LOG_DIR` | Same as `--log-dir`; the flag takes precedence |
+| `CASCADE_SETTINGS` | Same as `--settings`; the flag takes precedence |
 
 Refuses to run on `stable`, `main` or `master`.
 
@@ -134,7 +136,16 @@ attempts) are constants at the top of `cascade.ts`; they currently target a Nuxt
 
 - OpenCode's JSON output carries no cost, so the total budget cap does not apply there; there is also no plan
   usage meter (a rate-limit error pauses 30 minutes) and no turn limit (sessions are cut at 45 minutes).
-- OpenCode loads your global `~/.config/opencode` configuration; the Claude engine loads only project settings.
+- OpenCode loads your global `~/.config/opencode` configuration; the Claude engine loads only project settings,
+  plus the file passed with `--settings` (the flag settings layer, above project settings). Use it to run every
+  session inside the Claude Code sandbox:
+
+  ```json
+  { "sandbox": { "enabled": true, "failIfUnavailable": true, "allowUnsandboxedCommands": false,
+                 "network": { "allowedDomains": ["github.com"] } } }
+  ```
+
+  Verification commands and commits run in the cascade process itself, outside that sandbox.
 
 ## Tests
 

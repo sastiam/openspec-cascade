@@ -194,6 +194,8 @@ export interface CascadeConfig {
   effort?: string;
   /** Directory where run logs are written (created lazily on first write) */
   logDir: string;
+  /** Extra Claude Code settings file (Claude engine only), e.g. a sandbox for unattended runs */
+  settings?: string;
 
   /** Maximum plan usage percentage before pausing (0-100) */
   usageLimitPercent: number;
@@ -274,6 +276,7 @@ export interface ParsedCliOptions {
   model?: string;
   effort?: string;
   "log-dir"?: string;
+  settings?: string;
   help?: boolean;
   "no-diagrams"?: boolean;
   diagrams?: boolean;
@@ -345,6 +348,7 @@ Options:
   --full-gate                Run the full verification suite on every committing task
   --no-keep-alive            Do not prevent the machine from sleeping while running
   --log-dir <path>           Directory for run logs (default: ~/.cache/openspec-cascade/logs/<repo name>)
+  --settings <file>          Extra Claude Code settings JSON for every session, e.g. a sandbox (Claude engine only)
   --no-diagrams              Disable automatic diagram synchronization
   --graphify-command <cmd>   Command that updates the Graphify knowledge graph
   --archify-action <action>  Archify action (default: ${CONSTANTS.ARCHIFY_ACTION})
@@ -358,6 +362,7 @@ Environment:
   CASCADE_MODEL              Same as --model
   CASCADE_EFFORT             Same as --effort
   CASCADE_LOG_DIR            Same as --log-dir (the flag takes precedence)
+  CASCADE_SETTINGS           Same as --settings (the flag takes precedence)
 
 Examples:
   openspec-cascade --repo ~/work/my-app --changes add-auth,add-billing
@@ -387,6 +392,7 @@ export function parseCliArgs(argv: string[] = process.argv.slice(CONSTANTS.ARGV_
         model: { type: "string" },
         effort: { type: "string" },
         "log-dir": { type: "string" },
+        settings: { type: "string" },
         help: { type: "boolean", short: "h", default: false },
         "no-diagrams": { type: "boolean", default: false },
         diagrams: { type: "boolean" },
@@ -491,6 +497,11 @@ export function loadConfig(options: LoadConfigOptions = {}): CascadeConfig {
       home: homedir(),
       cwd,
     });
+
+  // 6c. Extra Claude Code settings (flag settings layer, above project settings)
+  const rawSettings =
+    overrides.settings ?? (typeof cliOpts.settings === "string" ? cliOpts.settings : undefined) ?? env.CASCADE_SETTINGS;
+  const settings = rawSettings ? resolve(cwd, rawSettings) : undefined;
 
   // 7. Limits & Margins
   const usageLimitPercent =
@@ -618,6 +629,7 @@ export function loadConfig(options: LoadConfigOptions = {}): CascadeConfig {
     model,
     effort,
     logDir,
+    settings,
     usageLimitPercent,
     resetMarginMs,
     unknownResetSleepMs,
