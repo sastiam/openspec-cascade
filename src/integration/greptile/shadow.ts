@@ -1,6 +1,6 @@
 /**
  * Ephemeral shadow commits: snapshot the working tree (tracked + untracked, honouring
- * `.gitignore`) into a dangling commit without touching the user's index, HEAD,
+ * `.gitignore` and excluding cascade's own `.cascade/` state) into a dangling commit without touching the user's index, HEAD,
  * branches or working tree.
  *
  * An isolated `GIT_INDEX_FILE` in a temp directory receives `read-tree HEAD` and
@@ -124,7 +124,8 @@ export class ShadowCommitManager {
     if (parentSha !== null) {
       await this.gitOrThrow(repoPath, ["read-tree", parentSha], "read-tree", env);
     }
-    await this.gitOrThrow(repoPath, ["add", "-A"], "add", env);
+    const exclusions = GREPTILE_CONSTANTS.SHADOW_EXCLUDED_PATHS.map((path) => `:(exclude)${path}`);
+    await this.gitOrThrow(repoPath, ["add", "-A", "--", ".", ...exclusions], "add", env);
     const tree = (await this.gitOrThrow(repoPath, ["write-tree"], "write-tree", env)).trim();
     const parentArgs = parentSha === null ? [] : ["-p", parentSha];
     const sha = (

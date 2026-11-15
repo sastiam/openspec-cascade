@@ -211,6 +211,7 @@ export const GREPTILE_CONSTANTS = {
   CONTEXT_HEADER: "## Greptile semantic context",
   STDERR_TAIL_LENGTH: 500,
   SHADOW_WORKTREE_PREFIX: "cascade-shadow-worktree-",
+  SHADOW_EXCLUDED_PATHS: [".cascade"] as const,
   API_KEY_ENV: "GREPTILE_API_KEY",
   REVIEW_ARGS: ["review", "--json"] as const,
   REVIEW_BASE_FLAG: "--branch",

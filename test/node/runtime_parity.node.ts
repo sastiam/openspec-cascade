@@ -13,6 +13,7 @@ import { loadConfig } from "../../config";
 import { auditFiles } from "../../src/audit/forensic";
 import { ConfigValidationError } from "../../src/config/schemas";
 import { CascadeFacade } from "../../src/facade/cascade_facade";
+import { GreptileCache, sha256, ShadowCommitManager } from "../../src/integration/greptile";
 import { EngineFactory } from "../../src/pal/factory";
 import { BunSpawner, createSpawner, detectRuntime, NodeSpawner, SpawnError } from "../../src/runtime";
 
@@ -114,6 +115,27 @@ describe("production modules on Node", () => {
 
   test("forensic audit runs on Node", () => {
     assert.equal(auditFiles(ROOT, ["src/runtime"]).violations.length, 0);
+  });
+});
+
+describe("Greptile integration on Node", () => {
+  test("shadow commits and the content-addressed cache work without Bun", async () => {
+    const repo = await createRepoWithChange();
+    try {
+      writeFileSync(join(repo, "uncommitted.ts"), "export {};\n");
+      const files = await new ShadowCommitManager({ spawner }).withShadowCommit(repo, async (sha) => {
+        const tree = await spawner.run(["git", "ls-tree", "-r", "--name-only", sha], { cwd: repo });
+        return tree.stdout.split("\n");
+      });
+      assert.ok(files.includes("uncommitted.ts"));
+      const status = await spawner.run(["git", "status", "--porcelain"], { cwd: repo });
+      assert.equal(status.stdout.trim(), "?? uncommitted.ts");
+      const cache = new GreptileCache<number>({ rootDir: repo });
+      cache.set({ baseSha: "b", diffHash: sha256("d"), query: "q" }, 7);
+      assert.equal(cache.get({ baseSha: "b", diffHash: sha256("d"), query: "q" }), 7);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
   });
 });
 

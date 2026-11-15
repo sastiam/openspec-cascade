@@ -152,6 +152,15 @@ export class GreptileCache<T> {
     return entry;
   }
 
+  private isLiveEntryFile(path: string): boolean {
+    try {
+      const parsed: unknown = JSON.parse(readFileSync(path, "utf8"));
+      return isCacheEntry(parsed) && parsed.expiresAt > this.now();
+    } catch {
+      return false;
+    }
+  }
+
   /**
    * Deletes expired and unreadable entries. Returns the number of files removed.
    */
@@ -165,14 +174,10 @@ export class GreptileCache<T> {
     }
     for (const file of files) {
       const path = join(this.dir, file);
-      try {
-        const parsed: unknown = JSON.parse(readFileSync(path, "utf8"));
-        if (isCacheEntry(parsed) && parsed.expiresAt > this.now()) continue;
-      } catch {
-        removed += 0;
+      if (!this.isLiveEntryFile(path)) {
+        rmSync(path, { force: true });
+        removed++;
       }
-      rmSync(path, { force: true });
-      removed++;
     }
     return removed;
   }

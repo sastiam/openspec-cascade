@@ -59,7 +59,7 @@ Every feature below has an assigned Milestone and source reference (`ORIGINAL_RE
 | E2E | E2E Testing Track | Design `TEST_INFRA.md`, write opaque-box Tiers 1–4 E2E tests (`test/e2e/`) importing real modules/CLI (0 stubs/mocks), publish `TEST_READY.md` | M0 | DONE (Phase A) |
 | M1 | Zero Magic Numbers, Zod Config & Guardrails | F01–F05 (`src/config/*`, `config.ts`, `platform.ts`, `cascade.ts`, `eslint.config.js`, `lint.test.ts`, OpenSpec change) + commit & push | M0 | DONE |
 | M2 | Isomorphic Runtime, PAL Factory & Facade | F06–F09 (`src/runtime/*`, `src/pal/factory.ts`, `src/decorators/*`, `src/facade/*`, 14 `Bun.*` migrations, OpenSpec change) + commit & push | M1 | DONE |
-| M3 | Greptile CLI Integration | F10–F13 (`src/integration/greptile/{client,shadow,cache,search,bridge}.ts`, OpenSpec change) + commit & push | M2 | PLANNED |
+| M3 | Greptile CLI Integration | F10–F13 (`src/integration/greptile/{client,shadow,cache,search,bridge}.ts`, OpenSpec change) + commit & push | M2 | DONE |
 | M4 | Harness Injector & V2 Looper Wiring | F14–F16 (`src/core/harness_injector.ts`, cycle fixes, v2 pipeline wiring in `CascadeFacade`, plugin/hook sync, OpenSpec change) + commit & push | M2, M3 | PLANNED |
 | M5 | Self-Improving Looper & CI | F17–F19 (`src/core/self_improver.ts`, bounded pre-PR loop, CLI integration, `.github/workflows/ci.yml`, `.gitignore`, OpenSpec change) + commit & push | M4 | PLANNED |
 | M6 | Final Certification | F20 + Phase 1 (100% E2E Tiers 1–4) + Phase 2 (Tier 5 Adversarial Hardening) + final clean verification & push to `origin` | M5, E2E | PLANNED |
@@ -88,10 +88,11 @@ Every feature below has an assigned Milestone and source reference (`ORIGINAL_RE
 - `CascadeFacade.run(config: CascadeConfig): Promise<CascadeRunResult>` — structured execution result with exit code, task outcomes, telemetry summary, and rollback status.
 
 ### `src/integration/greptile/` ↔ `HarnessInjector` & `review_verifier.ts` (M3)
-- `IGreptileClient`: `checkStatus()`, `review(opts)`, `query(opts)`, `index(opts)`.
-- `ShadowCommitManager.withShadowCommit<T>(repoPath: string, fn: (shadowSha: string) => Promise<T>): Promise<T>` — guarantees index/ref cleanup in `finally` with zero mutation to `HEAD` or working tree.
-- `GreptileCache`: `get(keyComponents)`, `set(keyComponents, value)` under `.cascade/cache/greptile/` using SHA-256 keys.
-- `GreptileSearch.formatContext(findings, tokenBudget)` — returns bounded context string for prompt injection.
+- Grounded in the documented Greptile CLI v3 surface (`greptile review --json [--branch <base>]`, `greptile review status --json [--commit <sha>]`, `greptile whoami`, `greptile --version`, `GREPTILE_API_KEY`); the CLI reviews committed changes only and has no `query`/`index` command.
+- `IGreptileClient`: `checkStatus()`, `review({ repoPath, baseBranch })`, `reviewStatus({ repoPath, commit })` (replaces `index`), `query({ question, findings })` (relevance ranking over review findings). Errors: `GreptileError` (`not_installed`, `auth`, `rate_limit`, `timeout`, `invalid_output`, `command_failed`).
+- `ShadowCommitManager.withShadowCommit<T>(repoPath, fn)` and `withShadowWorktree<T>(repoPath, fn)` — isolated `GIT_INDEX_FILE`, protective `refs/cascade/shadow/*` ref, detached temp worktree; cleanup in `finally` with zero mutation to `HEAD`, index, refs or working tree; `.cascade/` is excluded from snapshots.
+- `GreptileCache`: `get(keyComponents)`, `set(keyComponents, value)`, `prune()` under `.cascade/cache/greptile/` using SHA-256 keys, TTL and `fail-open`/`fail-closed` policies.
+- `formatGreptileContext(findings, tokenBudget)` — severity-ordered, token-bounded context string; `GreptileReviewBridge.review({ repoPath, baseBranch })` — shadow worktree → merge-base diff → cache → client → `verifyReviewFindings`.
 
 ### `src/core/harness_injector.ts` & `src/core/self_improver.ts` ↔ `CascadeFacade` (M4–M5)
 - `HarnessInjector.buildExecutionContext(input: HarnessInput): Promise<InjectedHarness>` — combines OpenSpec change artifacts, constitution, skills, Greptile context, guardrails, and SelfImprover remediation directives.

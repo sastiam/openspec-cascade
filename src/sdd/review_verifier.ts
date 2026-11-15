@@ -143,3 +143,17 @@ export function verifyReviewFindings(
     triagedFindings: triaged,
   };
 }
+
+/**
+ * Normalizes a repository-relative path for diff matching (forward slashes, no leading "./", lower-case).
+ */
+export function normalizeReviewPath(path: string): string {
+  return path.trim().replaceAll("\\", "/").replace(/^\.\//, "").toLowerCase();
+}
+
+/**
+ * Distinct, normalized files referenced by a set of review findings.
+ */
+export function reviewFilesFromFindings(findings: readonly RawReviewFinding[]): string[] {
+  return [...new Set(findings.map((finding) => normalizeReviewPath(finding.file)).filter(Boolean))];
+}
