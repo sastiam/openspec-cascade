@@ -11,7 +11,7 @@ import type {
   EngineOutcome,
   EngineSessionOptions,
   UsageMeter,
-} from "./engine";
+} from "./src/engine/contract";
 
 export function toEpochMs(value: number): number {
   return value < CONSTANTS.EPOCH_MS_THRESHOLD ? value * CONSTANTS.MS_PER_SECOND : value;

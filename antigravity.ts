@@ -17,7 +17,7 @@ import type {
   EngineHooks,
   EngineOutcome,
   EngineSessionOptions,
-} from "./engine";
+} from "./src/engine/contract";
 
 export const ANTIGRAVITY_DEFAULT_MODEL = CONSTANTS.DEFAULT_ANTIGRAVITY_MODEL;
 const SESSION_TIMEOUT_MS = CONSTANTS.ANTIGRAVITY_SESSION_TIMEOUT_MS;

@@ -22,11 +22,19 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
-import type {
-  Gate2AttackVector,
-  Gate2ExecutionContext,
-  Gate2ProbeDefinition,
-} from "./gate2_challenger";
+
+import {
+  GATE2_SYNTHESIS_CONSTANTS,
+  type Gate2AttackVector,
+  type Gate2ExecutionContext,
+  type Gate2ProbeDefinition,
+  type Gate2SynthesisOptions,
+  type TargetFileInfo,
+  type TargetExportInfo,
+} from "./gate2_types";
+export { GATE2_SYNTHESIS_CONSTANTS } from "./gate2_types";
+export type { EdgeCaseCategory, TargetExportInfo, TargetFileInfo, Gate2SynthesisOptions } from "./gate2_types";
+
 
 /**
  * Sanitizes a probe ID or name for use in filesystem paths.
@@ -36,152 +44,6 @@ export function sanitizeProbeName(name: string): string {
     return "probe";
   }
   return name.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase();
-}
-
-/**
- * Central constants ensuring zero magic numbers across Gate 2 synthesis operations.
- */
-export const GATE2_SYNTHESIS_CONSTANTS = {
-  // Attack Vectors (aligned with GATE2_CONSTANTS)
-  VECTOR_BOUNDARY_MALFORMED: "boundary_malformed" as const,
-  VECTOR_CONCURRENCY_RACE: "concurrency_race" as const,
-  VECTOR_RESOURCE_EXHAUSTION: "resource_exhaustion" as const,
-  VECTOR_TIMEOUT_LATENCY: "timeout_latency" as const,
-  VECTOR_CUSTOM: "custom" as const,
-
-  // Synthesis Categories
-  CATEGORY_NULL_UNDEFINED: "null_undefined" as const,
-  CATEGORY_BOUNDARY_LIMITS: "boundary_limits" as const,
-  CATEGORY_CONCURRENCY_RACE: "concurrency_race" as const,
-  CATEGORY_TIMEOUT_LATENCY: "timeout_latency" as const,
-  CATEGORY_MALFORMED_PAYLOAD: "malformed_payload" as const,
-  CATEGORY_UNICODE_EXPLOIT: "unicode_exploit" as const,
-  CATEGORY_RESOURCE_EXHAUSTION: "resource_exhaustion" as const,
-
-  // Numerical Boundaries
-  INT32_MAX: 2_147_483_647,
-  INT32_MIN: -2_147_483_648,
-  SAFE_INT_MAX: Number.MAX_SAFE_INTEGER, // 9007199254740991
-  SAFE_INT_MIN: Number.MIN_SAFE_INTEGER, // -9007199254740991
-  NUM_ZERO: 0,
-  NUM_NEGATIVE_ZERO: -0,
-  NUM_ONE: 1,
-  NUM_NEGATIVE_ONE: -1,
-  NUM_EPSILON: Number.EPSILON,
-
-  // Boundary String Sizes & Sequences
-  EMPTY_STRING: "",
-  WHITESPACE_STRING: "   \t\r\n   ",
-  UNICODE_NULL_BYTE: "\0",
-  UNICODE_ZALGO_SAMPLE: "H̵e̸l̷l̸o̶_̸W̸o̸r̷l̷d̸",
-  UNICODE_RTL_OVERRIDE: "\u202Ereversed_payload\u202C",
-  UNICODE_ZERO_WIDTH: "\u200B\u200C\u200D\uFEFF",
-  UNICODE_EMOJI_SEQUENCE: "🔥💥🚀🧑‍💻👾🧪",
-  HUGE_STRING_SIZE: 100_000,
-  LARGE_STRING_CHUNK: 1_000,
-
-  // Collection Sizes
-  EMPTY_ARRAY_LENGTH: 0,
-  LARGE_ARRAY_LENGTH: 10_000,
-  DEEP_NESTING_DEPTH: 50,
-
-  // Concurrency Defaults
-  DEFAULT_CONCURRENCY_PARALLEL_COUNT: 20,
-  HIGH_CONCURRENCY_PARALLEL_COUNT: 50,
-  MICROTASK_BURST_COUNT: 10,
-  STAGGER_DELAY_MS: 5,
-
-  // Timeout Defaults
-  DEFAULT_PROBE_TIMEOUT_MS: 30_000,
-  DEFAULT_OPERATION_TIMEOUT_MS: 2_000,
-  SIMULATED_LATENCY_DELAY_MS: 1_500,
-  WATCHDOG_GRACE_PERIOD_MS: 500,
-
-  // Synthesis Limits
-  DEFAULT_MAX_PROBES_PER_VECTOR: 2,
-  DEFAULT_MAX_TOTAL_PROBES: 16,
-  MAX_EXPORTS_PER_FILE: 10,
-
-  // File Paths & Suffixes
-  TEST_DIR_DEFAULT: "test",
-  SRC_DIR_DEFAULT: "src",
-  TS_EXTENSION: ".ts",
-  JS_EXTENSION: ".js",
-  PROBE_PREFIX: "synth_",
-
-  // Numeric literals and offsets
-  ZERO: 0,
-  ONE: 1,
-  TWO: 2,
-  THREE: 3,
-  FOUR: 4,
-  FIVE: 5,
-  INDEX_NOT_FOUND: -1,
-  SLICE_START: 0,
-  RADIX_DECIMAL: 10,
-  UUID_TRUNCATION_LENGTH: 8,
-} as const;
-
-/**
- * Recognized edge case category types.
- */
-export type EdgeCaseCategory =
-  | typeof GATE2_SYNTHESIS_CONSTANTS.CATEGORY_NULL_UNDEFINED
-  | typeof GATE2_SYNTHESIS_CONSTANTS.CATEGORY_BOUNDARY_LIMITS
-  | typeof GATE2_SYNTHESIS_CONSTANTS.CATEGORY_CONCURRENCY_RACE
-  | typeof GATE2_SYNTHESIS_CONSTANTS.CATEGORY_TIMEOUT_LATENCY
-  | typeof GATE2_SYNTHESIS_CONSTANTS.CATEGORY_MALFORMED_PAYLOAD
-  | typeof GATE2_SYNTHESIS_CONSTANTS.CATEGORY_UNICODE_EXPLOIT
-  | typeof GATE2_SYNTHESIS_CONSTANTS.CATEGORY_RESOURCE_EXHAUSTION;
-
-/**
- * Discovered export entry from static code analysis.
- */
-export interface TargetExportInfo {
-  readonly name: string;
-  readonly kind: "function" | "class" | "const_arrow" | "unknown";
-  readonly isAsync: boolean;
-  readonly parameterCount: number;
-}
-
-/**
- * Analyzed target file metadata for synthesis.
- */
-export interface TargetFileInfo {
-  readonly filePath: string;
-  readonly relativePath: string;
-  readonly exports: readonly TargetExportInfo[];
-  readonly hasDefaultExport: boolean;
-}
-
-/**
- * Options configuring automated edge case synthesis.
- */
-export interface Gate2SynthesisOptions {
-  /** Root directory of workspace (defaults to process.cwd()) */
-  readonly workspaceRoot?: string;
-  /** Directory where test probes are located/executed (defaults to <workspaceRoot>/test) */
-  readonly testDir?: string;
-  /** Specific target files to analyze and synthesize probes for */
-  readonly targetFiles?: readonly string[];
-  /** Enabled attack vector categories (defaults to all) */
-  readonly includeVectors?: readonly Gate2AttackVector[];
-  /** Enabled subcategories (defaults to all) */
-  readonly includeCategories?: readonly EdgeCaseCategory[];
-  /** Maximum total probes to synthesize across all targets */
-  readonly maxProbes?: number;
-  /** Concurrency level for parallel probes */
-  readonly concurrencyCount?: number;
-  /** Operation watchdog timeout in milliseconds */
-  readonly operationTimeoutMs?: number;
-  /** Probe execution timeout in milliseconds */
-  readonly probeTimeoutMs?: number;
-  /** Task description context */
-  readonly taskDescription?: string;
-  /** Acceptance criteria context */
-  readonly acceptanceCriteria?: readonly string[];
-  /** Optional pre-parsed target files */
-  readonly targetFileInfos?: readonly TargetFileInfo[];
 }
 
 // ============================================================================

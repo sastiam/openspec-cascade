@@ -15,21 +15,23 @@ import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import {
-  CATALOG_CONSTANTS,
-  type CatalogTaskItem,
-  type CatalogTaskSection,
-  extractTaskKey,
-  normalizeCatalogItem,
-  parseTaskBodySections,
-  readCatalogJson,
-  readCatalogJsonSync,
-} from "./catalog_generator";
+
 import {
   type CatalogGeneratorErrorCode,
   CatalogGeneratorError,
 } from "./errors";
 import type { GitHubProjectService, ProjectV2Item } from "./github_project";
+import {
+  CATALOG_CONSTANTS,
+  extractTaskKey,
+  normalizeCatalogItem,
+  parseTaskBodySections,
+  readCatalogJson,
+  readCatalogJsonSync,
+  type CatalogTaskItem,
+  type CatalogTaskSection,
+} from "./catalog_model";
+
 
 /**
  * Constants governing catalog drift detection, threshold evaluation, and alerting.

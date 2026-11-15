@@ -15,7 +15,7 @@ import type {
   EngineHooks,
   EngineOutcome,
   EngineSessionOptions,
-} from "./engine";
+} from "./src/engine/contract";
 
 export const OPENCODE_DEFAULT_MODEL = CONSTANTS.DEFAULT_OPENCODE_MODEL;
 const SESSION_TIMEOUT_MS = CONSTANTS.OPENCODE_SESSION_TIMEOUT_MS;

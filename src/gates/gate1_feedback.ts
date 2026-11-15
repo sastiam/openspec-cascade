@@ -34,241 +34,33 @@ import {
   type LooperEvent,
   type LooperState,
 } from "../core/fsm_types";
-import type {
-  Gate1BoundaryCheckResult,
-  Gate1CheckCategory,
-  Gate1DiffStats,
-  Gate1Finding,
-  Gate1FindingSeverity,
-  Gate1ReviewReport,
-  Gate1ReviewResult,
-  Gate1Verdict,
-} from "./gate1_review";
-import { GATE1_RUBRIC_CONSTANTS } from "./gate1_rubric";
 
-/**
- * Central constants ensuring zero magic numbers across Gate 1 feedback operations.
- */
-export const GATE1_FEEDBACK_CONSTANTS = {
-  // Recommendation Types
-  REC_PASS: "PASS" as const,
-  REC_REVISE: "REVISE" as const,
-  REC_REJECT: "REJECT" as const,
 
-  // Verdicts
-  VERDICT_APPROVED: "APPROVED" as const,
-  VERDICT_REVISE: "REVISE" as const,
-  VERDICT_REJECTED: "REJECTED" as const,
+import {
+  GATE1_RUBRIC_CONSTANTS,
+  GATE1_FEEDBACK_CONSTANTS,
+  type Gate1BoundaryCheckResult,
+  type Gate1CheckCategory,
+  type Gate1DiffStats,
+  type Gate1Finding,
+  type Gate1FindingSeverity,
+  type Gate1ReviewReport,
+  type Gate1ReviewResult,
+  type Gate1Verdict,
+  type Gate1FeedbackOptions,
+  type Gate1StructuredFeedback,
+  type Gate1FeedbackCore,
+  type Gate1FeedbackMetadata,
+  type Gate1RejectionDetails,
+  type Gate1RevisionDetails,
+  type Gate1PassDetails,
+  type Gate1ActionableRecommendation,
+  type Gate1RecommendationPriority,
+  type Gate1RecommendationType,
+} from "./gate1_types";
+export { GATE1_FEEDBACK_CONSTANTS } from "./gate1_types";
+export type { Gate1RecommendationType, Gate1RecommendationPriority, Gate1ActionableRecommendation, Gate1FeedbackMetadata, Gate1PassDetails, Gate1RevisionDetails, Gate1RejectionDetails, Gate1FeedbackCore, Gate1StructuredFeedback, Gate1FeedbackOptions } from "./gate1_types";
 
-  // Gate Identifier
-  GATE_ID: "gate1" as const,
-
-  // Recommendation Priorities
-  PRIORITY_CRITICAL: "CRITICAL" as const,
-  PRIORITY_HIGH: "HIGH" as const,
-  PRIORITY_MEDIUM: "MEDIUM" as const,
-  PRIORITY_LOW: "LOW" as const,
-
-  // Finding Severities
-  SEVERITY_FATAL: "fatal" as const,
-  SEVERITY_ERROR: "error" as const,
-  SEVERITY_WARNING: "warning" as const,
-  SEVERITY_INFO: "info" as const,
-
-  // Check Categories
-  CATEGORY_SPEC_FIDELITY: "specification_fidelity" as const,
-  CATEGORY_BOUNDARY_CONTAINMENT: "boundary_containment" as const,
-  CATEGORY_REGRESSION_RISK: "regression_risk" as const,
-  CATEGORY_CODE_QUALITY: "code_quality" as const,
-  CATEGORY_ZERO_MAGIC_NUMBERS: "zero_magic_numbers" as const,
-  CATEGORY_STRICT_TYPING: "strict_typing" as const,
-  CATEGORY_UNHANDLED_REJECTIONS: "unhandled_rejections" as const,
-  CATEGORY_CROSS_PLATFORM: "cross_platform" as const,
-  CATEGORY_DOD_ADHERENCE: "dod_adherence" as const,
-
-  // Verification Confidence
-  CONFIDENCE_HIGH: "HIGH" as const,
-  CONFIDENCE_MEDIUM: "MEDIUM" as const,
-  CONFIDENCE_MAXIMUM: "MAXIMUM" as const,
-
-  // Next Gates & Stages
-  NEXT_GATE_CHALLENGER: "gate2_challenge" as const,
-  NEXT_STAGE_WORKER: "worker_revision" as const,
-  NEXT_STAGE_DIAGNOSTIC: "escalate_diagnostic" as const,
-
-  // Recommended FSM Domain Events
-  EVENT_G1_PASS: LOOPER_EVENTS.EVT_G1_PASS,
-  EVENT_G1_REVISE: LOOPER_EVENTS.EVT_G1_REVISE,
-  EVENT_G1_REJECT: LOOPER_EVENTS.EVT_G1_REJECT,
-
-  // Associated Target FSM States
-  STATE_GATE_2_CHALLENGE: LOOPER_STATES.STATE_GATE_2_CHALLENGE,
-  STATE_EXECUTE_WORKER: LOOPER_STATES.STATE_EXECUTE_WORKER,
-  STATE_ESCALATE_DIAGNOSTIC: LOOPER_STATES.STATE_ESCALATE_DIAGNOSTIC,
-
-  // Score defaults and thresholds
-  SCORE_MIN: 0,
-  SCORE_MAX: 100,
-  SCORE_THRESHOLD_PASS: 80,
-  SCORE_DEFAULT_APPROVED: 100,
-  SCORE_DEFAULT_REVISE: 60,
-  SCORE_DEFAULT_REJECTED: 20,
-
-  // Attempt defaults and limits
-  DEFAULT_ATTEMPT: 1,
-  DEFAULT_MAX_ATTEMPTS: 3,
-  DEFAULT_MAX_FINDINGS: 50,
-  DEFAULT_MAX_CITATION_LINES: 10,
-  DEFAULT_TRUNCATION_LIMIT: 3000,
-
-  // Numeric literals
-  ZERO: 0,
-  ONE: 1,
-  TWO: 2,
-  THREE: 3,
-  FOUR: 4,
-  FIVE: 5,
-  JSON_INDENT_SPACES: 2,
-  RADIX_DECIMAL: 10,
-} as const;
-
-/**
- * Gate 1 recommendation decision classification.
- */
-export type Gate1RecommendationType =
-  | typeof GATE1_FEEDBACK_CONSTANTS.REC_PASS
-  | typeof GATE1_FEEDBACK_CONSTANTS.REC_REVISE
-  | typeof GATE1_FEEDBACK_CONSTANTS.REC_REJECT;
-
-/**
- * Actionable recommendation priority level.
- */
-export type Gate1RecommendationPriority =
-  | typeof GATE1_FEEDBACK_CONSTANTS.PRIORITY_CRITICAL
-  | typeof GATE1_FEEDBACK_CONSTANTS.PRIORITY_HIGH
-  | typeof GATE1_FEEDBACK_CONSTANTS.PRIORITY_MEDIUM
-  | typeof GATE1_FEEDBACK_CONSTANTS.PRIORITY_LOW;
-
-/**
- * Actionable recommendation item with location citation and remediation advice.
- */
-export interface Gate1ActionableRecommendation {
-  readonly id: string;
-  readonly category: Gate1CheckCategory;
-  readonly severity: Gate1FindingSeverity;
-  readonly priority: Gate1RecommendationPriority;
-  readonly title: string;
-  readonly description: string;
-  readonly action: string;
-  readonly location?: {
-    readonly filePath: string;
-    readonly lineNumber?: number;
-    readonly lineCitation?: string;
-  };
-}
-
-/**
- * Metadata accompanying structured review feedback.
- */
-export interface Gate1FeedbackMetadata {
-  readonly taskId?: string;
-  readonly taskDescription?: string;
-  readonly attempt: number;
-  readonly maxAttempts: number;
-  readonly remainingAttempts: number;
-  readonly canRetry: boolean;
-  readonly severeViolation: boolean;
-  readonly timestamp: string;
-  readonly durationMs?: number;
-  readonly subagentId?: string;
-}
-
-/**
- * Detailed information for PASS recommendations.
- */
-export interface Gate1PassDetails {
-  readonly qualityScore: number;
-  readonly readinessSummary: string;
-  readonly nextGate: typeof GATE1_FEEDBACK_CONSTANTS.NEXT_GATE_CHALLENGER;
-  readonly targetFsmState: LooperState;
-  readonly verificationConfidence:
-    | typeof GATE1_FEEDBACK_CONSTANTS.CONFIDENCE_HIGH
-    | typeof GATE1_FEEDBACK_CONSTANTS.CONFIDENCE_MEDIUM
-    | typeof GATE1_FEEDBACK_CONSTANTS.CONFIDENCE_MAXIMUM;
-  readonly highlights: readonly string[];
-}
-
-/**
- * Detailed information for REVISE recommendations.
- */
-export interface Gate1RevisionDetails {
-  readonly requiredRevisionsCount: number;
-  readonly criticalCount: number;
-  readonly highCount: number;
-  readonly mediumCount: number;
-  readonly lowCount: number;
-  readonly priorityOrder: readonly string[];
-  readonly workerDirectives: readonly string[];
-  readonly retryTargetState: LooperState;
-  readonly attemptsRemaining: number;
-}
-
-/**
- * Detailed information for REJECT recommendations.
- */
-export interface Gate1RejectionDetails {
-  readonly escalationReason: string;
-  readonly severeViolationDetected: boolean;
-  readonly attemptsExhausted: boolean;
-  readonly escalationTargetState: LooperState;
-  readonly architecturalRisks: readonly string[];
-  readonly postMortemSummary: string;
-}
-
-/**
- * Core feedback payload before text/markup serialization.
- */
-export interface Gate1FeedbackCore {
-  readonly gate: typeof GATE1_FEEDBACK_CONSTANTS.GATE_ID;
-  readonly verdict: Gate1Verdict;
-  readonly recommendation: Gate1RecommendationType;
-  readonly recommendedEvent: LooperEvent;
-  readonly targetState: LooperState;
-  readonly score: number;
-  readonly summary: string;
-  readonly reasons: readonly string[];
-  readonly actionableRecommendations: readonly Gate1ActionableRecommendation[];
-  readonly passDetails?: Gate1PassDetails;
-  readonly revisionDetails?: Gate1RevisionDetails;
-  readonly rejectionDetails?: Gate1RejectionDetails;
-  readonly metadata: Gate1FeedbackMetadata;
-}
-
-/**
- * Comprehensive structured feedback object produced by Gate 1 feedback generator.
- */
-export interface Gate1StructuredFeedback extends Gate1FeedbackCore {
-  readonly xmlFeedback: string;
-  readonly markdownFeedback: string;
-  readonly jsonFeedback: string;
-}
-
-/**
- * Configuration options for generating structured feedback.
- */
-export interface Gate1FeedbackOptions {
-  readonly taskId?: string;
-  readonly taskDescription?: string;
-  readonly attempt?: number;
-  readonly maxAttempts?: number;
-  readonly workerRole?: string;
-  readonly targetFiles?: readonly string[];
-  readonly maxFindings?: number;
-  readonly includeLineCitations?: boolean;
-  readonly severeViolation?: boolean;
-  readonly durationMs?: number;
-  readonly subagentId?: string;
-}
 
 // ============================================================================
 // XML ESCAPING & UTILITY FUNCTIONS

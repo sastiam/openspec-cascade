@@ -4,7 +4,7 @@
  */
 import { AntigravityAdapter } from "../../antigravity";
 import { ClaudeAdapter } from "../../claude";
-import type { EngineAdapter, EngineOutcome, EngineSessionOptions, UsageMeter } from "../../engine";
+import type { EngineAdapter, EngineOutcome, EngineSessionOptions, UsageMeter } from "../engine/contract";
 import { OpenCodeAdapter } from "../../opencode";
 import { ENGINE_CONSTANTS } from "../config/constants";
 import { ConfigValidationError, EngineTypeSchema, type EngineType } from "../config/schemas";

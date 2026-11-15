@@ -14,20 +14,13 @@ import { getDefaultSpawner } from "../runtime/spawner";
 import { shellArgv } from "../runtime/process_control";
 import { readdir, stat } from "node:fs/promises";
 import { extname, isAbsolute, join, normalize, relative, resolve } from "node:path";
-import {
-  formatGate0Feedback,
-  parseGate0Trace,
-  type Gate0ParsedTrace,
-} from "./gate0_parser";
+import { formatGate0Feedback, parseGate0Trace } from "./gate0_parser";
+import { evaluateGateExecutionPolicy, isDisqualifiedFile, isDocumentationFile, isFastTrackCandidate, normalizeFilePath, resolveGate0RecommendedEvent, detectGitAffectedFiles } from "./gate0_policy";
 import {
   GATE0_POLICY_CONSTANTS,
-  evaluateGateExecutionPolicy,
-  isDisqualifiedFile,
-  isDocumentationFile,
-  isFastTrackCandidate,
-  normalizeFilePath,
-  resolveGate0RecommendedEvent,
-  detectGitAffectedFiles,
+  GATE0_PARSER_CONSTANTS,
+  GATE0_CONSTANTS,
+  type Gate0ParsedTrace,
   type Gate0BypassedGate,
   type Gate0PolicyRecommendedEvent,
   type Gate0RequiredGate,
@@ -36,317 +29,28 @@ import {
   type GatePolicyEvaluationResult,
   type GatePolicySelection,
   type ResolveGate0EventOptions,
-} from "./gate0_policy";
+  type Gate0StackFrame,
+  type Gate0ParsedTestFailure,
+  type Gate0ParsedDiagnostic,
+  type Gate0DiagnosticSource,
+  type Gate0DiagnosticSeverity,
+  type Gate0Result,
+  type Gate0LayoutCheckResult,
+  type Gate0LayoutViolation,
+  type Gate0CheckExecutionResult,
+  type Gate0CheckStatus,
+  type Gate0CheckType,
+  type Gate0Verdict,
+  type Gate0RunnerOptions,
+  type Gate0CheckDefinition,
+  type Gate0ExecutionContext,
+  type Gate0CommandRunner,
+  type Gate0CommandRunnerResult,
+  type Gate0CommandRunnerOptions,
+} from "./gate0_types";
+export { GATE0_CONSTANTS } from "./gate0_types";
+export type { Gate0CheckType, Gate0CheckStatus, Gate0Verdict, Gate0CommandRunnerResult, Gate0CommandRunnerOptions, Gate0CommandRunner, Gate0ExecutionContext, Gate0CheckDefinition, Gate0CheckExecutionResult, Gate0LayoutViolation, Gate0LayoutCheckResult, Gate0RunnerHooks, Gate0RunnerOptions, Gate0FeedbackOptions, Gate0Result } from "./gate0_types";
 
-/**
- * Central constants ensuring zero magic numbers across Gate 0 mechanical test runner operations.
- */
-export const GATE0_CONSTANTS = {
-  // Exit Codes
-  EXIT_CODE_SUCCESS: 0,
-  EXIT_CODE_FAILURE: 1,
-  EXIT_CODE_ERROR: 2,
-  EXIT_CODE_TIMEOUT: 124,
-
-  // Timeouts (milliseconds)
-  DEFAULT_GATE_TIMEOUT_MS: 1_800_000,
-  DEFAULT_PER_COMMAND_TIMEOUT_MS: 300_000,
-  DEFAULT_LAYOUT_TIMEOUT_MS: 30_000,
-
-  // Attempts and limits
-  DEFAULT_MAX_ATTEMPTS: 3,
-  DEFAULT_CURRENT_ATTEMPT: 1,
-  DEFAULT_PREVIEW_LINES: 10,
-  DEFAULT_TAIL_LINES: 25,
-  DEFAULT_MAX_OUTPUT_LENGTH: 4_000,
-  DEFAULT_FEEDBACK_TRUNCATION_LIMIT: 2_500,
-
-  // Protected Paths & Layout Invariants
-  DEFAULT_PROTECTED_METADATA_DIR: ".agents/teamwork",
-  LAYOUT_CHECK_ID: "gate0-filesystem-layout",
-  LAYOUT_CHECK_NAME: "Filesystem Layout Invariant Check",
-
-  // Prohibited code file extensions in metadata directory
-  FORBIDDEN_SOURCE_EXTENSIONS: [
-    ".ts",
-    ".tsx",
-    ".js",
-    ".jsx",
-    ".mjs",
-    ".cjs",
-    ".py",
-    ".rb",
-    ".go",
-    ".rs",
-    ".java",
-    ".c",
-    ".cpp",
-    ".h",
-    ".sh",
-    ".bash",
-  ] as const,
-
-  // Permitted documentation file extensions
-  DOC_EXTENSIONS: [
-    ".md",
-    ".markdown",
-    ".txt",
-    ".rst",
-    ".adoc",
-  ] as const,
-
-  // Default Standard Verification Commands
-  DEFAULT_COMMANDS: [
-    "bun test",
-    "bunx tsc --noEmit",
-    "bun run lint",
-    "bun run build",
-  ] as const,
-
-  // Status Strings
-  STATUS_PASSED: "passed" as const,
-  STATUS_FAILED: "failed" as const,
-  STATUS_SKIPPED: "skipped" as const,
-  STATUS_TIMEOUT: "timeout" as const,
-  STATUS_ERROR: "error" as const,
-
-  // Check Types
-  CHECK_TYPE_TYPECHECK: "typecheck" as const,
-  CHECK_TYPE_TEST: "test" as const,
-  CHECK_TYPE_LINT: "lint" as const,
-  CHECK_TYPE_BUILD: "build" as const,
-  CHECK_TYPE_LAYOUT: "layout" as const,
-  CHECK_TYPE_CUSTOM: "custom" as const,
-
-  // Gate Verdicts
-  VERDICT_PASSED: "PASSED" as const,
-  VERDICT_FAILED: "FAILED" as const,
-  VERDICT_TIMEOUT: "TIMEOUT" as const,
-  VERDICT_ERROR: "ERROR" as const,
-
-  // Gate Execution Policies
-  POLICY_FAST_TRACK: GATE0_POLICY_CONSTANTS.POLICY_FAST_TRACK,
-  POLICY_FULL_GATE: GATE0_POLICY_CONSTANTS.POLICY_FULL_GATE,
-  POLICY_AUTO: GATE0_POLICY_CONSTANTS.POLICY_AUTO,
-} as const;
-
-/**
- * Valid check types recognized by Gate 0.
- */
-export type Gate0CheckType =
-  | typeof GATE0_CONSTANTS.CHECK_TYPE_TYPECHECK
-  | typeof GATE0_CONSTANTS.CHECK_TYPE_TEST
-  | typeof GATE0_CONSTANTS.CHECK_TYPE_LINT
-  | typeof GATE0_CONSTANTS.CHECK_TYPE_BUILD
-  | typeof GATE0_CONSTANTS.CHECK_TYPE_LAYOUT
-  | typeof GATE0_CONSTANTS.CHECK_TYPE_CUSTOM;
-
-/**
- * Execution status for an individual Gate 0 check.
- */
-export type Gate0CheckStatus =
-  | typeof GATE0_CONSTANTS.STATUS_PASSED
-  | typeof GATE0_CONSTANTS.STATUS_FAILED
-  | typeof GATE0_CONSTANTS.STATUS_SKIPPED
-  | typeof GATE0_CONSTANTS.STATUS_TIMEOUT
-  | typeof GATE0_CONSTANTS.STATUS_ERROR;
-
-/**
- * Gate-level binary verdict.
- */
-export type Gate0Verdict =
-  | typeof GATE0_CONSTANTS.VERDICT_PASSED
-  | typeof GATE0_CONSTANTS.VERDICT_FAILED
-  | typeof GATE0_CONSTANTS.VERDICT_TIMEOUT
-  | typeof GATE0_CONSTANTS.VERDICT_ERROR;
-
-/**
- * Result emitted by an executed shell command.
- */
-export interface Gate0CommandRunnerResult {
-  code: number;
-  stdout: string;
-  stderr: string;
-  output: string;
-  durationMs: number;
-  timedOut: boolean;
-}
-
-/**
- * Options passed to a command runner.
- */
-export interface Gate0CommandRunnerOptions {
-  cwd?: string;
-  timeoutMs?: number;
-  env?: Record<string, string>;
-}
-
-/**
- * Pluggable command runner interface for dependency injection and deterministic testing.
- */
-export type Gate0CommandRunner = (
-  command: string,
-  options?: Gate0CommandRunnerOptions,
-) => Promise<Gate0CommandRunnerResult>;
-
-/**
- * Context provided to running checks.
- */
-export interface Gate0ExecutionContext {
-  repoRoot: string;
-  cwd: string;
-  runner: Gate0CommandRunner;
-  timeoutMs: number;
-  perCommandTimeoutMs: number;
-  attempt: number;
-  maxAttempts: number;
-  taskId?: string;
-  affectedFiles?: readonly string[];
-  specs?: readonly string[];
-  env?: Record<string, string>;
-}
-
-/**
- * Definition of a single verification check in Gate 0.
- */
-export interface Gate0CheckDefinition {
-  id: string;
-  name: string;
-  type: Gate0CheckType;
-  command?: string;
-  customRunner?: (context: Gate0ExecutionContext) => Promise<Gate0CheckExecutionResult>;
-  required: boolean;
-  timeoutMs?: number;
-  cwd?: string;
-  description?: string;
-}
-
-/**
- * Outcome of executing a single check.
- */
-export interface Gate0CheckExecutionResult {
-  id: string;
-  name: string;
-  type: Gate0CheckType;
-  command: string;
-  exitCode: number;
-  status: Gate0CheckStatus;
-  stdout: string;
-  stderr: string;
-  output: string;
-  durationMs: number;
-  timedOut: boolean;
-  errorMessage?: string;
-  parsedTrace?: Gate0ParsedTrace;
-}
-
-/**
- * Violation report for protected directory layout invariant breach.
- */
-export interface Gate0LayoutViolation {
-  filePath: string;
-  reason: string;
-  rule: string;
-}
-
-/**
- * Outcome of filesystem layout verification.
- */
-export interface Gate0LayoutCheckResult {
-  valid: boolean;
-  violations: Gate0LayoutViolation[];
-  inspectedDir: string;
-  scannedCount: number;
-}
-
-/**
- * Observability and lifecycle hooks for Gate 0 execution.
- */
-export interface Gate0RunnerHooks {
-  onCheckStart?: (check: Gate0CheckDefinition) => void;
-  onCheckComplete?: (result: Gate0CheckExecutionResult) => void;
-  onGateComplete?: (result: Gate0Result) => void;
-  say?: (message: string) => void;
-  log?: (event: string, data: Record<string, unknown>) => void;
-}
-
-/**
- * Options configuring the Gate 0 mechanical test runner.
- */
-export interface Gate0RunnerOptions {
-  /** Target repository or workspace root directory */
-  repoRoot?: string;
-  /** Working directory for command execution. Defaults to process.cwd() */
-  cwd?: string;
-  /** Verification commands or custom check definitions to run */
-  commands?: readonly string[] | readonly Gate0CheckDefinition[] | string[] | Gate0CheckDefinition[];
-  /** File paths modified by the worker session */
-  affectedFiles?: readonly string[] | string[];
-  /** Specific test specs to focus execution on (e.g. test/gates/gate0.test.ts) */
-  specs?: readonly string[] | string[];
-  /** Gate execution overall timeout in ms */
-  timeoutMs?: number;
-  /** Per-command timeout in ms */
-  perCommandTimeoutMs?: number;
-  /** Stop execution immediately upon encountering first failed check */
-  stopOnFirstFailure?: boolean;
-  /** Enable Agnostic Looper filesystem layout assertion for .agents/teamwork */
-  enableLayoutCheck?: boolean;
-  /** Target directory for metadata layout assertion */
-  protectedMetadataDir?: string;
-  /** Custom command runner for dependency injection */
-  runner?: Gate0CommandRunner;
-  /** Task identifier (e.g. "1.1") */
-  taskId?: string;
-  /** Current attempt counter */
-  attempt?: number;
-  /** Maximum attempt counter */
-  maxAttempts?: number;
-  /** Additional environment variables passed to runner */
-  env?: Record<string, string>;
-  /** Commands or custom check definitions executed specifically during Fast-Track bypass */
-  fastTrackCommands?: readonly string[] | readonly Gate0CheckDefinition[] | string[] | Gate0CheckDefinition[];
-  /** Gate execution policy: "fast-track", "full-gate", or "auto" (default: "auto") */
-  policy?: GatePolicySelection;
-  /** Whether to allow fast-track policy bypass for documentation-only changes. Defaults to true */
-  allowFastTrack?: boolean;
-  /** Hooks for progress and event reporting */
-  hooks?: Gate0RunnerHooks;
-}
-
-/**
- * Options for formatting structured verification feedback.
- */
-export interface Gate0FeedbackOptions {
-  taskId?: string;
-  attempt?: number;
-  maxAttempts?: number;
-  maxLength?: number;
-  tailLines?: number;
-}
-
-/**
- * Comprehensive execution report generated by Gate 0.
- */
-export interface Gate0Result {
-  success: boolean;
-  verdict: Gate0Verdict;
-  exitCode: number;
-  checks: Gate0CheckExecutionResult[];
-  failures: Gate0CheckExecutionResult[];
-  passed: Gate0CheckExecutionResult[];
-  skipped: Gate0CheckExecutionResult[];
-  durationMs: number;
-  summary: string;
-  layoutResult?: Gate0LayoutCheckResult;
-  fastTrackEligible: boolean;
-  policy?: GateExecutionPolicy;
-  policyResult?: GatePolicyEvaluationResult;
-  bypassedGates?: readonly ("gate1" | "gate2")[];
-  recommendedEvent?: Gate0PolicyRecommendedEvent;
-  feedbackPrompt?: string;
-  timestamp: string;
-}
 
 /**
  * Default command runner executing subprocesses via the runtime ISpawner.

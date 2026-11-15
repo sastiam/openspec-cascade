@@ -20,7 +20,7 @@ import {
   type CascadeConfig,
 } from "../../config";
 import { syncDiagrams } from "../../diagrams";
-import type { EngineOutcome, UsageMeter } from "../../engine";
+import type { EngineOutcome, UsageMeter } from "../engine/contract";
 import { startKeepAlive, type KeepAliveController, type KeepAliveOptions } from "../../platform";
 import { runVerificationPhase } from "../../qa";
 import { Fatal, RollbackStateBuffer, TaskFailureError } from "../../resilience";

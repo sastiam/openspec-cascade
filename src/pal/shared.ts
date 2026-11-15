@@ -1,7 +1,7 @@
 /**
  * Helpers shared by the session-level CLI engines (OpenCode, Antigravity) and the PAL bridge.
  */
-import type { EngineOutcome } from "../../engine";
+import type { EngineOutcome } from "../engine/contract";
 
 export type EngineFailureKind = "fatal" | "paused" | "error";
 

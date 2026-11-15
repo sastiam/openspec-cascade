@@ -5,7 +5,7 @@
  * `paused` (rate limit) and `fatal` outcomes are never retried: waiting is owned by
  * the cascade loop and fatal errors must stop the run.
  */
-import type { EngineOutcome, EngineSessionOptions, UsageMeter } from "../../engine";
+import type { EngineOutcome, EngineSessionOptions, UsageMeter } from "../engine/contract";
 import { RESILIENCE_CONSTANTS } from "../config/constants";
 import type { EngineType } from "../config/schemas";
 import type { UnifiedEngine } from "../pal/factory";

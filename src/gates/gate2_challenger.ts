@@ -59,34 +59,16 @@ import {
   type LooperEvent,
   type LooperState,
 } from "../core/fsm_types";
+import { Gate2EdgeCaseSynthesizer, createEdgeCaseSynthesizer, extractTargetFileExports, parseTargetFile, synthesizeBoundaryLimitCases, synthesizeConcurrencyCases, synthesizeEdgeCases, synthesizeGenericEdgeCases, synthesizeNullEdgeCases, synthesizeTimeoutCases } from "./gate2_synthesis";
+import { Gate2AssertionInjector, Gate2InjectorError, Gate2InjectionError, Gate2RollbackError, TestingSandbox, createAssertionInjector, createTestingSandbox, formatAssertionFeedbackXml, formatAssertionReportMarkdown } from "./gate2_injector";
 import {
   GATE2_SYNTHESIS_CONSTANTS,
-  Gate2EdgeCaseSynthesizer,
-  createEdgeCaseSynthesizer,
-  extractTargetFileExports,
-  parseTargetFile,
-  synthesizeBoundaryLimitCases,
-  synthesizeConcurrencyCases,
-  synthesizeEdgeCases,
-  synthesizeGenericEdgeCases,
-  synthesizeNullEdgeCases,
-  synthesizeTimeoutCases,
+  GATE2_INJECTOR_CONSTANTS,
+  GATE2_CONSTANTS,
   type EdgeCaseCategory,
   type Gate2SynthesisOptions,
   type TargetExportInfo,
   type TargetFileInfo,
-} from "./gate2_synthesis";
-import {
-  GATE2_INJECTOR_CONSTANTS,
-  Gate2AssertionInjector,
-  Gate2InjectorError,
-  Gate2InjectionError,
-  Gate2RollbackError,
-  TestingSandbox,
-  createAssertionInjector,
-  createTestingSandbox,
-  formatAssertionFeedbackXml,
-  formatAssertionReportMarkdown,
   type AssertionInjectionResult,
   type Gate2AssertionInjectorOptions,
   type InjectionMode,
@@ -94,293 +76,20 @@ import {
   type InjectionSuiteResult,
   type RedTeamAssertion,
   type TestingSandboxOptions,
-} from "./gate2_injector";
+  type Gate2ProbeRunner,
+  type Gate2ChallengeResult,
+  type Gate2ProbeResult,
+  type Gate2StructuredFeedback,
+  type Gate2Verdict,
+  type Gate2ChallengeReport,
+  type Gate2ChallengerOptions,
+  type Gate2ProbeDefinition,
+  type Gate2ExecutionContext,
+  type Gate2ProbeRunSummary,
+} from "./gate2_types";
+export { GATE2_CONSTANTS } from "./gate2_types";
+export type { Gate2Verdict, Gate2AttackVector, Gate2ProbeDefinition, Gate2ProbeResult, Gate2ProbeRunSummary, Gate2ChallengeReport, Gate2StructuredFeedback, Gate2ExecutionContext, Gate2ProbeRunner, Gate2ChallengerExecutor, Gate2ChallengerOptions, Gate2ChallengeResult } from "./gate2_types";
 
-/**
- * Central constants ensuring zero magic numbers across Gate 2 Challenger operations.
- */
-export const GATE2_CONSTANTS = {
-  // Verdicts
-  VERDICT_PASSED_NO_BREAK: "PASSED_NO_BREAK" as const,
-  VERDICT_REPRODUCED_FAILURE: "REPRODUCED_FAILURE" as const,
-  VERDICT_TIMEOUT: "TIMEOUT" as const,
-  VERDICT_ERROR: "ERROR" as const,
-
-  // Recommended FSM Domain Events
-  EVENT_G2_PASS: LOOPER_EVENTS.EVT_G2_PASS,
-  EVENT_G2_BREAK: LOOPER_EVENTS.EVT_G2_BREAK,
-  EVENT_G2_EXHAUSTED: LOOPER_EVENTS.EVT_G2_EXHAUSTED,
-
-  // Associated FSM States
-  STATE_GATE_2_CHALLENGE: LOOPER_STATES.STATE_GATE_2_CHALLENGE,
-  STATE_GATE_3_AUDIT: LOOPER_STATES.STATE_GATE_3_AUDIT,
-  STATE_EXECUTE_WORKER: LOOPER_STATES.STATE_EXECUTE_WORKER,
-  STATE_ESCALATE_DIAGNOSTIC: LOOPER_STATES.STATE_ESCALATE_DIAGNOSTIC,
-
-  // Attempts and limits
-  DEFAULT_ATTEMPT: 1,
-  DEFAULT_MAX_ATTEMPTS: 2, // Specification default for MaxChallengeAttempts
-  DEFAULT_GATE_TIMEOUT_MS: 300_000, // 5 minutes overall
-  DEFAULT_PROBE_TIMEOUT_MS: 30_000, // 30 seconds per probe
-  DEFAULT_MAX_PROBES: 20,
-  DEFAULT_MAX_OUTPUT_LENGTH: 4_000,
-  DEFAULT_FEEDBACK_TRUNCATION_LIMIT: 2_500,
-  DEFAULT_TEMPERATURE: 0.2,
-
-  // Attack Vectors
-  VECTOR_BOUNDARY_MALFORMED: "boundary_malformed" as const,
-  VECTOR_CONCURRENCY_RACE: "concurrency_race" as const,
-  VECTOR_RESOURCE_EXHAUSTION: "resource_exhaustion" as const,
-  VECTOR_TIMEOUT_LATENCY: "timeout_latency" as const,
-  VECTOR_CUSTOM: "custom" as const,
-
-  // File Paths & Suffixes
-  DEFAULT_TEAMWORK_DIR: ".agents/teamwork",
-  DEFAULT_TEST_DIR: "test",
-  PROBE_FILE_PREFIX: "challenger_",
-  PROBE_FILE_EXTENSION: ".test.ts",
-  REPRO_SCRIPT_PREFIX: "challenger_repro_",
-  REPORT_FILENAME: "challenge_report.md",
-  RESULTS_JSON_FILENAME: "challenge_results.json",
-  FEEDBACK_XML_FILENAME: "challenger_feedback.xml",
-
-  // Cognitive Role Defaults
-  ROLE_CHALLENGER: COGNITIVE_ROLES.CHALLENGER,
-  ARCHETYPE_CHALLENGER: ROLES_CONSTANTS.ARCHETYPE_CHALLENGER,
-  TIER_CHALLENGER: ROLES_CONSTANTS.TIER_CHALLENGER,
-  DEFAULT_PROVIDER: "claude",
-  DEFAULT_MODEL: "claude-3-7-sonnet-20250219",
-
-  // Exit codes
-  EXIT_CODE_SUCCESS: 0,
-  EXIT_CODE_FAILURE: 1,
-  EXIT_CODE_ERROR: 2,
-  EXIT_CODE_TIMEOUT: 124,
-
-  // Numeric literals and offsets
-  ZERO: 0,
-  ONE: 1,
-  TWO: 2,
-  THREE: 3,
-  FOUR: 4,
-  INDEX_NOT_FOUND: -1,
-  REGEX_CAPTURE_GROUP_ONE: 1,
-  JSON_INDENT_SPACES: 2,
-  UUID_TRUNCATION_LENGTH: 8,
-
-  // Event emitter names
-  EVENT_CHALLENGE_START: "challenge:start",
-  EVENT_SUBAGENT_DISPATCHED: "challenge:subagent_dispatched",
-  EVENT_PROBE_START: "challenge:probe_start",
-  EVENT_PROBE_COMPLETE: "challenge:probe_complete",
-  EVENT_BREAKING_PROBE_FOUND: "challenge:breaking_probe_found",
-  EVENT_VERDICT_RESOLVED: "challenge:verdict_resolved",
-  EVENT_CHALLENGE_COMPLETE: "challenge:complete",
-  EVENT_CHALLENGE_ERROR: "challenge:error",
-} as const;
-
-/**
- * Gate 2 challenge verdict.
- */
-export type Gate2Verdict =
-  | typeof GATE2_CONSTANTS.VERDICT_PASSED_NO_BREAK
-  | typeof GATE2_CONSTANTS.VERDICT_REPRODUCED_FAILURE
-  | typeof GATE2_CONSTANTS.VERDICT_TIMEOUT
-  | typeof GATE2_CONSTANTS.VERDICT_ERROR;
-
-/**
- * Recognized red-team adversarial attack vector categories.
- */
-export type Gate2AttackVector =
-  | typeof GATE2_CONSTANTS.VECTOR_BOUNDARY_MALFORMED
-  | typeof GATE2_CONSTANTS.VECTOR_CONCURRENCY_RACE
-  | typeof GATE2_CONSTANTS.VECTOR_RESOURCE_EXHAUSTION
-  | typeof GATE2_CONSTANTS.VECTOR_TIMEOUT_LATENCY
-  | typeof GATE2_CONSTANTS.VECTOR_CUSTOM;
-
-/**
- * Executable adversarial test probe definition.
- */
-export interface Gate2ProbeDefinition {
-  readonly id: string;
-  readonly name: string;
-  readonly vector: Gate2AttackVector;
-  readonly description: string;
-  readonly probeCode: string;
-  readonly targetFile?: string;
-  readonly timeoutMs?: number;
-  readonly metadata?: Readonly<Record<string, unknown>>;
-}
-
-/**
- * Individual test probe execution result.
- */
-export interface Gate2ProbeResult {
-  readonly probeId: string;
-  readonly name: string;
-  readonly vector: Gate2AttackVector;
-  readonly description: string;
-  readonly survived: boolean; // true if candidate did NOT break
-  readonly broken: boolean;   // true if candidate crashed / assertion failed
-  readonly exitCode: number;
-  readonly stdout: string;
-  readonly stderr: string;
-  readonly errorOutput?: string;
-  readonly durationMs: number;
-  readonly probeFilePath?: string;
-  readonly preservedReproPath?: string;
-}
-
-/**
- * Aggregated summary of executed adversarial test probes.
- */
-export interface Gate2ProbeRunSummary {
-  readonly totalProbes: number;
-  readonly passedProbes: number; // survived without break
-  readonly brokenProbes: number; // broke the implementation
-  readonly errorProbes: number;
-  readonly results: readonly Gate2ProbeResult[];
-  readonly breakingProbes: readonly Gate2ProbeResult[];
-}
-
-/**
- * Comprehensive challenge report emitted by Gate 2.
- */
-export interface Gate2ChallengeReport {
-  readonly verdict: Gate2Verdict;
-  readonly summary: string;
-  readonly totalProbes: number;
-  readonly survivedCount: number;
-  readonly brokenCount: number;
-  readonly results: readonly Gate2ProbeResult[];
-  readonly breakingProbes: readonly Gate2ProbeResult[];
-  readonly reproScripts: readonly string[];
-  readonly unhandledFailures: readonly string[];
-  readonly rawResponse?: string;
-}
-
-/**
- * Structured XML and metadata feedback produced for the Worker.
- */
-export interface Gate2StructuredFeedback {
-  readonly xmlFeedback: string;
-  readonly verdict: Gate2Verdict;
-  readonly recommendedEvent: LooperEvent;
-  readonly targetFsmState: LooperState;
-  readonly summary: string;
-  readonly breakingProbeCount: number;
-  readonly reproScriptPaths: readonly string[];
-  readonly recommendations: readonly string[];
-}
-
-/**
- * Context payload provided to custom challenger executors and synthesizers.
- */
-export interface Gate2ExecutionContext {
-  readonly taskId?: string;
-  readonly taskDescription?: string;
-  readonly acceptanceCriteria: readonly string[];
-  readonly targetFiles: readonly string[];
-  readonly gitDiff?: string;
-  readonly subagentInstance?: SubagentInstance;
-  readonly attempt: number;
-  readonly maxAttempts: number;
-  readonly options: Readonly<Gate2ChallengerOptions>;
-}
-
-/**
- * Pluggable probe runner for executing individual probe test files.
- */
-export type Gate2ProbeRunner = (
-  probeFilePath: string,
-  options?: { timeoutMs?: number; cwd?: string }
-) => Promise<{ stdout: string; stderr: string; exitCode: number }>;
-
-/**
- * Pluggable challenger executor for custom test runners or mock suites.
- */
-export type Gate2ChallengerExecutor = (
-  context: Gate2ExecutionContext
-) => Promise<Gate2ChallengeReport>;
-
-/**
- * Options configuring the Gate2Challenger adversarial test runner.
- */
-export interface Gate2ChallengerOptions {
-  /** Root directory of the repository/workspace (defaults to process.cwd()) */
-  readonly workspaceRoot?: string;
-  /** Repository root directory override */
-  readonly repoRoot?: string;
-  /** Directory where temporary test probes are placed (defaults to <workspaceRoot>/test) */
-  readonly testDir?: string;
-  /** Identifier of the task under challenge */
-  readonly taskId?: string;
-  /** Task goal or descriptive specification */
-  readonly taskDescription?: string;
-  /** List of acceptance criteria required for task */
-  readonly acceptanceCriteria?: readonly string[];
-  /** Whitelist of authorized target files under challenge */
-  readonly targetFiles?: readonly string[];
-  /** Baseline git SHA */
-  readonly baselineSha?: string;
-  /** Pre-extracted git diff string */
-  readonly diff?: string;
-  /** Current challenge attempt count (default: 1) */
-  readonly attempt?: number;
-  /** Maximum permitted challenge attempts before escalation (default: 2) */
-  readonly maxAttempts?: number;
-  /** Overall challenge timeout in milliseconds (default: 300,000 ms) */
-  readonly timeoutMs?: number;
-  /** Per-probe test timeout in milliseconds (default: 30,000 ms) */
-  readonly probeTimeoutMs?: number;
-  /** LLM model name */
-  readonly model?: string;
-  /** Provider adapter or name */
-  readonly provider?: IPalProvider | string;
-  /** Optional pre-existing SubagentDispatcher instance */
-  readonly dispatcher?: SubagentDispatcher;
-  /** Whether to automatically clean up temporary files (default: true) */
-  readonly autoCleanup?: boolean;
-  /** Whether to preserve breaking probe test files permanently (default: true) */
-  readonly preserveBreakingProbes?: boolean;
-  /** Explicit test probes to execute */
-  readonly probes?: readonly Gate2ProbeDefinition[];
-  /** Custom probe runner */
-  readonly probeRunner?: Gate2ProbeRunner;
-  /** Pluggable challenger executor */
-  readonly challengerExecutor?: Gate2ChallengerExecutor;
-  /** Edge case synthesizer callback */
-  readonly edgeCaseSynthesizer?: (
-    context: Gate2ExecutionContext
-  ) => Promise<readonly Gate2ProbeDefinition[]> | readonly Gate2ProbeDefinition[];
-  /** Configuration options for automated edge case synthesis */
-  readonly synthesisOptions?: Gate2SynthesisOptions;
-  /** Red-team assertion injector into testing sandbox */
-  readonly assertionInjector?: Gate2AssertionInjector;
-  /** Testing sandbox configuration options */
-  readonly sandboxOptions?: TestingSandboxOptions;
-  /** Optional logging callback */
-  readonly logger?: (level: "info" | "warn" | "error", message: string) => void;
-}
-
-/**
- * Final execution result returned by Gate2Challenger.
- */
-export interface Gate2ChallengeResult {
-  readonly success: boolean;
-  readonly verdict: Gate2Verdict;
-  readonly recommendedEvent: LooperEvent;
-  readonly attempt: number;
-  readonly maxAttempts: number;
-  readonly report: Gate2ChallengeReport;
-  readonly feedback?: Gate2StructuredFeedback;
-  readonly breakingProbes: readonly Gate2ProbeResult[];
-  readonly reproScripts: readonly string[];
-  readonly subagentId?: string;
-  readonly sandboxDir?: string;
-  readonly durationMs: number;
-  readonly timestamp: string;
-}
 
 // ============================================================================
 // CUSTOM ERROR CLASSES

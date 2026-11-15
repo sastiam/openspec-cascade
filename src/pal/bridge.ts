@@ -7,7 +7,7 @@
  * same provider instances.
  */
 import { randomUUID } from "node:crypto";
-import type { EngineAdapter, EngineOutcome, EngineSessionOptions } from "../../engine";
+import type { EngineAdapter, EngineOutcome, EngineSessionOptions } from "../engine/contract";
 import { TIMEOUT_CONSTANTS } from "../config/constants";
 import type { EngineType } from "../config/schemas";
 import {

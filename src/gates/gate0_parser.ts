@@ -9,166 +9,21 @@
  * and formats machine-readable XML feedback blocks (<verification-feedback>).
  */
 
-import type { Gate0CheckExecutionResult, Gate0FeedbackOptions, Gate0Result } from "./gate0_qa";
 
-/**
- * Central constants ensuring zero magic numbers across Gate 0 trace parsing and XML formatting.
- */
-export const GATE0_PARSER_CONSTANTS = {
-  // Limits
-  DEFAULT_MAX_DIAGNOSTICS: 20,
-  DEFAULT_MAX_TEST_FAILURES: 15,
-  DEFAULT_MAX_STACK_FRAMES: 10,
-  DEFAULT_TAIL_LINES: 25,
-  DEFAULT_FEEDBACK_TRUNCATION_LIMIT: 2500,
-  DEFAULT_MAX_ERROR_MESSAGE_LENGTH: 500,
-  DEFAULT_MAX_RAW_SNIPPET_LINES: 5,
+import {
+  GATE0_PARSER_CONSTANTS,
+  type Gate0CheckExecutionResult,
+  type Gate0FeedbackOptions,
+  type Gate0Result,
+  type Gate0ParsedTrace,
+  type Gate0StackFrame,
+  type Gate0ParsedTestFailure,
+  type Gate0ParsedDiagnostic,
+  type Gate0DiagnosticSeverity,
+} from "./gate0_types";
+export { GATE0_PARSER_CONSTANTS } from "./gate0_types";
+export type { Gate0DiagnosticSeverity, Gate0DiagnosticSource, Gate0ParsedDiagnostic, Gate0StackFrame, Gate0ParsedTestFailure, Gate0ParsedTrace } from "./gate0_types";
 
-  // Radix for integer conversions
-  RADIX_DECIMAL: 10,
-
-  // Severities
-  SEVERITY_ERROR: "error" as const,
-  SEVERITY_WARNING: "warning" as const,
-  SEVERITY_INFO: "info" as const,
-
-  // Diagnostic Sources
-  SOURCE_TSC: "tsc" as const,
-  SOURCE_ESLINT: "eslint" as const,
-  SOURCE_BIOME: "biome" as const,
-  SOURCE_COMPILER: "compiler" as const,
-  SOURCE_LINTER: "linter" as const,
-  SOURCE_GENERIC: "generic" as const,
-
-  // Capture group indexes for TypeScript flex regex:
-  // [full, file, line, col, severity, code, message]
-  TSC_INDEX_FILE: 1,
-  TSC_INDEX_LINE: 2,
-  TSC_INDEX_COL: 3,
-  TSC_INDEX_SEVERITY: 4,
-  TSC_INDEX_CODE: 5,
-  TSC_INDEX_MESSAGE: 6,
-
-  // Capture group indexes for ESLint stylish regex:
-  // [full, line, col, severity, message, rule]
-  ESLINT_STYLISH_INDEX_LINE: 1,
-  ESLINT_STYLISH_INDEX_COL: 2,
-  ESLINT_STYLISH_INDEX_SEVERITY: 3,
-  ESLINT_STYLISH_INDEX_MESSAGE: 4,
-  ESLINT_STYLISH_INDEX_RULE: 5,
-
-  // Capture group indexes for ESLint compact regex:
-  // [full, file, line, col, severity, message, bracketRule, parenRule]
-  ESLINT_COMPACT_INDEX_FILE: 1,
-  ESLINT_COMPACT_INDEX_LINE: 2,
-  ESLINT_COMPACT_INDEX_COL: 3,
-  ESLINT_COMPACT_INDEX_SEVERITY: 4,
-  ESLINT_COMPACT_INDEX_MESSAGE: 5,
-  ESLINT_COMPACT_INDEX_RULE_BRACKET: 6,
-  ESLINT_COMPACT_INDEX_RULE_PAREN: 7,
-
-  // Capture group indexes for Biome error regex:
-  // [full, file, line, col, rule]
-  BIOME_INDEX_FILE: 1,
-  BIOME_INDEX_LINE: 2,
-  BIOME_INDEX_COL: 3,
-  BIOME_INDEX_RULE: 4,
-
-  // Capture group indexes for Stack Frame (named):
-  // [full, func, file, line, col]
-  FRAME_NAMED_INDEX_FUNC: 1,
-  FRAME_NAMED_INDEX_FILE: 2,
-  FRAME_NAMED_INDEX_LINE: 3,
-  FRAME_NAMED_INDEX_COL: 4,
-
-  // Capture group indexes for Stack Frame (anonymous):
-  // [full, file, line, col]
-  FRAME_ANON_INDEX_FILE: 1,
-  FRAME_ANON_INDEX_LINE: 2,
-  FRAME_ANON_INDEX_COL: 3,
-
-  // Capture group indexes for Bun test failure header:
-  // [full, file, suiteAndName]
-  BUN_FAIL_HEADER_INDEX_FILE: 1,
-  BUN_FAIL_HEADER_INDEX_NAME: 2,
-
-  // Capture group indexes for Expected / Received:
-  EXPECTED_INDEX_VALUE: 1,
-  RECEIVED_INDEX_VALUE: 1,
-} as const;
-
-/**
- * Diagnostic severity level for compiler and linter findings.
- */
-export type Gate0DiagnosticSeverity =
-  | typeof GATE0_PARSER_CONSTANTS.SEVERITY_ERROR
-  | typeof GATE0_PARSER_CONSTANTS.SEVERITY_WARNING
-  | typeof GATE0_PARSER_CONSTANTS.SEVERITY_INFO;
-
-/**
- * Origin source identifying which tool produced a diagnostic.
- */
-export type Gate0DiagnosticSource =
-  | typeof GATE0_PARSER_CONSTANTS.SOURCE_TSC
-  | typeof GATE0_PARSER_CONSTANTS.SOURCE_ESLINT
-  | typeof GATE0_PARSER_CONSTANTS.SOURCE_BIOME
-  | typeof GATE0_PARSER_CONSTANTS.SOURCE_COMPILER
-  | typeof GATE0_PARSER_CONSTANTS.SOURCE_LINTER
-  | typeof GATE0_PARSER_CONSTANTS.SOURCE_GENERIC;
-
-/**
- * Structured compiler or linter diagnostic.
- */
-export interface Gate0ParsedDiagnostic {
-  file?: string;
-  line?: number;
-  column?: number;
-  code?: string;
-  message: string;
-  severity: Gate0DiagnosticSeverity;
-  source: Gate0DiagnosticSource;
-  raw?: string;
-}
-
-/**
- * Structured stack trace frame.
- */
-export interface Gate0StackFrame {
-  raw: string;
-  functionName?: string;
-  file?: string;
-  line?: number;
-  column?: number;
-  isInternal: boolean;
-  isProject: boolean;
-}
-
-/**
- * Structured unit test failure report.
- */
-export interface Gate0ParsedTestFailure {
-  testName?: string;
-  file?: string;
-  line?: number;
-  expected?: string;
-  received?: string;
-  message: string;
-  stackFrames: Gate0StackFrame[];
-  rawSnippet?: string;
-}
-
-/**
- * Complete parsed trace bundle for a failed Gate 0 check.
- */
-export interface Gate0ParsedTrace {
-  diagnostics: Gate0ParsedDiagnostic[];
-  testFailures: Gate0ParsedTestFailure[];
-  stackFrames: Gate0StackFrame[];
-  sanitizedStderr: string;
-  sanitizedStdout: string;
-  sanitizedOutput: string;
-  summaryMessage?: string;
-}
 
 /**
  * Strips ANSI escape sequences and terminal control characters from output text.

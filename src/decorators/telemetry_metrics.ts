@@ -2,7 +2,7 @@
  * GoF Decorator measuring every engine session: latency, cost, turns, tokens,
  * retries (observed through `engine_retry` hook events) and error category.
  */
-import type { EngineHooks, EngineOutcome, EngineSessionOptions, UsageMeter } from "../../engine";
+import type { EngineHooks, EngineOutcome, EngineSessionOptions, UsageMeter } from "../engine/contract";
 import { ENGINE_TELEMETRY_CONSTANTS, RESILIENCE_CONSTANTS } from "../config/constants";
 import type { EngineType } from "../config/schemas";
 import type { ProviderContext } from "../pal/bridge";
