@@ -23,6 +23,7 @@ import {
   type ProjectItemPriority,
   type ProjectItemSize,
   type ProjectItemStatus,
+  type RawProjectV2ItemNode,
 } from "../../src/integration/github_project";
 
 describe("GitHubProjectService (Task 1.1)", () => {
@@ -309,14 +310,14 @@ describe("GitHubProjectService (Task 1.1)", () => {
       expect(callCount).toBe(1);
 
       await service.getProjectDetails();
-      expect(callCount).toBe(1); // Cached
+      expect(callCount).toBe(1);
 
       await service.getProjectDetails(true);
-      expect(callCount).toBe(2); // Forced refresh
+      expect(callCount).toBe(2);
 
       service.clearCache();
       await service.getProjectDetails();
-      expect(callCount).toBe(3); // Refetched after clearCache
+      expect(callCount).toBe(3);
     });
   });
 
@@ -338,7 +339,7 @@ describe("GitHubProjectService (Task 1.1)", () => {
                   priority: { name: "P0", optionId: "OPT_P0" },
                   size: { name: "M", optionId: "OPT_M" },
                   content: {
-                    __typename: "Issue",
+                    __typename: "Issue" as const,
                     id: "ISSUE_1_ID",
                     number: 42,
                     title: "[LOOPER-INT-002] Implement GitHub Project Service",
@@ -353,13 +354,13 @@ describe("GitHubProjectService (Task 1.1)", () => {
                   priority: null,
                   size: null,
                   content: {
-                    __typename: "DraftIssue",
+                    __typename: "DraftIssue" as const,
                     id: "DRAFT_2_ID",
                     title: "[LOOPER-CORE-001] FSM Lifecycle",
                     body: "Draft body",
                   },
                 },
-              ],
+              ] satisfies RawProjectV2ItemNode[],
             },
           },
         },
@@ -367,7 +368,11 @@ describe("GitHubProjectService (Task 1.1)", () => {
     };
 
     it("normalizes ProjectV2 items accurately", () => {
-      const normalized = normalizeProjectV2Item(rawItemsData.data.user.projectV2.items.nodes[0] as any);
+      const firstNode: RawProjectV2ItemNode | undefined =
+        rawItemsData.data.user.projectV2.items.nodes[0];
+      expect(firstNode).toBeDefined();
+      if (!firstNode) return;
+      const normalized = normalizeProjectV2Item(firstNode);
       expect(normalized.id).toBe("ITEM_1");
       expect(normalized.type).toBe("ISSUE");
       expect(normalized.status).toBe("Done");
@@ -1230,11 +1235,9 @@ describe("Typed Mutation Methods: Status, Priority, and Size (Task 1.2)", () => 
         executor: createMockExecutor(),
       });
 
-      // WHEN a task passes Gate 3 forensic audit
       const taskKey = "LOOPER-INT-002";
       const result = await service.markTaskAsDone(taskKey);
 
-      // THEN the service updates the corresponding item Status to Done
       expect(result.itemId).toBe("ITEM_100");
       expect(result.status).toBe("Done");
       expect(result.optionId).toBe("OPT_DONE");
@@ -1875,7 +1878,7 @@ describe("Error Handling and Exponential Backoff (Task 1.3)", () => {
           expect(ghErr.code).toBe(GITHUB_PROJECT_ERROR_CODES.RATE_LIMITED);
           expect(ghErr.isRateLimited()).toBe(true);
         }
-        expect(attempts).toBe(3); // 1 initial + 2 retries
+        expect(attempts).toBe(3);
       });
 
       it("exhausts retries and rethrows NETWORK_ERROR when network failures persist", async () => {
@@ -1902,7 +1905,7 @@ describe("Error Handling and Exponential Backoff (Task 1.3)", () => {
           expect(ghErr.code).toBe(GITHUB_PROJECT_ERROR_CODES.NETWORK_ERROR);
           expect(ghErr.isTransientNetworkError()).toBe(true);
         }
-        expect(attempts).toBe(3); // 1 initial + 2 retries
+        expect(attempts).toBe(3);
       });
 
       it("does not retry non-transient errors like PROJECT_NOT_FOUND", async () => {

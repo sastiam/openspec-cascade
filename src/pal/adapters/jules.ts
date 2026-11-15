@@ -34,13 +34,14 @@ import {
   type PalTokenUsage,
   type ProviderAdapter,
 } from "../types";
+import { ENGINE_CONSTANTS, EXIT_CODE_CONSTANTS, FORMAT_CONSTANTS } from "../../config/constants";
 
 /**
  * Central constants ensuring zero magic numbers across JulesAdapter operations.
  */
 export const JULES_ADAPTER_CONSTANTS = {
   // Identity
-  DEFAULT_MODEL: "jules",
+  DEFAULT_MODEL: ENGINE_CONSTANTS.DEFAULT_JULES_MODEL,
   DEFAULT_CLI_BIN: "jules",
 
   // CLI surface (verified against `jules remote --help`)
@@ -53,7 +54,7 @@ export const JULES_ADAPTER_CONSTANTS = {
   CLI_FLAG_PARALLEL: "--parallel",
   CLI_STDIN_IGNORE: "ignore",
   CLI_PIPE: "pipe",
-  EXIT_CODE_SUCCESS: 0,
+  EXIT_CODE_SUCCESS: EXIT_CODE_CONSTANTS.EXIT_CODE_SUCCESS,
   INSTALL_HINT: "npm install -g @google/jules",
   LOGIN_HINT: "jules login",
 
@@ -90,7 +91,7 @@ export const JULES_ADAPTER_CONSTANTS = {
   NO_DIFF_MESSAGE: "No diff found in the remote VM.",
   AUTH_FAILURE_PATTERN:
     /\b(unauthenticated|unauthorized|not logged in|login required|please log ?in|jules login)\b/i,
-  STDERR_TAIL_MAX_LENGTH: 400,
+  STDERR_TAIL_MAX_LENGTH: FORMAT_CONSTANTS.STDERR_TAIL_MAX_LENGTH,
 
   // Remote session status labels (only "Completed" and "In Progress" observed live;
   // the failure labels are ASSUMED). An EMPTY status label means the session is waiting on input.
@@ -860,8 +861,8 @@ export class JulesAdapter implements ProviderAdapter {
       timer = setTimeout(() => {
         try {
           proc.kill?.("SIGTERM");
-        } catch {
-          // Process may already have exited.
+        } catch (err) {
+          void err;
         }
         reject(
           new PalError(
@@ -914,7 +915,6 @@ export class JulesAdapter implements ProviderAdapter {
     if (repo !== undefined) {
       args.push(`${JULES_ADAPTER_CONSTANTS.CLI_FLAG_REPO}=${repo}`);
     }
-    // `=` form keeps the prompt a single argv element even if it begins with "-".
     args.push(`${JULES_ADAPTER_CONSTANTS.CLI_FLAG_SESSION}=${task.prompt}`);
     if (parallel > JULES_ADAPTER_CONSTANTS.MIN_PARALLEL) {
       args.push(JULES_ADAPTER_CONSTANTS.CLI_FLAG_PARALLEL, String(parallel));
@@ -1017,7 +1017,6 @@ export class JulesAdapter implements ProviderAdapter {
       for (const sessionId of [...ctx.pending]) {
         const row = rowsById.get(sessionId);
         if (row === undefined) {
-          // Not yet visible in the list; keep waiting. Not an awaiting-input poll.
           ctx.consecutiveAwaitingPolls.delete(sessionId);
           continue;
         }
@@ -1209,12 +1208,10 @@ export class JulesAdapter implements ProviderAdapter {
       }
     };
 
-    // One watch serves the whole wave. A per-session error settles only that session and
-    // the watch resumes with the rest, sharing the same deadline and poll counters.
     while (ctx.pending.size > 0) {
       try {
-        for await (const _transition of this.pollSessions(ctx)) {
-          // Progress lives in ctx; per-task outcomes are recorded below.
+        for await (const transition of this.pollSessions(ctx)) {
+          void transition;
         }
       } catch (err: unknown) {
         if (err instanceof JulesSessionFailedError) {
@@ -1225,7 +1222,6 @@ export class JulesAdapter implements ProviderAdapter {
           settle(err.sessionId, JULES_BATCH_OUTCOMES.NEEDS_INPUT, err.message);
           continue;
         }
-        // Timeout, abort or a list failure: nothing further can be observed for the rest.
         const isTimeout = err instanceof PalError && err.kind === PAL_ERROR_KINDS.TIMEOUT;
         const outcome = isTimeout ? JULES_BATCH_OUTCOMES.TIMEOUT : JULES_BATCH_OUTCOMES.FAILED;
         const message = toPalError(err).message;
@@ -1301,7 +1297,6 @@ export class JulesAdapter implements ProviderAdapter {
       maxContextTokens: JULES_ADAPTER_CONSTANTS.NOT_PUBLISHED,
       maxOutputTokens: JULES_ADAPTER_CONSTANTS.NOT_PUBLISHED,
       supportsNativeTools: false,
-      // Emits progress and result events only; there is no token-level streaming.
       supportsStreaming: false,
       supportsExtendedThinking: false,
       supportsPromptCaching: false,
@@ -1309,7 +1304,6 @@ export class JulesAdapter implements ProviderAdapter {
   }
 
   getRateLimitState(): PalRateLimitInfo {
-    // The CLI does not expose quota telemetry.
     return {
       requestsRemaining: JULES_ADAPTER_CONSTANTS.NOT_REPORTED,
       requestsLimit: JULES_ADAPTER_CONSTANTS.NOT_REPORTED,

@@ -83,13 +83,19 @@ import {
   validateToolArguments,
   formatMcpCallToolResult,
 } from "../mcp";
+import {
+  ENGINE_CONSTANTS,
+  EXIT_CODE_CONSTANTS,
+  FORMAT_CONSTANTS,
+  TIMEOUT_CONSTANTS,
+} from "../../config/constants";
 
 /**
  * Central constants ensuring zero magic numbers across OpenCodeAdapter operations.
  */
 export const OPENCODE_ADAPTER_CONSTANTS = {
   // Model defaults
-  DEFAULT_MODEL: "opencode/deepseek-v4.1-flash",
+  DEFAULT_MODEL: ENGINE_CONSTANTS.DEFAULT_OPENCODE_MODEL,
   FALLBACK_MODEL: "deepseek-coder",
 
   // Context & Token Limits
@@ -102,9 +108,9 @@ export const OPENCODE_ADAPTER_CONSTANTS = {
   // Network & Endpoint Defaults
   DEFAULT_BASE_URL: "http://localhost:11434/v1",
   CHAT_COMPLETIONS_ENDPOINT: "/chat/completions",
-  DEFAULT_TIMEOUT_MS: 60_000,
-  MS_PER_SECOND: 1_000,
-  RATE_LIMIT_RESET_FALLBACK_MS: 60_000,
+  DEFAULT_TIMEOUT_MS: TIMEOUT_CONSTANTS.ADAPTER_DEFAULT_TIMEOUT_MS,
+  MS_PER_SECOND: TIMEOUT_CONSTANTS.MS_PER_SECOND,
+  RATE_LIMIT_RESET_FALLBACK_MS: TIMEOUT_CONSTANTS.RATE_LIMIT_RESET_FALLBACK_MS,
 
   // HTTP & API Headers
   HEADER_CONTENT_TYPE: "application/json",
@@ -154,11 +160,11 @@ export const OPENCODE_ADAPTER_CONSTANTS = {
   CLI_FLAG_SESSION: "--session",
   CLI_FLAG_TITLE: "--title",
   CLI_DEFAULT_TITLE: "openspec-cascade",
-  DEFAULT_CLI_TIMEOUT_MS: 2_700_000,
-  STDERR_TAIL_MAX_LENGTH: 400,
-  ERROR_DETAIL_MAX_LENGTH: 200,
-  RATE_LIMIT_SLEEP_MS: 30_000,
-  EXIT_CODE_SUCCESS: 0,
+  DEFAULT_CLI_TIMEOUT_MS: TIMEOUT_CONSTANTS.OPENCODE_SESSION_TIMEOUT_MS,
+  STDERR_TAIL_MAX_LENGTH: FORMAT_CONSTANTS.STDERR_TAIL_MAX_LENGTH,
+  ERROR_DETAIL_MAX_LENGTH: FORMAT_CONSTANTS.ERROR_DETAIL_MAX_LENGTH,
+  RATE_LIMIT_SLEEP_MS: TIMEOUT_CONSTANTS.RATE_LIMIT_SLEEP_MS,
+  EXIT_CODE_SUCCESS: EXIT_CODE_CONSTANTS.EXIT_CODE_SUCCESS,
 } as const;
 
 /**
@@ -774,7 +780,6 @@ export class OpenCodeStreamChunkParser {
 
             const delta = choice.delta;
             if (isRecord(delta)) {
-              // 1. Thinking / Reasoning content (DeepSeek / OpenCode / OpenAI o-series)
               if (
                 typeof delta.reasoning_content === "string" &&
                 delta.reasoning_content.length > 0
@@ -793,7 +798,6 @@ export class OpenCodeStreamChunkParser {
                 });
               }
 
-              // 2. Regular content delta & inline <think> tags
               if (
                 typeof delta.content === "string" &&
                 delta.content.length > 0
@@ -872,7 +876,6 @@ export class OpenCodeStreamChunkParser {
                 }
               }
 
-              // 3. Tool calls delta
               if (
                 Array.isArray(delta.tool_calls) &&
                 delta.tool_calls.length > 0
@@ -948,7 +951,6 @@ export class OpenCodeStreamChunkParser {
     this.isDone = true;
     const events: PalStreamEvent[] = [];
 
-    // Finalize native tool calls
     for (const active of this.activeToolCalls.values()) {
       events.push({
         type: "tool_call_end",
@@ -959,7 +961,6 @@ export class OpenCodeStreamChunkParser {
     }
     this.activeToolCalls.clear();
 
-    // ReAct fallback if no native tool calls were emitted
     if (!this.hasToolCalls) {
       const { toolCalls } = extractReActToolCalls(this.accumulatedContent);
       for (const tc of toolCalls) {
@@ -1526,7 +1527,6 @@ export class OpenCodeAdapter implements ProviderAdapter {
   ): Record<string, unknown> {
     const basePayload = toOpenAiPayload(options.messages);
 
-    // If options.systemPrompt is provided and not already in messages:
     if (options.systemPrompt !== undefined) {
       let systemText = "";
       if (typeof options.systemPrompt === "string") {

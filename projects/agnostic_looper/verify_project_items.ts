@@ -48,6 +48,11 @@ interface ValidationResult {
   errors: string[];
 }
 
+interface CatalogTaskEntry {
+  task_key?: string;
+  taskId?: string;
+}
+
 const REGEX_PROPOSITO = /(?:##|\*{1,2}|^)\s*(?:1\.?\s*)?Prop[oó]sito de la tarea/i;
 const REGEX_ESPERA_LOGRAR = /(?:##|\*{1,2}|^)\s*(?:2\.?\s*)?Qu[eé] se espera lograr/i;
 const REGEX_GOAL = /(?:##|\*{1,2}|^)\s*(?:3\.?\s*)?Goal de la tarea/i;
@@ -159,20 +164,24 @@ export function runVerification(): boolean {
   const items = fetchProjectItems();
   console.log(`Successfully fetched ${items.length} total items from Project #4.\n`);
 
-  // Load catalog to verify against planned tasks
   const catalogPath = path.resolve(import.meta.dir, "tasks_catalog.json");
   let expectedKeys = new Set<string>();
   if (fs.existsSync(catalogPath)) {
     try {
-      const catalog = JSON.parse(fs.readFileSync(catalogPath, "utf-8"));
-      expectedKeys = new Set(catalog.map((t: any) => t.task_key || t.taskId));
+      const parsedCatalog: unknown = JSON.parse(fs.readFileSync(catalogPath, "utf-8"));
+      if (Array.isArray(parsedCatalog)) {
+        const keys = parsedCatalog
+          .filter((entry): entry is CatalogTaskEntry => typeof entry === "object" && entry !== null)
+          .map((entry) => entry.task_key ?? entry.taskId)
+          .filter((key): key is string => typeof key === "string" && key.length > 0);
+        expectedKeys = new Set(keys);
+      }
       console.log(`Loaded catalog with ${expectedKeys.size} expected tasks from ${catalogPath}.`);
-    } catch (e) {
+    } catch {
       console.warn("Could not parse tasks_catalog.json, falling back to prefix matching.");
     }
   }
 
-  // Filter items matching [LOOPER-
   const looperItems = items.filter((it) => {
     const title = it.content?.title || "";
     return title.toUpperCase().includes("LOOPER-");
@@ -189,12 +198,13 @@ export function runVerification(): boolean {
   let failed = 0;
   const verifiedKeys = new Set<string>();
 
-const PAD_LENGTH = 2;
-const PERCENTAGE_FACTOR = 100;
-const PERFECT_COMPLIANCE_RATE = 100;
+  const PAD_LENGTH = 2;
+  const PERCENTAGE_FACTOR = 100;
+  const PERFECT_COMPLIANCE_RATE = 100;
 
   for (let idx = 0; idx < looperItems.length; idx++) {
     const item = looperItems[idx];
+    if (!item) continue;
     const res = validateItem(item);
     verifiedKeys.add(res.taskKey);
 
@@ -213,7 +223,6 @@ const PERFECT_COMPLIANCE_RATE = 100;
     }
   }
 
-  // Check if all catalog tasks are accounted for
   let missingCount = 0;
   if (expectedKeys.size > 0) {
     for (const key of expectedKeys) {

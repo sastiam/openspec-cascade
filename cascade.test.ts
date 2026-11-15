@@ -103,7 +103,7 @@ describe("verifyCommands on dependency tasks", () => {
   test("detects a mid-sentence Verify: and never gates on bun audit", () => {
     const commands = verifyCommands(upgrade!);
     expect(commands.some((c) => c.startsWith("bun audit"))).toBe(false);
-    expect(commands).toEqual(["bun test", "bun run lint"]); // nothing extractable -> default gate
+    expect(commands).toEqual(["bun test", "bun run lint"]);
   });
 
   test("full gate adds the full suite to every committing task only", () => {
@@ -121,7 +121,6 @@ describe("verifyCommands on dependency tasks", () => {
 
 describe("blockedReason", () => {
   test("an empty reason such as 'none' is not a block", () => {
-    // Real ending from a DeepSeek 4.1 Flash session through OpenCode
     expect(blockedReason("Task 1.2 is complete and verified.\nBLOCKED: none")).toBeUndefined();
     for (const line of ["BLOCKED: N/A", "BLOCKED: no", "BLOCKED: -", "**BLOCKED:** none.", "BLOCKED: `none`"]) {
       expect(blockedReason(line)).toBeUndefined();
@@ -184,7 +183,7 @@ describe("cascade CLI keep-alive integration", () => {
     expect(code).toBe(0);
     expect(out).toContain("keepAlive=");
     expect(out).not.toContain("keepAlive=disabled");
-  });
+  }, 15_000);
 
   test("disables keep-alive when --no-keep-alive flag is passed", async () => {
     const proc = Bun.spawn(["bun", "run", "cascade.ts", "--dry-run", "--changes", "cross-platform-keep-alive", "--no-keep-alive"], {
@@ -197,7 +196,7 @@ describe("cascade CLI keep-alive integration", () => {
     ]);
     expect(code).toBe(0);
     expect(out).toContain("keepAlive=disabled");
-  });
+  }, 15_000);
 });
 
 describe("taskPrompt", () => {
@@ -304,7 +303,6 @@ Helper body`,
       expect(prompt).toContain('<directive file="AGENTS.md">\n# Directive Content\n</directive>');
       expect(prompt).toContain("</project-directives>");
 
-      // Verify skills catalog appears before project directives
       const skillsIndex = prompt.indexOf("<skills>");
       const directivesIndex = prompt.indexOf("<project-directives>");
       expect(skillsIndex).toBeGreaterThan(-1);

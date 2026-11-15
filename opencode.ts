@@ -13,11 +13,11 @@ import type {
   EngineSessionOptions,
 } from "./engine";
 
-export const OPENCODE_DEFAULT_MODEL = CONSTANTS.DEFAULT_OPENCODE_MODEL; // OpenCode Zen
+export const OPENCODE_DEFAULT_MODEL = CONSTANTS.DEFAULT_OPENCODE_MODEL;
 const SESSION_TIMEOUT_MS = CONSTANTS.OPENCODE_SESSION_TIMEOUT_MS;
 const RATE_LIMIT_SLEEP_MS = CONSTANTS.RATE_LIMIT_SLEEP_MS;
 const RATE_LIMIT = /rate.?limit|\b429\b|quota|usage limit|too many requests/i;
-// Waiting or retrying never fixes these: stop the cascade
+/** Waiting or retrying never fixes auth/model errors; stop the cascade immediately. */
 const UNRECOVERABLE = /provider\.auth|invalid credential|"status":\s*(401|403)\b|unauthorized|model not found/i;
 
 export type OpenCodeOutcome = EngineOutcome;
@@ -46,18 +46,47 @@ export function openCodePermission(deniedBash: string[] | readonly string[]): {
 
 export type SessionState = { sessionId?: string; texts: Map<string, string>; costUsd: number; error?: string };
 
+interface OpenCodeRawPart {
+  id?: string;
+  sessionID?: string;
+  type?: string;
+  text?: string;
+  tool?: string;
+  cost?: number;
+  state?: {
+    status?: string;
+    input?: unknown;
+  };
+}
+
+interface OpenCodeRawEvent {
+  type?: string;
+  sessionID?: string;
+  error?: unknown;
+  part?: OpenCodeRawPart;
+  properties?: {
+    part?: OpenCodeRawPart;
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 /** Folds one JSON line from `opencode run --format json` into the session state. */
 export function reduceOpenCodeEvent(
   state: SessionState,
   line: string,
   hooks: Pick<Hooks, "onTool" | "onText">,
 ): void {
-  let event: Record<string, any>;
+  let parsed: unknown;
   try {
-    event = JSON.parse(line);
+    parsed = JSON.parse(line);
   } catch {
-    return; // non-JSON noise (banners, warnings)
+    return;
   }
+  if (!isRecord(parsed)) return;
+  const event = parsed as OpenCodeRawEvent;
   const part = event.part ?? event.properties?.part;
   state.sessionId ??= event.sessionID ?? part?.sessionID;
 
@@ -66,12 +95,17 @@ export function reduceOpenCodeEvent(
   }
   if (!part) return;
 
-  if (part.type === "text" && typeof part.text === "string" && part.text.trim()) {
+  if (part.type === "text" && typeof part.text === "string" && part.text.trim() && part.id) {
     const isNew = !state.texts.has(part.id);
     state.texts.set(part.id, part.text);
     if (isNew) hooks.onText(part.text);
-  } else if (part.type === "tool" && ["completed", "error"].includes(part.state?.status)) {
-    hooks.onTool(part.tool, part.state?.input);
+  } else if (
+    part.type === "tool" &&
+    part.tool &&
+    part.state?.status &&
+    ["completed", "error"].includes(part.state.status)
+  ) {
+    hooks.onTool(part.tool, part.state.input);
   } else if (part.type === "step-finish" && typeof part.cost === "number") {
     state.costUsd += part.cost;
   }
@@ -100,7 +134,6 @@ export async function runOpenCodeSession(options: {
     stdout: "pipe",
     stderr: "pipe",
     timeout: options.timeoutMs ?? SESSION_TIMEOUT_MS,
-    // Highest-precedence config: permissions for this run only, over the project's opencode.json
     env: { ...process.env, OPENCODE_CONFIG_CONTENT: JSON.stringify({ permission: openCodePermission(options.deniedBash) }) },
   });
 

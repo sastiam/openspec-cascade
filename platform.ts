@@ -8,6 +8,7 @@
 
 import { existsSync } from "node:fs";
 import { delimiter, normalize, resolve } from "node:path";
+import { EXIT_CODE_CONSTANTS, RUNTIME_CONSTANTS } from "./src/config/constants";
 
 export const DEFAULT_SYSTEMD_INHIBIT_PATH = "/usr/bin/systemd-inhibit";
 export const SYSTEMD_INHIBIT_WHAT = "idle:sleep";
@@ -19,8 +20,8 @@ export const CAFFEINATE_BIN = "caffeinate";
 export const CAFFEINATE_FLAG_IDLE = "-i";
 export const CAFFEINATE_FLAG_WAIT_PID = "-w";
 
-export const EXIT_CODE_SIGINT = 130;
-export const EXIT_CODE_SIGTERM = 143;
+export const EXIT_CODE_SIGINT = EXIT_CODE_CONSTANTS.EXIT_CODE_SIGINT;
+export const EXIT_CODE_SIGTERM = EXIT_CODE_CONSTANTS.EXIT_CODE_SIGTERM;
 
 export type KeepAliveMechanism = "caffeinate" | "systemd-inhibit" | "noop-fallback" | "disabled";
 
@@ -31,9 +32,9 @@ export interface KeepAliveController {
 }
 
 export interface ProcessSignalTarget {
-  on(event: string, listener: (...args: any[]) => void): this | unknown;
-  off?(event: string, listener: (...args: any[]) => void): this | unknown;
-  removeListener?(event: string, listener: (...args: any[]) => void): this | unknown;
+  on(event: string, listener: (...args: unknown[]) => void): this | unknown;
+  off?(event: string, listener: (...args: unknown[]) => void): this | unknown;
+  removeListener?(event: string, listener: (...args: unknown[]) => void): this | unknown;
   exit?(code?: number): void;
 }
 
@@ -98,7 +99,7 @@ export function resolveBinaryInPath(binaryName: string, envPath: string = proces
         return normalizePlatformPath(full);
       }
     } catch {
-      // Ignore inaccessible directories in PATH
+      continue;
     }
   }
   return null;
@@ -171,7 +172,7 @@ export function buildKeepAliveArgs(options: {
 function removeEventListener(
   target: ProcessSignalTarget,
   event: string,
-  listener: (...args: any[]) => void,
+  listener: (...args: unknown[]) => void,
 ): void {
   if (typeof target.off === "function") {
     target.off(event, listener);
@@ -254,8 +255,8 @@ export function startKeepAlive(options: KeepAliveOptions = {}): KeepAliveControl
     if (childProc) {
       try {
         childProc.kill();
-      } catch {
-        // Subprocess already terminated
+      } catch (err) {
+        void err;
       }
       childProc = null;
     }
@@ -293,7 +294,6 @@ export function startKeepAlive(options: KeepAliveOptions = {}): KeepAliveControl
       }
     }
   } else {
-    // Other OS defaults to noop-fallback
     mechanism = "noop-fallback";
   }
 
@@ -319,14 +319,35 @@ export interface PackageCommands {
 }
 
 /**
- * Detects the active package manager based on lockfile presence in target directory.
+ * Returns true if any supported package manager lockfile exists in the target directory.
  */
-export function detectPackageManager(cwd: string = process.cwd()): PackageManager {
+export function hasLockfile(cwd: string = process.cwd()): boolean {
+  return RUNTIME_CONSTANTS.LOCKFILE_NAMES.some((lockfile) => existsSync(resolve(cwd, lockfile)));
+}
+
+/**
+ * Detects the active package manager from lockfile presence, or returns null when none exist.
+ */
+export function tryDetectPackageManager(cwd: string = process.cwd()): PackageManager | null {
   if (existsSync(resolve(cwd, "pnpm-lock.yaml"))) return "pnpm";
   if (existsSync(resolve(cwd, "package-lock.json"))) return "npm";
   if (existsSync(resolve(cwd, "yarn.lock"))) return "yarn";
   if (existsSync(resolve(cwd, "bun.lock")) || existsSync(resolve(cwd, "bun.lockb"))) return "bun";
-  return "npm";
+  return null;
+}
+
+/**
+ * Detects whether the target directory contains Nuxt configuration or build artifacts.
+ */
+export function isNuxtProject(cwd: string = process.cwd()): boolean {
+  return RUNTIME_CONSTANTS.NUXT_CONFIG_FILES.some((marker) => existsSync(resolve(cwd, marker)));
+}
+
+/**
+ * Detects the active package manager based on lockfile presence in target directory.
+ */
+export function detectPackageManager(cwd: string = process.cwd()): PackageManager {
+  return tryDetectPackageManager(cwd) ?? "npm";
 }
 
 /**
