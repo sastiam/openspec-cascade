@@ -17,6 +17,9 @@ Executes continuous multi-change task loops with failure recovery, heartbeat wat
 
 # Or via registered script
 bun run cascade:looper
+
+# Same looper on the v2 FSM/gate pipeline
+bun run cascade.ts --changes <a,b,c> --mode v2 --resilient
 ```
 
 ## Features

@@ -416,3 +416,31 @@ export const ENGINE_TELEMETRY_CONSTANTS = {
   TOKEN_OUTPUT_KEYS: ["outputTokens", "completionTokens", "output_tokens"] as const,
   TOKEN_CONTAINER_KEYS: ["usage", "tokens"] as const,
 } as const;
+
+/**
+ * Prompt assembly bounds and layout for `HarnessInjector`.
+ */
+export const HARNESS_CONSTANTS = {
+  MAX_ARTIFACT_CHARS: 12_000,
+  MAX_CONSTITUTION_CHARS: 8_000,
+  MAX_REMEDIATION_DIRECTIVES: 5,
+  TRUNCATION_MARKER: "\n…[truncated by openspec-cascade harness]",
+  ARTIFACT_FILES: ["proposal.md", "design.md", "tasks.md"] as const,
+  SPECS_DIR: "specs",
+  SPEC_FILENAME: "spec.md",
+  CHANGES_DIR: ["openspec", "changes"] as const,
+  SECTION_ORDER: ["task", "rules", "remediation", "artifacts", "constitution", "skills", "greptile", "guardrails"] as const,
+} as const;
+
+/**
+ * V2 pipeline wiring constants (`src/facade/v2_pipeline.ts`).
+ */
+export const V2_PIPELINE_CONSTANTS = {
+  SDD_PROBE_TOOL: "Edit",
+  SDD_PROBE_FILE: "src/__cascade_sdd_probe__.ts",
+  WORKSPACE_EXCLUDES: [".agents/teamwork/", ".cascade/"] as const,
+  STATE_PREFIX: "cascade-v2-",
+  DEFAULT_COMMIT_TYPE: "feat",
+  CHALLENGE_EXTENSIONS: [".ts", ".tsx", ".js", ".jsx", ".mjs"] as const,
+  CHALLENGE_RUNTIME: "bun",
+} as const;

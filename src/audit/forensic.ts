@@ -63,6 +63,8 @@ export const FORENSIC_AUDIT_SCOPE: readonly string[] = [
   "src/pal/shared.ts",
   "src/integration/greptile",
   "src/core/harness_injector.ts",
+  "src/engine/contract.ts",
+  "src/sdd/hook_rules.ts",
   "src/core/self_improver.ts",
   "src/core/pre_pr_loop.ts",
   "src/cli",

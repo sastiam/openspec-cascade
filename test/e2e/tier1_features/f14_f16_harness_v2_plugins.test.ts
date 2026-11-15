@@ -17,9 +17,10 @@ import {
 import { analyzeChangeArtifacts } from "../../../src/sdd/analyze";
 import { evaluateSddGate } from "../../../src/sdd/sdd_gate";
 import { classifySurfaces } from "../../../src/sdd/surface_verifier";
-import { runNodeScript, runOpenSpecCli } from "../helpers/cli_runner";
+import { HarnessInjector } from "../../../src/core/harness_injector";
+import { runCascadeCli, runNodeScript, runOpenSpecCli } from "../helpers/cli_runner";
 import { E2E_CONSTANTS } from "../helpers/constants";
-import { addOpenSpecChange, createTempGitRepo } from "../helpers/temp_repo";
+import { addOpenSpecChange, createTempGitRepo, runGitCommand } from "../helpers/temp_repo";
 
 const cleanups: Array<() => void> = [];
 
@@ -159,4 +160,64 @@ describe("Tier 1 Features: F14–F16 Harness Prompting, SDD Gates, Skills & Plug
     },
     E2E_CONSTANTS.TEST_TIMEOUT_MS,
   );
+  test(
+    "cascade CLI --mode v2 --dry-run reports the analyze verdict and DAG order through the real pipeline",
+    async () => {
+      const fixture = await createTempGitRepo({ branch: "feat/e2e-v2" });
+      cleanups.push(fixture.cleanup);
+      addOpenSpecChange(fixture.repoDir, "v2-check", { includeConstitution: true });
+      await runGitCommand(fixture.repoDir, ["add", "-A"]);
+      await runGitCommand(fixture.repoDir, ["commit", "-m", "chore: fixture"]);
+      const result = await runCascadeCli({
+        args: ["--repo", fixture.repoDir, "--changes", "v2-check", "--mode", "v2", "--dry-run", "--no-keep-alive", "--engine", "opencode"],
+        homeDir: fixture.homeDir,
+      });
+      expect(result.exitCode).toBe(E2E_CONSTANTS.EXIT_CODE_SUCCESS);
+      expect(result.stdout).toContain("v2-check: 2 pending (v2 pipeline");
+      expect(result.stdout).toContain("dag order: 1.1 -> 1.2");
+      expect((await runGitCommand(fixture.repoDir, ["status", "--porcelain"])).stdout).toBe("");
+    },
+    E2E_CONSTANTS.SLOW_TEST_TIMEOUT_MS,
+  );
+
+  test(
+    "cascade CLI --mode v2 fails closed when Analyze finds blocking gaps",
+    async () => {
+      const fixture = await createTempGitRepo({ branch: "feat/e2e-v2-blocked" });
+      cleanups.push(fixture.cleanup);
+      addOpenSpecChange(fixture.repoDir, "v2-blocked", { includeSpec: false, includeProposal: false });
+      await runGitCommand(fixture.repoDir, ["add", "-A"]);
+      await runGitCommand(fixture.repoDir, ["commit", "-m", "chore: fixture"]);
+      const result = await runCascadeCli({
+        args: ["--repo", fixture.repoDir, "--changes", "v2-blocked", "--mode", "v2", "--no-keep-alive", "--engine", "opencode"],
+        homeDir: fixture.homeDir,
+      });
+      expect(result.exitCode).toBe(E2E_CONSTANTS.EXIT_CODE_FATAL);
+      expect(result.stderr).toContain("SDD analyze blocked");
+    },
+    E2E_CONSTANTS.SLOW_TEST_TIMEOUT_MS,
+  );
+
+  test("HarnessInjector assembles the real change artifacts and constitution", async () => {
+    const fixture = await createTempGitRepo({ branch: "feat/e2e-harness" });
+    cleanups.push(fixture.cleanup);
+    addOpenSpecChange(fixture.repoDir, "harness-check", { includeConstitution: true });
+    const harness = await new HarnessInjector().buildExecutionContext({
+      repoRoot: fixture.repoDir,
+      changeId: "harness-check",
+      task: { id: "1.1", done: false, text: "Implement deterministic core-behavior execution behavior", section: "1. Implementation", line: 2 },
+    });
+    expect(harness.sections.map((section) => section.name)).toEqual(["task", "rules", "artifacts", "constitution"]);
+    expect(harness.prompt).toContain("Requirement: Deterministic core-behavior execution");
+  });
+
+  test("plugin SDD hooks (.mjs and .cjs) block .rb production files without an active change", async () => {
+    for (const hook of ["sdd_gate.mjs", "sdd_gate.cjs"]) {
+      const result = await runNodeScript(join(E2E_CONSTANTS.REPO_ROOT, "plugins", "cascade", "hooks", hook), [], {
+        stdin: JSON.stringify({ tool_name: "Write", tool_input: { file_path: "lib/app.rb" }, cwd: E2E_CONSTANTS.REPO_ROOT + "/does-not-exist" }),
+      });
+      expect(result.exitCode).toBe(E2E_CONSTANTS.EXIT_CODE_FATAL);
+      expect(result.stderr).toContain("SDD Gate Block");
+    }
+  });
 });

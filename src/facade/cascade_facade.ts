@@ -31,6 +31,7 @@ import {
   type SessionTelemetryRecord,
   type TelemetrySummary,
 } from "../decorators/telemetry_metrics";
+import type { RemediationDirective } from "../core/harness_injector";
 import { EngineFactory, type UnifiedEngine } from "../pal/factory";
 import { getDefaultSpawner } from "../runtime/spawner";
 import type { ISpawner } from "../runtime/types";
@@ -45,6 +46,7 @@ import {
   verifyCommands,
   type Task,
 } from "./tasks";
+import { V2Pipeline, type V2ChangeReport, type V2RunHooks } from "./v2_pipeline";
 
 export type ChangeStatus = "done" | "planned" | "missing" | "failed";
 
@@ -83,6 +85,7 @@ export interface CascadeRunResult {
   readonly error?: string;
   readonly errorKind?: "fail_closed" | "crash";
   readonly usage?: UsageMeter[] | null;
+  readonly v2Reports?: readonly V2ChangeReport[];
 }
 
 export interface CascadeOutput {
@@ -99,6 +102,8 @@ export interface CascadeFacadeDependencies {
   readonly output?: CascadeOutput;
   readonly keepAlive?: Omit<KeepAliveOptions, "enabled">;
   readonly telemetrySink?: (record: SessionTelemetryRecord) => void;
+  readonly v2Pipeline?: V2Pipeline;
+  readonly remediationDirectives?: () => readonly RemediationDirective[];
 }
 
 interface RunContext {
@@ -112,6 +117,7 @@ interface RunContext {
   readonly changes: ChangeRunReport[];
   readonly tasks: TaskRunRecord[];
   readonly rollbacks: RollbackRecord[];
+  readonly v2Reports: V2ChangeReport[];
   usage?: UsageMeter[] | null;
 }
 
@@ -186,6 +192,7 @@ export class CascadeFacade {
         changes: config.changes.map((change) => ({ change, status: "planned", pendingTasks: 0, skippedHumanTasks: [] })),
         tasks: [],
         rollbacks: [],
+        v2Reports: [],
       };
       await this.execute(ctx);
       return this.result(ctx, EXIT_CODE_CONSTANTS.EXIT_CODE_SUCCESS);
@@ -229,6 +236,7 @@ export class CascadeFacade {
       error,
       errorKind,
       usage: ctx?.usage,
+      v2Reports: ctx?.v2Reports,
     };
   }
 
@@ -270,6 +278,10 @@ export class CascadeFacade {
     });
     try {
       await this.preflight(ctx);
+      if (ctx.config.mode === "v2") {
+        await this.executeV2(ctx);
+        return;
+      }
       if (ctx.config.dryRun) {
         this.printPlan(ctx);
         ctx.usage = await this.readUsage(ctx);
@@ -288,6 +300,64 @@ export class CascadeFacade {
     } finally {
       this.keepAliveController.stop();
     }
+  }
+
+  private v2Pipeline(): V2Pipeline {
+    return (
+      this.dependencies.v2Pipeline ??
+      new V2Pipeline({ spawner: this.spawner, remediationDirectives: this.dependencies.remediationDirectives })
+    );
+  }
+
+  private async executeV2(ctx: RunContext): Promise<void> {
+    const pipeline = this.v2Pipeline();
+    if (ctx.config.dryRun) {
+      for (const changeReport of ctx.changes) {
+        if (!existsSync(this.tasksPath(ctx, changeReport.change))) {
+          changeReport.status = "missing";
+          this.output.info(`\n${changeReport.change}: MISSING (create it with /opsx:propose)`);
+          continue;
+        }
+        const plan = await pipeline.plan(ctx.config, changeReport.change);
+        changeReport.pendingTasks = plan.order.length;
+        this.output.info(`\n${changeReport.change}: ${plan.order.length} pending (v2 pipeline, analyze ${plan.analysis.verdict})`);
+        this.output.info(`  dag order: ${plan.order.join(" -> ") || "(none)"}`);
+      }
+      return;
+    }
+    const hooks: V2RunHooks = {
+      runSession: (prompt, resume) => this.runSession(ctx, prompt, resume),
+      sleepUntil: (epochMs, reason) => this.sleepUntil(ctx, epochMs, reason),
+      commit: (message, extraExcludes) => this.commitChanges(ctx, message, extraExcludes),
+      say: (message) => this.say(ctx, message),
+      log: (event, data) => this.log(ctx, event, data),
+      onRollback: (record) => ctx.rollbacks.push({ change: currentChange, ...record }),
+    };
+    let currentChange = "";
+    const report: string[] = [];
+    for (const changeReport of ctx.changes) {
+      currentChange = changeReport.change;
+      const tasksPath = this.tasksPath(ctx, changeReport.change);
+      changeReport.pendingTasks = existsSync(tasksPath) ? readTasks(tasksPath).filter((task) => !task.done).length : 0;
+      try {
+        const v2Report = await pipeline.runChange(ctx.config, changeReport.change, hooks);
+        ctx.v2Reports.push(v2Report);
+        for (const outcome of v2Report.tasks) {
+          ctx.tasks.push({ change: changeReport.change, taskId: outcome.taskId, status: outcome.status, attempts: outcome.attempts });
+          if (outcome.status === "skipped") changeReport.skippedHumanTasks.push(outcome.taskId);
+        }
+        changeReport.status = "done";
+        changeReport.pendingTasks = readTasks(tasksPath).filter((task) => !task.done).length;
+        report.push(`${changeReport.change}: ${v2Report.finalState}`);
+      } catch (error) {
+        changeReport.status = "failed";
+        if (error instanceof TaskFailureError) {
+          ctx.tasks.push({ change: changeReport.change, taskId: error.taskId, status: "failed", attempts: error.attempts });
+        }
+        throw error;
+      }
+    }
+    this.say(ctx, `Cascade v2 finished. Estimated cost $${ctx.totalCostUsd.toFixed(CONSTANTS.DECIMAL_PLACES_USD)}\n${report.join("\n")}`);
   }
 
   private async preflight(ctx: RunContext): Promise<void> {
@@ -440,8 +510,8 @@ export class CascadeFacade {
     return outcome;
   }
 
-  private async commitChanges(ctx: RunContext, message: string): Promise<void> {
-    const excludes = ctx.config.neverCommit.map((path) => `:!${path}`);
+  private async commitChanges(ctx: RunContext, message: string, extraExcludes: readonly string[] = []): Promise<void> {
+    const excludes = [...ctx.config.neverCommit, ...extraExcludes].map((path) => `:!${path}`);
     await this.git(ctx, ["add", "-A", "--", ".", ...excludes]);
     if ((await this.git(ctx, ["diff", "--cached", "--quiet"])).code === CONSTANTS.EXIT_CODE_SUCCESS) {
       this.say(ctx, "  nothing to commit");

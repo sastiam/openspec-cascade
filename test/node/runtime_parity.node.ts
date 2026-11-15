@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import { loadConfig } from "../../config";
 import { auditFiles } from "../../src/audit/forensic";
 import { ConfigValidationError } from "../../src/config/schemas";
+import { HarnessInjector } from "../../src/core/harness_injector";
 import { CascadeFacade } from "../../src/facade/cascade_facade";
 import { GreptileCache, sha256, ShadowCommitManager } from "../../src/integration/greptile";
 import { EngineFactory } from "../../src/pal/factory";
@@ -133,6 +134,25 @@ describe("Greptile integration on Node", () => {
       const cache = new GreptileCache<number>({ rootDir: repo });
       cache.set({ baseSha: "b", diffHash: sha256("d"), query: "q" }, 7);
       assert.equal(cache.get({ baseSha: "b", diffHash: sha256("d"), query: "q" }), 7);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("M4 harness and v2 pipeline on Node", () => {
+  test("HarnessInjector builds a prompt and the v2 pipeline fails closed on an incomplete change", async () => {
+    const repo = await createRepoWithChange();
+    try {
+      const harness = await new HarnessInjector().buildExecutionContext({
+        repoRoot: repo,
+        changeId: "node-parity",
+        task: { id: "1.1", done: false, text: "Prove Node 24 parity", section: "1. Parity", line: 1 },
+      });
+      assert.ok(harness.prompt.includes("Implement ONLY task 1.1"));
+      const result = await runCli(["--repo", repo, "--changes", "node-parity", "--mode", "v2", "--dry-run", "--no-keep-alive"]);
+      assert.equal(result.exitCode, 2);
+      assert.ok(result.stderr.includes("SDD analyze blocked"));
     } finally {
       rmSync(repo, { recursive: true, force: true });
     }

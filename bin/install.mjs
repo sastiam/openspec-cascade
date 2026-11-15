@@ -31,6 +31,16 @@ function log(msg = '') {
   process.stdout.write(msg + '\n')
 }
 
+const HOOK_BUNDLE = ['hooks.json', 'sdd_gate.mjs', 'sdd_gate.cjs', 'sdd_gate_core.cjs', 'sdd_rules.json']
+
+/**
+ * Returns the hook files missing from the plugin bundle (the plugin is used in place via CLAUDE_PLUGIN_ROOT).
+ */
+export function missingHookFiles(repoRoot = REPO_ROOT) {
+  const hooksDir = path.join(repoRoot, 'plugins', 'cascade', 'hooks')
+  return HOOK_BUNDLE.filter((file) => !fs.existsSync(path.join(hooksDir, file)))
+}
+
 function detectConfigDir() {
   return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
 }
@@ -133,6 +143,13 @@ async function main() {
   // 1. Install Cascade Plugin
   if (installPlugin) {
     log('  1. Configuring Claude Code Marketplace & Plugin:')
+    const missingHooks = missingHookFiles()
+    if (missingHooks.length > 0) {
+      log(`     ! SDD hook bundle incomplete (missing: ${missingHooks.join(', ')}); run: bun run scripts/sync_plugin.ts`)
+      process.exitCode = 1
+      return
+    }
+    log(`     SDD hook bundle verified: ${HOOK_BUNDLE.join(', ')}`)
     if (hasClaude) {
       log('   • Adding marketplace and installing cascade plugin...')
       run(`claude plugin marketplace add "${REPO_ROOT}"`, { optional: true })
