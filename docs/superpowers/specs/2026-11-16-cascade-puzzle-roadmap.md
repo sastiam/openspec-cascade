@@ -35,7 +35,7 @@ Nombres de OpenSpec: desde la 2.0 no hay comandos `/opsx`; son skills (`openspec
 | # | Pieza | Estado hoy | Rama / PR |
 |---|---|---|---|
 | 0 | Fast-track de docs en `runTask` | Hecho | PR #47 |
-| 0b | EGM: `spec-gate` y comandos `cascade-spec-{brainstorm,review,drift}` | En main; ciclo completo recorrido con `tasks-lint` (notas en `docs/superpowers/notes/2026-11-16-validacion-0b.md`), falta la noche corta | `main` |
+| 0b | EGM: `spec-gate` y comandos `cascade-spec-{brainstorm,review,drift}` | Hecho. Ciclo completo con `tasks-lint` y ejecución desatendida real con `spec-gate-archived-hint` (notas en `docs/superpowers/notes/2026-11-16-validacion-0b.md`) | PR #57 |
 | 1 | Nombres de las skills de OpenSpec en los textos propios | Hecho | `fix/openspec-skill-names` |
 | 2 | Contrato de autonomía | Por diseñar | — |
 | 3 | `/cascade:explore` | Por diseñar | — |
