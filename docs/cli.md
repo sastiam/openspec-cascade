@@ -117,8 +117,28 @@ Solo se aceptan spans entre backticks que empiecen por `bun`, `bunx`, `npm`, `pn
 | `catalog` | `cascade.ts catalog --sync --owner <o> --project <n> [--owner-type user\|organization] [--output <dir>]` | Genera el catálogo de tareas desde un GitHub Project (requiere `gh` autenticado). |
 | `drift` | `cascade.ts drift --catalog <archivo> (--remote-json <archivo> \| --owner <o> --project <n>)` | Compara el catálogo local con el proyecto o con una instantánea JSON. `1` si hay drift. |
 | `review` | `cascade.ts review --base <rama> [--rounds <n≤3>] [--repo <ruta>] [--engine <motor>]` | Bucle pre-PR acotado: revisión Greptile sobre un shadow worktree, corrección automática de hallazgos mecánicos, parada en hallazgos de riesgo. `0` si queda limpio. |
+| `spec-gate` | `cascade.ts spec-gate check --stage <review\|drift> --changes <a,b> [--repo <ruta>]`<br>`cascade.ts spec-gate stamp --stage <review\|drift> --change <a> --status <resolved\|open> [--repo <ruta>]` | Comprueba (`check`) o sella (`stamp`) los informes EGM `review.md` y `drift.md` de un change de OpenSpec. `0` si todos los changes pasan; `1` si alguno falta, está abierto, caducó o no tiene bloque de estado. |
 
 Códigos de salida de los subcomandos: `0` éxito, `1` hallazgos/drift/estado no saludable, `2` entrada inválida o error fail-closed (por ejemplo, Greptile no instalado).
+
+### Ciclo EGM alrededor de cascade (`spec-gate`)
+
+[EGM](https://github.com/google/elephant-goldfish-model) (instalar con `claude plugin install egm@egm`) añade revisores "pez dorado" sin contexto previo. OpenSpec sigue siendo la fuente de verdad: los informes viven dentro de `openspec/changes/<change>/`.
+
+```text
+/cascade-spec-brainstorm <change> <idea>   → brief.md
+/opsx-propose                              → proposal, design, specs, tasks
+/cascade-spec-review <change>              → review.md  (+ spec-gate stamp --stage review)
+spec-gate check --stage review             → debe dar 0 antes de night-run / cascade
+cascade --changes <change>                 → apply
+/cascade-spec-drift <change>               → drift.md   (+ spec-gate stamp --stage drift)
+spec-gate check --stage drift              → debe dar 0 antes de /opsx-archive
+```
+
+- `stamp` escribe al principio del informe un bloque `---` con `egm`, `status` (`resolved` o `open`) y `hash`. El hash cubre `proposal.md`, `design.md`, `tasks.md` y `specs/*/spec.md`; ignora las casillas `[x]` de las tareas y los finales de línea CRLF, de modo que marcar tareas durante `apply` no invalida la revisión. Editar cualquier artefacto después de sellar deja el informe `stale`.
+- `check` informa de todos los changes que fallan, no solo del primero. Los motivos son `missing`, `malformed`, `open` y `stale`.
+- Es opt-in: nada lo ejecuta salvo que se llame. `night-run` debe invocar `spec-gate check --stage review --changes <lista>` antes de lanzar y abortar si no sale `0`.
+- Solape con las skills existentes: `sdd-clarify` (preguntas ligeras) y `sdd-checklist` (rúbrica en el mismo contexto) son la primera pasada barata; EGM es la segunda, con contexto limpio. `sdd-verify` prueba el comportamiento en runtime y no sustituye a la comprobación de drift.
 
 ---
 
@@ -139,7 +159,7 @@ Con `telemetry.enabled` (por defecto), cada sesión y cada fallo de verificació
 
 ## 9. Plugin de Claude Code
 
-`node bin/install.mjs` registra el marketplace y el plugin `cascade` (agentes, comandos `/cascade` y `/cascade-looper`, skills y el hook `PreToolUse`). El hook (`sdd_gate.mjs` / `sdd_gate.cjs`, lógica en `sdd_gate_core.cjs`) lee `sdd_rules.json`, generado desde `SDD_CONSTANTS` con `bun run scripts/sync_plugin.ts`; `--check` falla si está desactualizado.
+`node bin/install.mjs` registra el marketplace y el plugin `cascade` (agentes, comandos `/cascade`, `/cascade-looper`, `/cascade-spec-brainstorm`, `/cascade-spec-review` y `/cascade-spec-drift`, skills y el hook `PreToolUse`). El hook (`sdd_gate.mjs` / `sdd_gate.cjs`, lógica en `sdd_gate_core.cjs`) lee `sdd_rules.json`, generado desde `SDD_CONSTANTS` con `bun run scripts/sync_plugin.ts`; `--check` falla si está desactualizado.
 
 ---
 

@@ -488,7 +488,7 @@ export const PRE_PR_CONSTANTS = {
  * Integration subcommands dispatched by `cascade.ts` before regular flag parsing.
  */
 export const CLI_COMMAND_CONSTANTS = {
-  SUBCOMMANDS: ["doctor", "catalog", "drift", "review"] as const,
+  SUBCOMMANDS: ["doctor", "catalog", "drift", "review", "spec-gate"] as const,
   ENGINE_BINARIES: { claude: "claude", opencode: "opencode", antigravity: "agy", jules: "jules" } as const,
   DEFAULT_OWNER_TYPE: "user" as const,
   OWNER_TYPES: ["user", "organization"] as const,
@@ -496,6 +496,35 @@ export const CLI_COMMAND_CONSTANTS = {
   STATUS_WARN: "warn",
   STATUS_FAIL: "fail",
   DEFAULT_REVIEW_ENGINE: "claude",
+} as const;
+
+/**
+ * EGM spec gate: stages, marker files and the hashed artifacts of an OpenSpec change.
+ */
+export const SPEC_GATE_CONSTANTS = {
+  STAGES: ["review", "drift"] as const,
+  STATUSES: ["resolved", "open"] as const,
+  FILE_BY_STAGE: { review: "review.md", drift: "drift.md" } as const,
+  HASH_ALGORITHM: "sha256",
+  HASH_ENCODING: "hex",
+  FRONT_MATTER_FENCE: "---",
+  KEY_STAGE: "egm",
+  KEY_STATUS: "status",
+  KEY_HASH: "hash",
+  HASHED_TOP_LEVEL_FILES: ["proposal.md", "design.md", "tasks.md"] as const,
+  SPECS_DIR: "specs",
+  SPEC_FILE_NAME: "spec.md",
+  OPENSPEC_DIR: "openspec",
+  CHANGES_DIR: "changes",
+  ACTION_CHECK: "check",
+  ACTION_STAMP: "stamp",
+  LINE_BREAK: /\r\n?/g,
+  BOM: /^﻿/,
+  TRAILING_BLANKS: /[ \t]+$/gm,
+  TRAILING_NEWLINES: /\n+$/,
+  MARKER_KEYS: ["egm", "status", "hash"] as const,
+  TASK_CHECKBOX: /^(\s*-\s*)\[[xX]\]/gm,
+  TASK_CHECKBOX_OPEN: "$1[ ]",
 } as const;
 
 /**

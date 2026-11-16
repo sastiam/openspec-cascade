@@ -20,6 +20,7 @@ import { detectRuntime } from "../runtime/base_spawner";
 import { getDefaultSpawner } from "../runtime/spawner";
 import type { ISpawner } from "../runtime/types";
 import { SDD_HOOK_CONSTANTS, serializeSddHookRules } from "../sdd/hook_rules";
+import { runSpecGate } from "./spec_gate";
 
 export type CliSubcommand = (typeof CLI_COMMAND_CONSTANTS.SUBCOMMANDS)[number];
 
@@ -255,6 +256,8 @@ export async function runSubcommand(
         return await driftCommand(argv, output);
       case "review":
         return await reviewCommand(argv, output, dependencies);
+      case "spec-gate":
+        return runSpecGate(argv, output);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
