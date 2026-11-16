@@ -25,6 +25,7 @@ describe("Tier 2 Boundaries: SDD Gate Hook, Analyze Gate, Review Verifier & Stri
     async () => {
       const fixture = await createTempGitRepo();
       cleanups.push(fixture.cleanup);
+      mkdirSync(join(fixture.repoDir, "openspec"), { recursive: true });
 
       const blocked = await runNodeScript(E2E_CONSTANTS.SDD_GATE_HOOK, [], {
         cwd: fixture.repoDir,

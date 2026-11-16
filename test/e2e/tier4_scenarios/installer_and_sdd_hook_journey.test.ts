@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { analyzeChangeArtifacts } from "../../../src/sdd/analyze";
 import { runNodeScript, runOpenSpecCli } from "../helpers/cli_runner";
@@ -23,6 +23,7 @@ describe("Tier 4 Scenarios: Installer & SDD Hook Full Lifecycle Journey", () => 
     async () => {
       const fixture = await createTempGitRepo();
       cleanups.push(fixture.cleanup);
+      mkdirSync(join(fixture.repoDir, "openspec"), { recursive: true });
 
       const targetFile = join(fixture.repoDir, "src", "engine.ts");
       const hookPayload = JSON.stringify({

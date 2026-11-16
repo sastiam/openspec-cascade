@@ -63,6 +63,13 @@ describe("plugin hook synchronization", () => {
       expect(await runHook(hook, { ...payload, tool_name: "Read" })).toBe(0);
       expect(await runHook(hook, "not-an-object")).toBe(0);
     });
+
+    test(`${hook.split("/").at(-1)} is opt-in: allows edits in a repo without openspec/`, async () => {
+      const plain = mkdtempSync(join(tmpdir(), "cascade-hook-plain-"));
+      dirs.push(plain);
+      const payload = { tool_name: "Edit", tool_input: { file_path: "src/app.ts" }, cwd: plain };
+      expect(await runHook(hook, payload)).toBe(EXIT_CODE_CONSTANTS.EXIT_CODE_SUCCESS);
+    });
   }
 
   test("installer verifies the hook bundle in dry-run mode", async () => {

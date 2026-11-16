@@ -5,10 +5,14 @@
  * production source code cannot be edited unless an active, valid OpenSpec change exists.
  */
 
+import { existsSync } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { basename, join, normalize, resolve } from "node:path";
 import { CONSTANTS } from "../../config";
 import { HARDENING_CONSTANTS } from "../config/constants";
+
+/** A repository opts into the gate by having this folder at its root. */
+const OPENSPEC_DIR = "openspec";
 
 export interface SddGateInput {
   toolName: string;
@@ -116,6 +120,7 @@ export async function findActiveOpenSpecChange(
 
 /**
  * Evaluates the PreToolUse SDD Gate for an intended tool invocation.
+ * Opt-in: repositories without an `openspec/` folder are never gated.
  */
 export async function evaluateSddGate(
   input: SddGateInput
@@ -133,6 +138,9 @@ export async function evaluateSddGate(
   }
 
   const repoRoot = input.repoRoot ?? process.cwd();
+  if (!existsSync(join(resolve(repoRoot), OPENSPEC_DIR))) {
+    return { allowed: true };
+  }
   const activeChange = await findActiveOpenSpecChange(repoRoot);
 
   if (activeChange) {
