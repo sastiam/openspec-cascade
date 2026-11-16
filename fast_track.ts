@@ -111,6 +111,8 @@ export interface SelectVerifyChecksOptions {
   /** True for "full verification" tasks and `fullGate`: never skip anything. */
   forceFull: boolean;
   runner?: CommandRunner;
+  /** Path prefixes of cascade's own artifacts (e.g. `.cascade/`): never counted as task changes. */
+  ignorePrefixes?: readonly string[];
   say?: (message: string) => void;
   log?: (event: string, data: Record<string, unknown>) => void;
 }
@@ -124,7 +126,9 @@ export async function selectVerifyChecks(
   opts: SelectVerifyChecksOptions,
 ): Promise<string[]> {
   if (opts.forceFull || commands.length === 0) return [...commands];
-  const files = await detectAffectedFiles(opts.cwd, opts.runner);
+  const detected = await detectAffectedFiles(opts.cwd, opts.runner);
+  const ignore = opts.ignorePrefixes ?? [];
+  const files = detected?.filter((file) => !ignore.some((prefix) => file.startsWith(prefix)));
   const { run, skipped } = selectChecks(commands, files, { forceFull: opts.forceFull });
   if (skipped.length > 0) {
     opts.say?.(`  fast-track: docs-only change, skipping ${skipped.join(", ")}`);

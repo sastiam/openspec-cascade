@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { loadConfig, type CascadeConfig } from "../../config";
 import type { EngineOutcome, EngineSessionOptions } from "../../engine";
 import { CascadeFacade, isFailClosedError, type CascadeOutput } from "../../src/facade";
@@ -124,6 +124,52 @@ describe("CascadeFacade", () => {
     expect(result.logFile).toBeDefined();
     expect(readFileSync(result.logFile ?? "", "utf8")).toContain("\"event\":\"commit\"");
     expect(engine.prompts[0]).toContain("Implement ONLY task 1.1");
+  });
+
+  describe("docs-only fast-track", () => {
+    const VERIFY_TASKS = ["## 1. Build", "- [ ] 1.1 Update the greeting. Verify: `bun run build`", ""].join("\n");
+
+    async function repoWithBuildScript(): Promise<TempGitRepo> {
+      const repo = await createTempGitRepo();
+      repos.push(repo);
+      writeFileSync(join(repo.repoDir, "package.json"), JSON.stringify({ scripts: { build: "echo built" } }));
+      addOpenSpecChange(repo.repoDir, "add-greeting", { tasksMarkdown: VERIFY_TASKS });
+      await commitFixture(repo);
+      return repo;
+    }
+
+    function touching(file: string, change: string) {
+      return (options: EngineSessionOptions): EngineOutcome => {
+        mkdirSync(dirname(join(options.cwd, file)), { recursive: true });
+        writeFileSync(join(options.cwd, file), "content\n");
+        const tasksPath = join(options.cwd, "openspec", "changes", change, "tasks.md");
+        writeFileSync(tasksPath, readFileSync(tasksPath, "utf8").replace("- [ ] 1.1", "- [x] 1.1"));
+        return { kind: "done", sessionId: "s", result: "COMMIT_MESSAGE: docs(greeting): update", costUsd: 0 };
+      };
+    }
+
+    test("skips the build check when the task only touched documentation", async () => {
+      const repo = await repoWithBuildScript();
+      const output = captureOutput();
+      const engine = new WorkingEngine(touching("docs/guide.md", "add-greeting"));
+      const result = await new CascadeFacade({ engine, output, resilience: false }).run(configFor(repo, "add-greeting"));
+      expect(result.exitCode).toBe(0);
+      expect(result.tasks).toEqual([{ change: "add-greeting", taskId: "1.1", status: "done", attempts: 1 }]);
+      const text = output.lines.join("\n");
+      expect(text).toContain("fast-track");
+      expect(text).not.toContain("check: bun run build");
+    });
+
+    test("still runs the build check when the task touched code", async () => {
+      const repo = await repoWithBuildScript();
+      const output = captureOutput();
+      const engine = new WorkingEngine(touching("src/greeting.ts", "add-greeting"));
+      const result = await new CascadeFacade({ engine, output, resilience: false }).run(configFor(repo, "add-greeting"));
+      expect(result.exitCode).toBe(0);
+      const text = output.lines.join("\n");
+      expect(text).toContain("check: bun run build");
+      expect(text).not.toContain("fast-track");
+    });
   });
 
   test("exhausted retries roll back the working tree and fail closed with exit 2", async () => {

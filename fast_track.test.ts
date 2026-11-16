@@ -193,6 +193,30 @@ describe("selectVerifyChecks", () => {
     expect(logged).toEqual([]);
   });
 
+  test("ignores cascade's own workspace artifacts when deciding docs-only", async () => {
+    const polluted: CommandRunner = async (command) =>
+      command.startsWith("git diff") ? OK("docs/a.md\0") : OK(".cascade/telemetry/day.jsonl\0");
+    const run = await selectVerifyChecks(commands, {
+      cwd: "/x",
+      forceFull: false,
+      runner: polluted,
+      ignorePrefixes: [".cascade/"],
+    });
+    expect(run).toEqual(["bun run lint"]);
+  });
+
+  test("a change made only of ignored artifacts is not docs-only and runs everything", async () => {
+    const onlyIgnored: CommandRunner = async (command) =>
+      command.startsWith("git diff") ? OK("") : OK(".cascade/telemetry/day.jsonl\0");
+    const run = await selectVerifyChecks(commands, {
+      cwd: "/x",
+      forceFull: false,
+      runner: onlyIgnored,
+      ignorePrefixes: [".cascade/"],
+    });
+    expect(run).toEqual(commands);
+  });
+
   test("forceFull and empty command lists never touch git", async () => {
     let calls = 0;
     const counting: CommandRunner = async () => {
