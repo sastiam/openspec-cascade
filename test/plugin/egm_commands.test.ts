@@ -18,6 +18,7 @@ interface EgmCommand {
 const COMMANDS: EgmCommand[] = [
   { name: "cascade-spec-review", egmSkill: "egm-review", output: "review.md", stamp: "spec-gate stamp --stage review" },
   { name: "cascade-spec-drift", egmSkill: "egm-drift-report", output: "drift.md", stamp: "spec-gate stamp --stage drift" },
+  { name: "cascade-spec-brainstorm", egmSkill: "egm-brainstorm", output: "brief.md", stamp: undefined },
 ];
 
 function read(name: string): string {
@@ -45,6 +46,19 @@ describe.each(COMMANDS)("$name", (command) => {
     expect(text).toContain("egm@egm");
     expect(text).toContain("EGM artifact directory: openspec/changes/<change>");
   });
+
+  if (command.name === "cascade-spec-brainstorm") {
+    test("scaffolds the change itself and tells propose to skip its already-exists creation step", () => {
+      expect(text).toContain("openspec new change");
+      expect(text).toContain("already exists");
+      expect(text).toContain("/opsx-propose");
+      expect(text).toContain("sdd-clarify");
+    });
+
+    test("does not start Goldfish reviewers before the user confirms readiness", () => {
+      expect(text).toContain("confirms");
+    });
+  }
 
   if (command.stamp !== undefined) {
     test("closes the stage with spec-gate stamp", () => {
