@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   commitTypeOf,
@@ -211,13 +213,19 @@ describe("Tier 1 Features: F14–F16 Harness Prompting, SDD Gates, Skills & Plug
     expect(harness.prompt).toContain("Requirement: Deterministic core-behavior execution");
   });
 
-  test("plugin SDD hooks (.mjs and .cjs) block .rb production files without an active change", async () => {
-    for (const hook of ["sdd_gate.mjs", "sdd_gate.cjs"]) {
-      const result = await runNodeScript(join(E2E_CONSTANTS.REPO_ROOT, "plugins", "cascade", "hooks", hook), [], {
-        stdin: JSON.stringify({ tool_name: "Write", tool_input: { file_path: "lib/app.rb" }, cwd: E2E_CONSTANTS.REPO_ROOT + "/does-not-exist" }),
-      });
-      expect(result.exitCode).toBe(E2E_CONSTANTS.EXIT_CODE_FATAL);
-      expect(result.stderr).toContain("SDD Gate Block");
+  test("plugin SDD hooks (.mjs and .cjs) block .rb production files in an OpenSpec repo without an active change", async () => {
+    const repo = mkdtempSync(join(tmpdir(), "cascade-sdd-openspec-"));
+    mkdirSync(join(repo, "openspec"));
+    try {
+      for (const hook of ["sdd_gate.mjs", "sdd_gate.cjs"]) {
+        const result = await runNodeScript(join(E2E_CONSTANTS.REPO_ROOT, "plugins", "cascade", "hooks", hook), [], {
+          stdin: JSON.stringify({ tool_name: "Write", tool_input: { file_path: "lib/app.rb" }, cwd: repo }),
+        });
+        expect(result.exitCode).toBe(E2E_CONSTANTS.EXIT_CODE_FATAL);
+        expect(result.stderr).toContain("SDD Gate Block");
+      }
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
     }
   });
 });

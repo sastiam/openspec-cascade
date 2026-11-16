@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { EXIT_CODE_CONSTANTS } from "../../../src/config/constants";
@@ -76,9 +76,12 @@ describe("Tier 5: filesystem escapes", () => {
     "SDD gate bypass attempt %p is blocked by the TypeScript gate and both plugin hooks",
     async (filePath) => {
       expect(isProductionSourceFile(filePath)).toBe(true);
+      const repo = mkdtempSync(join(tmpdir(), E2E_CONSTANTS.TEMP_PREFIX_SANDBOX));
+      dirs.push(repo);
+      mkdirSync(join(repo, "openspec"));
       for (const hook of ["sdd_gate.mjs", "sdd_gate.cjs"]) {
         const result = await runNodeScript(join(E2E_CONSTANTS.REPO_ROOT, "plugins", "cascade", "hooks", hook), [], {
-          stdin: JSON.stringify({ tool_name: "Write", tool_input: { file_path: filePath }, cwd: join(tmpdir(), "no-such-repo") }),
+          stdin: JSON.stringify({ tool_name: "Write", tool_input: { file_path: filePath }, cwd: repo }),
         });
         expect(result.exitCode).toBe(EXIT_CODE_CONSTANTS.EXIT_CODE_FATAL);
       }

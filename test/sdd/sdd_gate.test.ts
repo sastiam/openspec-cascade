@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   evaluateSddGate,
   findActiveOpenSpecChange,
@@ -87,13 +90,25 @@ describe("evaluateSddGate", () => {
     }
   });
 
-  test("blocks production source edit when no active change exists in dummy repo", async () => {
-    const result = await evaluateSddGate({
-      toolName: "Edit",
-      filePath: "src/production.ts",
-      repoRoot: "/tmp",
-    });
-    expect(result.allowed).toBe(false);
-    expect(result.reason).toContain("SDD Gate Block");
+  test("blocks production source edit when an OpenSpec repo has no active change", async () => {
+    const repo = mkdtempSync(join(tmpdir(), "sdd-gate-openspec-"));
+    mkdirSync(join(repo, "openspec", "changes"), { recursive: true });
+    try {
+      const result = await evaluateSddGate({ toolName: "Edit", filePath: "src/production.ts", repoRoot: repo });
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toContain("SDD Gate Block");
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  test("is opt-in: allows any edit in a repo without an openspec/ folder", async () => {
+    const repo = mkdtempSync(join(tmpdir(), "sdd-gate-plain-"));
+    try {
+      const result = await evaluateSddGate({ toolName: "Edit", filePath: "src/production.ts", repoRoot: repo });
+      expect(result.allowed).toBe(true);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
   });
 });

@@ -9,6 +9,8 @@ const path = require('node:path')
 
 const RULES_FILE = path.join(__dirname, 'sdd_rules.json')
 const ALLOW = 0
+/** A repository opts into the gate by having this folder at its root (as src/sdd/sdd_gate.ts). */
+const OPENSPEC_DIR = 'openspec'
 
 function loadRules(rulesFile = RULES_FILE) {
   try {
@@ -55,7 +57,9 @@ function evaluate(payload, env, rules) {
   if (!payload || !rules.gatedTools.includes(payload.tool_name)) return { exitCode: ALLOW }
   const filePath = (payload.tool_input || {}).file_path || ''
   if (!isProductionSourceFile(filePath, rules)) return { exitCode: ALLOW }
-  if (findActiveChange(payload.cwd || process.cwd())) return { exitCode: ALLOW }
+  const repoRoot = payload.cwd || process.cwd()
+  if (!fs.existsSync(path.join(path.resolve(repoRoot), OPENSPEC_DIR))) return { exitCode: ALLOW }
+  if (findActiveChange(repoRoot)) return { exitCode: ALLOW }
   return { exitCode: rules.blockExitCode, message: rules.blockMessage }
 }
 
