@@ -35,18 +35,18 @@ Nombres de comandos de OpenSpec: `/opsx:explore`, `/opsx:propose`… en Claude C
 | # | Pieza | Estado hoy | Rama / PR |
 |---|---|---|---|
 | 0 | Fast-track de docs en `runTask` | Hecho | PR #47 |
-| 0b | EGM: `spec-gate` y comandos `cascade-spec-{brainstorm,review,drift}` | En main, sin probar con un ticket real | `main` |
-| 1 | Nombres de comandos (`:` y `-`) en los textos propios | En curso | `feat/command-names` |
+| 0b | EGM: `spec-gate` y comandos `cascade-spec-{brainstorm,review,drift}` | En main; ciclo completo recorrido con `tasks-lint` (notas en `docs/superpowers/notes/2026-11-16-validacion-0b.md`), falta la noche corta | `main` |
+| 1 | Nombres de comandos (`:` y `-`) en los textos propios | Hecho, con un hueco: los textos nombran `/opsx:*`, que no existen en esta instalación (ver notas de la 0b) | PR #50 |
 | 2 | Contrato de autonomía | Por diseñar | — |
 | 3 | `/cascade:explore` | Por diseñar | — |
-| 4 | `manual.md` y lint de `tasks.md` | Lint de bloques de código y `Verify:` hecho; verbos manuales y `manual.md` por diseñar | `agent/tasks-lint` |
+| 4 | `manual.md` y lint de `tasks.md` | Lint de bloques de código y `Verify:` hecho (`lint-tasks`); verbos manuales y `manual.md` por diseñar | PR #51 y #52 |
 | 5 | `setup`, manifiesto y `doctor` | Por diseñar | — |
 | 6 | `status`, avisos y frenos | Por diseñar | — |
 | 7 | Umbral de Greptile como puerta | Por diseñar | — |
 
 Orden propuesto: 1, validación de 0b, 2, 4, 3, 5, 6, 7.
 
-- La 1 se hace en `feat/command-names`, desde main (la 0b ya está fusionada). Cubre solo los comandos de OpenSpec; los nombres de los comandos propios se deciden en la 3.
+- La 1 se hizo en `feat/command-names`, desde main (la 0b ya estaba fusionada). Cubre solo los comandos de OpenSpec; los nombres de los comandos propios se deciden en la 3.
 - Antes de diseñar la 2 se valida la 0b con un ticket real pequeño: la 2 toca `runTask`, donde vive el gate de EGM, y la pasada real da datos de qué bloqueos aparecen.
 - La 2 es la que más acerca a "toda la noche sin intervención".
 - La 4 sube por delante de la 3: el lint de `tasks.md` es pequeño, ejecutable y ataca directamente que las tareas dicten líneas de código.
