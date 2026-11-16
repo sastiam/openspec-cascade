@@ -39,6 +39,10 @@ Full CLI reference (Spanish): [`docs/cli.md`](docs/cli.md).
   and per-session telemetry (latency, cost, tokens, retries, error category).
 - **Self-improvement:** failures are recorded (secrets redacted) in `.cascade/telemetry/*.jsonl`; recurring
   failure signatures become up to 5 remediation directives injected into later prompts.
+- **Spec review with EGM (optional):** with the [EGM plugin](https://github.com/google/elephant-goldfish-model)
+  installed, `/cascade-spec-brainstorm`, `/cascade-spec-review` and `/cascade-spec-drift` add fresh-context
+  reviewers before and after a run, and `spec-gate check` refuses changes whose review is open or stale.
+  See [`docs/cli.md`](docs/cli.md).
 - **Pre-PR review:** `review --base <branch>` runs a Greptile review on a shadow snapshot of your working tree,
   auto-fixes mechanical findings and stops on risky ones, bounded to 3 rounds.
 
@@ -105,6 +109,7 @@ bun run cascade.ts doctor --repo <path>
 bun run cascade.ts review --repo <path> --base main
 bun run cascade.ts catalog --sync --owner <org> --project <n> --owner-type organization
 bun run cascade.ts drift --catalog projects/agnostic_looper/tasks_catalog.json --owner <org> --project <n>
+bun run cascade.ts spec-gate check --repo <path> --stage review --changes change-a,change-b
 ```
 
 | Flag / env | Meaning |

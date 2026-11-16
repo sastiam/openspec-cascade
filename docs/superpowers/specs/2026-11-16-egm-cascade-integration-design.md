@@ -1,6 +1,6 @@
 # Integración de EGM (Elephant-Goldfish Model) en openspec-cascade
 
-Estado: borrador pendiente de aprobación. Fecha: 2026-11-16.
+Estado: aprobado e implementado en la rama `feat/egm-integration` (2026-11-16). Pendiente de usuario: llamada a `spec-gate check` en `night-run` y push.
 
 ## Intención y porqué
 
