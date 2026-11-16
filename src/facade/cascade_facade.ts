@@ -22,6 +22,7 @@ import {
 import { syncDiagrams } from "../../diagrams";
 import type { EngineOutcome, UsageMeter } from "../engine/contract";
 import { startKeepAlive, type KeepAliveController, type KeepAliveOptions } from "../../platform";
+import { selectVerifyChecks } from "../../fast_track";
 import { runVerificationPhase } from "../../qa";
 import { Fatal, RollbackStateBuffer, TaskFailureError } from "../../resilience";
 import { V2_PIPELINE_CONSTANTS } from "../config/constants";
@@ -124,6 +125,8 @@ interface RunContext {
   readonly selfImprover?: SelfImprover;
   readonly directives: readonly RemediationDirective[];
   usage?: UsageMeter[] | null;
+  /** Last commit whose tree passed verification; the fast-track diffs against it, never against an unchecked HEAD. */
+  lastVerifiedSha?: string;
 }
 
 const consoleOutput: CascadeOutput = {
@@ -587,6 +590,11 @@ export class CascadeFacade {
   ): Promise<void> {
     const verify = verifyCommands(task, ctx.config.fullGate, { repoRoot: ctx.config.repo, config: ctx.config });
     const commitType = commitTypeOf(task);
+    if (ctx.lastVerifiedSha === undefined) {
+      const head = await this.git(ctx, ["rev-parse", "HEAD"]);
+      if (head.code === CONSTANTS.EXIT_CODE_SUCCESS) ctx.lastVerifiedSha = head.output.trim();
+    }
+    let verifiedThisTask = false;
     let prompt = taskPrompt(change, task, verify, sectionCommit, ctx.config.repo);
     if (ctx.directives.length > 0) {
       prompt = `${prompt}\n\n${formatRemediationDirectives(ctx.directives)}`;
@@ -634,18 +642,29 @@ export class CascadeFacade {
       if (blocked) throw new Fatal(`Task ${task.id} needs a human decision: ${blocked}`);
 
       if (verify.length) {
-        const verification = await runVerificationPhase({
-          commands: verify,
+        const checks = await selectVerifyChecks(verify, {
           cwd: ctx.config.repo,
-          taskId: task.id,
-          attempt: attempts,
-          maxAttempts: ctx.config.maxAttemptsPerTask,
-          timeoutMs: ctx.config.commandTimeoutMs,
-          hooks: {
-            say: (message) => this.say(ctx, message),
-            log: (event, data) => this.log(ctx, event, data),
-          },
+          forceFull: ctx.config.fullGate || /\bfull verification\b/i.test(task.text),
+          ignorePrefixes: V2_PIPELINE_CONSTANTS.WORKSPACE_EXCLUDES,
+          baseRef: ctx.lastVerifiedSha,
+          say: (message) => this.say(ctx, message),
+          log: (event, data) => this.log(ctx, event, data),
         });
+        const verification =
+          checks.length > 0
+            ? await runVerificationPhase({
+                commands: checks,
+                cwd: ctx.config.repo,
+                taskId: task.id,
+                attempt: attempts,
+                maxAttempts: ctx.config.maxAttemptsPerTask,
+                timeoutMs: ctx.config.commandTimeoutMs,
+                hooks: {
+                  say: (message) => this.say(ctx, message),
+                  log: (event, data) => this.log(ctx, event, data),
+                },
+              })
+            : { success: true, failures: [], feedbackPrompt: undefined };
         if (!verification.success) {
           this.say(ctx, `  checks failed (attempt ${attempts}/${ctx.config.maxAttemptsPerTask})`);
           ctx.selfImprover?.recordOutcome({
@@ -660,6 +679,7 @@ export class CascadeFacade {
           continue;
         }
         markDone(tasksPath, task.id);
+        verifiedThisTask = true;
       } else if (!readTasks(tasksPath).find((candidate) => candidate.id === task.id)?.done) {
         prompt = `Task ${task.id} is still unchecked in tasks.md. Finish it and mark it, or reply with "BLOCKED: <reason>".`;
         continue;
@@ -677,6 +697,10 @@ export class CascadeFacade {
             CONSTANTS.COMMIT_MESSAGE_MAX_LENGTH,
           ),
         );
+      }
+      if (verifiedThisTask) {
+        const head = await this.git(ctx, ["rev-parse", "HEAD"]);
+        if (head.code === CONSTANTS.EXIT_CODE_SUCCESS) ctx.lastVerifiedSha = head.output.trim();
       }
       ctx.tasks.push({ change, taskId: task.id, status: "done", attempts });
       return;
