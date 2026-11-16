@@ -499,6 +499,27 @@ export const CLI_COMMAND_CONSTANTS = {
 } as const;
 
 /**
+ * EGM spec gate: stages, marker files and the hashed artifacts of an OpenSpec change.
+ */
+export const SPEC_GATE_CONSTANTS = {
+  STAGES: ["review", "drift"] as const,
+  STATUSES: ["resolved", "open"] as const,
+  FILE_BY_STAGE: { review: "review.md", drift: "drift.md" } as const,
+  HASH_ALGORITHM: "sha256",
+  HASH_ENCODING: "hex",
+  FRONT_MATTER_FENCE: "---",
+  KEY_STAGE: "egm",
+  KEY_STATUS: "status",
+  KEY_HASH: "hash",
+  HASHED_TOP_LEVEL_FILES: ["proposal.md", "design.md", "tasks.md"] as const,
+  SPECS_DIR: "specs",
+  SPEC_FILE_NAME: "spec.md",
+  CRLF: /\r\n/g,
+  TASK_CHECKBOX: /^(\s*-\s*)\[[xX]\]/gm,
+  TASK_CHECKBOX_OPEN: "$1[ ]",
+} as const;
+
+/**
  * Adversarial hardening rules (M6): input allowlists and injection guards.
  */
 export const HARDENING_CONSTANTS = {
