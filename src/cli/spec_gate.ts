@@ -3,7 +3,7 @@
  *
  * Exit codes: 0 every change passes, 1 at least one change is missing/open/stale/malformed, 2 invalid input.
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { EXIT_CODE_CONSTANTS, SPEC_GATE_CONSTANTS as C } from "../config/constants";
@@ -54,11 +54,43 @@ function parseStatus(value: string | undefined): SpecStatus {
   return value as SpecStatus;
 }
 
+type FolderFailure = { readonly reason: string; readonly path: string };
+
+function folderFailureOf(repo: string, change: string): FolderFailure | undefined {
+  let folderExists = false;
+  try {
+    folderExists = statSync(changeDirOf(repo, change)).isDirectory();
+  } catch {
+    folderExists = false;
+  }
+  if (folderExists) return undefined;
+  const archiveRoot = join(C.OPENSPEC_DIR, C.CHANGES_DIR, C.ARCHIVE_DIR);
+  let entries: string[] = [];
+  try {
+    entries = readdirSync(join(repo, archiveRoot), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+  } catch {
+    entries = [];
+  }
+  const archived = entries
+    .filter((name) => {
+      const prefix = C.ARCHIVE_DATE_PREFIX.exec(name);
+      return prefix !== null && name.slice(prefix[0].length) === change;
+    })
+    .sort()
+    .at(-1);
+  if (archived !== undefined) return { reason: C.REASON_ARCHIVED, path: join(archiveRoot, archived) };
+  return { reason: C.REASON_NO_CHANGE_FOLDER, path: join(C.OPENSPEC_DIR, C.CHANGES_DIR, change) };
+}
+
 function runCheck(options: SpecGateOptions, output: SpecGateOutput): number {
   const stage = parseStage(options.stage);
   const names = parseChangeNames(options.changes);
   const repo = resolve(options.repo ?? process.cwd());
   const failures = names.flatMap((change) => {
+    const folderFailure = folderFailureOf(repo, change);
+    if (folderFailure !== undefined) return [`${change}: ${stage} ${folderFailure.reason} (${folderFailure.path})`];
     const result = evaluateStage(changeDirOf(repo, change), stage);
     return result.ok ? [] : [`${change}: ${stage} ${result.reason} (${C.FILE_BY_STAGE[stage]})`];
   });
