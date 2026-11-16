@@ -41,6 +41,12 @@ Integración en `runTask`: tras la sesión y antes de `runVerificationPhase`, si
 
 Reglas de seguridad: lista vacía, `git` con error o `undefined` → se ejecuta todo.
 
+## Revisión tras la revisión final (2026-11-16)
+
+- Base de comparación: el último commit cuya verificación pasó (`ctx.lastVerifiedSha`), no `HEAD`. En modo commit-por-tarea una tarea sin `Verify:` commitea código sin comprobar y una tarea posterior solo-docs se saltaría el único check.
+- `.txt` y `.mdx` ya no cuentan como docs; tampoco `AGENTS.md`, `CLAUDE.md`, `SKILL.md` ni `.claude/`, `.agents/`, `.opencode/` (se leen en runtime). Un comando que nombra docs (`build:docs`, `test:links`) nunca se omite.
+- `ls-files --others` usa `:/` + `--full-name` para ver todo el repo cuando `--repo` es un subdirectorio; los prefijos ignorados también casan dentro de rutas de monorepo.
+
 ## Tests (TDD)
 
 Casos mínimos: modificado sin stagear, staged, sin trackear en directorio nuevo, renombrado `.ts`→`.md`, borrado de código, ruta con espacios; mezcla md + ts → no docs-only; lista vacía → no docs-only; `latest`/`attest` no son test; `forceFull` nunca omite; git que falla ejecuta todo.

@@ -160,6 +160,37 @@ describe("CascadeFacade", () => {
       expect(text).not.toContain("check: bun run build");
     });
 
+    test("does not skip checks when an earlier task committed unchecked code (commit-per-task mode)", async () => {
+      const repo = await createTempGitRepo();
+      repos.push(repo);
+      writeFileSync(join(repo.repoDir, "package.json"), JSON.stringify({ scripts: { build: "echo built" } }));
+      const tasks = [
+        "## 1. Build",
+        "- [ ] 1.1 Implement the parser. Commit `feat`",
+        "- [ ] 1.2 Update the guide. Verify: `bun run build`. Commit `docs`",
+        "",
+      ].join("\n");
+      addOpenSpecChange(repo.repoDir, "add-greeting", { tasksMarkdown: tasks });
+      await commitFixture(repo);
+      const output = captureOutput();
+      const engine = new WorkingEngine((options) => {
+        const first = options.prompt.includes("task 1.1");
+        const file = first ? "src/parser.ts" : "docs/guide.md";
+        mkdirSync(dirname(join(options.cwd, file)), { recursive: true });
+        writeFileSync(join(options.cwd, file), "content\n");
+        const tasksPath = join(options.cwd, "openspec", "changes", "add-greeting", "tasks.md");
+        const id = first ? "1.1" : "1.2";
+        writeFileSync(tasksPath, readFileSync(tasksPath, "utf8").replace(`- [ ] ${id}`, `- [x] ${id}`));
+        return { kind: "done", sessionId: "s", result: "COMMIT_SUBJECT: update", costUsd: 0 };
+      });
+      const result = await new CascadeFacade({ engine, output, resilience: false }).run(configFor(repo, "add-greeting"));
+      expect(result.exitCode).toBe(0);
+      expect(result.tasks.map((t) => t.status)).toEqual(["done", "done"]);
+      const text = output.lines.join("\n");
+      expect(text).toContain("check: bun run build");
+      expect(text).not.toContain("fast-track");
+    });
+
     test("still runs the build check when the task touched code", async () => {
       const repo = await repoWithBuildScript();
       const output = captureOutput();

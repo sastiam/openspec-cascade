@@ -36,7 +36,7 @@ Toda ejecución de procesos pasa por el puerto `ISpawner` (`src/runtime/`): `Bun
 
 Bucle secuencial: por cada tarea pendiente se abre una sesión del motor, se ejecutan los comandos `Verify:` (hasta `--max-attempts` intentos con el fallo reinyectado), se marca la tarea y se hace commit por tipo o por sección. Si se agotan los intentos se ejecuta el rollback de Git (`--no-rollback` lo desactiva) y la ejecución se detiene, salvo con `--resilient`.
 
-**Fast-track de docs.** Si tras la sesión todos los ficheros tocados son documentación (`.md`, `.mdx`, `.txt`, `.rst`, `LICENSE`, `README*`, `CHANGELOG*`; se ignoran los artefactos de `.cascade/` y `.agents/teamwork/`), se omiten los comandos de typecheck, test y build y se avisa en el log (`fast-track: …`). Lint y cualquier comando no reconocido se siguen ejecutando. Ante cualquier duda (git falla, lista vacía, código mezclado) se ejecuta todo, y `--full-gate` o una tarea con "full verification" lo desactivan.
+**Fast-track de docs.** Si tras la sesión todos los ficheros tocados respecto al último commit verificado son documentación (`.md`, `.rst`, `LICENSE`, `README*`, `CHANGELOG*`; se ignoran los artefactos de `.cascade/` y `.agents/teamwork/`), se omiten los comandos de typecheck, test y build y se avisa en el log (`fast-track: …`). No cuentan como docs `.txt`, `.mdx`, `AGENTS.md`, `CLAUDE.md`, `SKILL.md` ni nada bajo `.claude/`, `.agents/` u `.opencode/`, y un comando que nombra docs (`build:docs`, `test:links`) nunca se omite. Lint y cualquier comando no reconocido se siguen ejecutando. Ante cualquier duda (git falla, lista vacía, código mezclado) se ejecuta todo, y `--full-gate` o una tarea con "full verification" lo desactivan.
 
 ### `--mode v2` (pipeline FSM)
 

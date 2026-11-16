@@ -74,6 +74,49 @@ describe("detectAffectedFiles (real git repo)", () => {
     }
   });
 
+  test("diffs against a given base ref instead of HEAD", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "fast-track-base-"));
+    try {
+      const sh = async (cmd: string) => expect((await defaultCommandRunner(cmd, dir)).code).toBe(0);
+      const commit = "git -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q -m";
+      mkdirSync(join(dir, "src"));
+      writeFileSync(join(dir, "README.md"), "# r\n");
+      await sh("git init -q");
+      await sh("git add -A");
+      await sh(`${commit} init`);
+      const base = (await defaultCommandRunner("git rev-parse HEAD", dir)).stdout;
+      writeFileSync(join(dir, "src", "parser.ts"), "export {};\n");
+      await sh("git add -A");
+      await sh(`${commit} code`);
+      writeFileSync(join(dir, "README.md"), "# r2\n");
+
+      expect(await detectAffectedFiles(dir)).toEqual(["README.md"]);
+      expect([...(await detectAffectedFiles(dir, undefined, base))!].sort()).toEqual(["README.md", "src/parser.ts"]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("sees untracked files outside cwd when cwd is a subdirectory of the repo", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "fast-track-sub-"));
+    try {
+      const sh = async (cmd: string, cwd = dir) => expect((await defaultCommandRunner(cmd, cwd)).code).toBe(0);
+      mkdirSync(join(dir, "packages", "app"), { recursive: true });
+      mkdirSync(join(dir, "packages", "shared"), { recursive: true });
+      writeFileSync(join(dir, "packages", "app", "README.md"), "# app\n");
+      await sh("git init -q");
+      await sh("git add -A");
+      await sh("git -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q -m init");
+      writeFileSync(join(dir, "packages", "app", "README.md"), "# app v2\n");
+      writeFileSync(join(dir, "packages", "shared", "new.ts"), "export {};\n");
+
+      const files = await detectAffectedFiles(join(dir, "packages", "app"));
+      expect([...files!].sort()).toEqual(["packages/app/README.md", "packages/shared/new.ts"]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("returns undefined outside a git repository", async () => {
     const dir = mkdtempSync(join(tmpdir(), "fast-track-nogit-"));
     try {
@@ -86,7 +129,7 @@ describe("detectAffectedFiles (real git repo)", () => {
 
 describe("isDocsOnly", () => {
   test("accepts documentation files, including spaces and upper-case extensions", () => {
-    expect(isDocsOnly(["README.md", "docs/a.MDX", "LICENSE", "docs/my notes.md", "README.MD"])).toBe(true);
+    expect(isDocsOnly(["README.md", "docs/a.MD", "LICENSE", "docs/my notes.md", "README.MD"])).toBe(true);
   });
 
   test("rejects empty and undefined lists", () => {
@@ -106,6 +149,23 @@ describe("isDocsOnly", () => {
   });
 });
 
+describe("isDocsOnly: files that are inputs to code or tooling", () => {
+  test("text and MDX files can feed builds, tests and dependency resolution", () => {
+    expect(isDocsOnly(["requirements.txt"])).toBe(false);
+    expect(isDocsOnly(["CMakeLists.txt"])).toBe(false);
+    expect(isDocsOnly(["test/fixtures/golden.txt"])).toBe(false);
+    expect(isDocsOnly(["docs/page.mdx"])).toBe(false);
+  });
+
+  test("markdown that cascade or the agent reads at runtime is not plain docs", () => {
+    expect(isDocsOnly(["AGENTS.md"])).toBe(false);
+    expect(isDocsOnly(["CLAUDE.md"])).toBe(false);
+    expect(isDocsOnly([".claude/skills/x/SKILL.md"])).toBe(false);
+    expect(isDocsOnly([".agents/skills/x/SKILL.md"])).toBe(false);
+    expect(isDocsOnly(["docs/SKILL.md"])).toBe(false);
+  });
+});
+
 describe("classifyCheck", () => {
   test("typecheck", () => {
     expect(classifyCheck("bunx tsc --noEmit")).toBe("typecheck");
@@ -122,6 +182,13 @@ describe("classifyCheck", () => {
     expect(classifyCheck("bun run lint")).toBe("lint");
     expect(classifyCheck("eslint .")).toBe("lint");
     expect(classifyCheck("bun run build")).toBe("build");
+  });
+
+  test("commands that name docs are docs checks and never skippable", () => {
+    expect(classifyCheck("bun run build:docs")).toBe("other");
+    expect(classifyCheck("bun test test/docs.test.ts")).toBe("other");
+    expect(classifyCheck("bun run test:links")).toBe("other");
+    expect(classifyCheck("npx vitepress build")).toBe("other");
   });
 
   test("substrings do not count as keywords", () => {
@@ -215,6 +282,30 @@ describe("selectVerifyChecks", () => {
       ignorePrefixes: [".cascade/"],
     });
     expect(run).toEqual(commands);
+  });
+
+  test("passes baseRef to the diff command", async () => {
+    const seen: string[] = [];
+    const recording: CommandRunner = async (command) => {
+      seen.push(command);
+      return OK("");
+    };
+    await selectVerifyChecks(commands, { cwd: "/x", forceFull: false, runner: recording, baseRef: "abc1234" });
+    expect(seen.find((c) => c.startsWith("git diff"))).toContain("abc1234");
+  });
+
+  test("ignored prefixes also match inside a monorepo package path", async () => {
+    const nested: CommandRunner = async (command) =>
+      command.startsWith("git diff")
+        ? OK("packages/app/README.md\0")
+        : OK("packages/app/.cascade/telemetry/day.jsonl\0");
+    const run = await selectVerifyChecks(commands, {
+      cwd: "/x",
+      forceFull: false,
+      runner: nested,
+      ignorePrefixes: [".cascade/"],
+    });
+    expect(run).toEqual(["bun run lint"]);
   });
 
   test("forceFull and empty command lists never touch git", async () => {

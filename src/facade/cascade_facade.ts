@@ -125,6 +125,8 @@ interface RunContext {
   readonly selfImprover?: SelfImprover;
   readonly directives: readonly RemediationDirective[];
   usage?: UsageMeter[] | null;
+  /** Last commit whose tree passed verification; the fast-track diffs against it, never against an unchecked HEAD. */
+  lastVerifiedSha?: string;
 }
 
 const consoleOutput: CascadeOutput = {
@@ -588,6 +590,11 @@ export class CascadeFacade {
   ): Promise<void> {
     const verify = verifyCommands(task, ctx.config.fullGate, { repoRoot: ctx.config.repo, config: ctx.config });
     const commitType = commitTypeOf(task);
+    if (ctx.lastVerifiedSha === undefined) {
+      const head = await this.git(ctx, ["rev-parse", "HEAD"]);
+      if (head.code === CONSTANTS.EXIT_CODE_SUCCESS) ctx.lastVerifiedSha = head.output.trim();
+    }
+    let verifiedThisTask = false;
     let prompt = taskPrompt(change, task, verify, sectionCommit, ctx.config.repo);
     if (ctx.directives.length > 0) {
       prompt = `${prompt}\n\n${formatRemediationDirectives(ctx.directives)}`;
@@ -639,6 +646,7 @@ export class CascadeFacade {
           cwd: ctx.config.repo,
           forceFull: ctx.config.fullGate || /\bfull verification\b/i.test(task.text),
           ignorePrefixes: V2_PIPELINE_CONSTANTS.WORKSPACE_EXCLUDES,
+          baseRef: ctx.lastVerifiedSha,
           say: (message) => this.say(ctx, message),
           log: (event, data) => this.log(ctx, event, data),
         });
@@ -671,6 +679,7 @@ export class CascadeFacade {
           continue;
         }
         markDone(tasksPath, task.id);
+        verifiedThisTask = true;
       } else if (!readTasks(tasksPath).find((candidate) => candidate.id === task.id)?.done) {
         prompt = `Task ${task.id} is still unchecked in tasks.md. Finish it and mark it, or reply with "BLOCKED: <reason>".`;
         continue;
@@ -688,6 +697,10 @@ export class CascadeFacade {
             CONSTANTS.COMMIT_MESSAGE_MAX_LENGTH,
           ),
         );
+      }
+      if (verifiedThisTask) {
+        const head = await this.git(ctx, ["rev-parse", "HEAD"]);
+        if (head.code === CONSTANTS.EXIT_CODE_SUCCESS) ctx.lastVerifiedSha = head.output.trim();
       }
       ctx.tasks.push({ change, taskId: task.id, status: "done", attempts });
       return;
