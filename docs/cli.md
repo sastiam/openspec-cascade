@@ -130,12 +130,12 @@ Códigos de salida de los subcomandos: `0` éxito, `1` hallazgos/drift/estado no
 
 ```text
 /cascade-spec-brainstorm <change> <idea>   → brief.md
-/opsx:propose  (o /opsx-propose)           → proposal, design, specs, tasks
+/openspec-propose  (o @openspec-propose)   → proposal, design, specs, tasks
 /cascade-spec-review <change>              → review.md  (+ spec-gate stamp --stage review)
 spec-gate check --stage review             → debe dar 0 antes de night-run / cascade
 cascade --changes <change>                 → apply
 /cascade-spec-drift <change>               → drift.md   (+ spec-gate stamp --stage drift)
-spec-gate check --stage drift              → debe dar 0 antes de /opsx:archive (o /opsx-archive)
+spec-gate check --stage drift              → debe dar 0 antes de /openspec-archive-change (o @openspec-archive-change)
 ```
 
 - `stamp` escribe al principio del informe un bloque `---` con `egm`, `status` (`resolved` o `open`) y `hash`. El hash cubre `proposal.md`, `design.md`, `tasks.md` y `specs/*/spec.md`; ignora las casillas `[x]` de las tareas y los finales de línea CRLF, de modo que marcar tareas durante `apply` no invalida la revisión. Editar cualquier artefacto después de sellar deja el informe `stale`.

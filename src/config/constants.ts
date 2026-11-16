@@ -562,5 +562,8 @@ export const HARDENING_CONSTANTS = {
   TEST_FRAMEWORK_MODULES: ["bun:test", "vitest", "@jest/globals"] as const,
 } as const;
 
-/** How to tell the user to create a change: Claude Code uses `/opsx:propose`, other agents `/opsx-propose`. */
-export const OPENSPEC_PROPOSE_HINT = "/opsx:propose (or /opsx-propose in other agents)";
+/**
+ * How to tell the user to create a change. OpenSpec 2.0 ships skills, not `/opsx` commands;
+ * forja installs them globally, so Claude Code invokes `/openspec-propose` and OpenCode `@openspec-propose`.
+ */
+export const OPENSPEC_PROPOSE_HINT = "/openspec-propose (Claude Code) or @openspec-propose (OpenCode)";
