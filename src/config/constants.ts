@@ -488,7 +488,7 @@ export const PRE_PR_CONSTANTS = {
  * Integration subcommands dispatched by `cascade.ts` before regular flag parsing.
  */
 export const CLI_COMMAND_CONSTANTS = {
-  SUBCOMMANDS: ["doctor", "catalog", "drift", "review", "spec-gate"] as const,
+  SUBCOMMANDS: ["doctor", "catalog", "drift", "review", "spec-gate", "lint-tasks"] as const,
   ENGINE_BINARIES: { claude: "claude", opencode: "opencode", antigravity: "agy", jules: "jules" } as const,
   DEFAULT_OWNER_TYPE: "user" as const,
   OWNER_TYPES: ["user", "organization"] as const,
@@ -525,6 +525,30 @@ export const SPEC_GATE_CONSTANTS = {
   MARKER_KEYS: ["egm", "status", "hash"] as const,
   TASK_CHECKBOX: /^(\s*-\s*)\[[xX]\]/gm,
   TASK_CHECKBOX_OPEN: "$1[ ]",
+} as const;
+
+/**
+ * Static checks on a change's tasks.md: code blocks and unchecked tasks without a `Verify:` line.
+ */
+export const TASKS_LINT_CONSTANTS = {
+  FILE_NAME: "tasks.md",
+  RULE_NO_CODE_BLOCK: "no-code-block",
+  RULE_MISSING_VERIFY: "missing-verify",
+  MESSAGE_NO_CODE_BLOCK: "fenced code block; describe the expected outcome and put the command in a Verify: line",
+  MESSAGE_MISSING_VERIFY: "unchecked task has no indented Verify: line with text; add one under the task",
+  LINE_NUMBER_BASE: 1,
+  LINE_BREAK: /\r\n?|\n/,
+  BOM: /^﻿/,
+  FENCE_OPENER: /^\s*(`{3,}|~{3,})(.*)$/,
+  FENCE_CLOSER: /^\s*(`{3,}|~{3,})\s*$/,
+  BACKTICK: "`",
+  UNCHECKED_TASK: /^- \[ \]/,
+  VERIFY_LINE: /^\s+(?:[-*]\s+)?Verify:\s*\S/,
+  BLANK_LINE: /^\s*$/,
+  INDENTED_LINE: /^\s/,
+  OK_PREFIX: "lint-tasks: ok",
+  FATAL_HEADER: "tasks.md failed lint-tasks; fix these findings before running:",
+  USAGE_PREFIX: "USAGE: cascade lint-tasks",
 } as const;
 
 /**

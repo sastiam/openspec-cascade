@@ -39,7 +39,7 @@ Nombres de comandos de OpenSpec: `/opsx:explore`, `/opsx:propose`… en Claude C
 | 1 | Nombres de comandos (`:` y `-`) en los textos propios | En curso | `feat/command-names` |
 | 2 | Contrato de autonomía | Por diseñar | — |
 | 3 | `/cascade:explore` | Por diseñar | — |
-| 4 | `manual.md` y lint de `tasks.md` | Por diseñar | — |
+| 4 | `manual.md` y lint de `tasks.md` | Lint de bloques de código y `Verify:` hecho; verbos manuales y `manual.md` por diseñar | `agent/tasks-lint` |
 | 5 | `setup`, manifiesto y `doctor` | Por diseñar | — |
 | 6 | `status`, avisos y frenos | Por diseñar | — |
 | 7 | Umbral de Greptile como puerta | Por diseñar | — |
@@ -77,7 +77,7 @@ Orden propuesto: 1, validación de 0b, 2, 4, 3, 5, 6, 7.
 - `tasks.md` contiene **solo lo que un agente puede hacer y verificar**: resultado esperado y `Verify:`, nunca líneas de código.
 - Lo operativo (desplegar, aprobar, ajustes manuales) va a `manual.md` dentro del change, sin casillas que cuenten para OpenSpec, cada paso con un `Check:` de solo lectura.
 - Un comando pide al agente que ejecute esos checks y deje evidencia. **Verifica, no ejecuta el despliegue.**
-- Lint de `tasks.md`: bloques de código, verbos manuales con casilla y tareas sin `Verify:`.
+- Lint de `tasks.md`: bloques de código y tareas sin `Verify:` (hecho en el change `tasks-lint`, subcomando `lint-tasks`). Verbos manuales con casilla: aplazado hasta definir `manual.md`.
 
 ### 5. `setup`
 

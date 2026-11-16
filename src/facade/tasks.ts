@@ -6,6 +6,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { CONSTANTS, FULL_VERIFY, RUNTIME_CONSTANTS, VERIFY_CONSTANTS, type CascadeConfig } from "../../config";
 import { HARDENING_CONSTANTS } from "../config/constants";
+import { normalizeLines } from "../sdd/tasks_lint";
 import { isNuxtProject, resolvePackageCommands, tryDetectPackageManager } from "../../platform";
 import { runVerificationPhase } from "../../qa";
 import { discoverDirectives, discoverSkills, formatDirectivesPrompt, formatSkillsPrompt } from "../../skills";
@@ -24,7 +25,7 @@ export function parseTasks(markdown: string): Task[] {
   const tasks: Task[] = [];
   let section = "";
   let current: Task | undefined;
-  for (const [index, line] of markdown.split("\n").entries()) {
+  for (const [index, line] of normalizeLines(markdown).entries()) {
     const heading = line.match(/^#{2,}\s+(.*)$/);
     if (heading) {
       section = heading[1]!.trim();
