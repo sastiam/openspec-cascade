@@ -15,7 +15,7 @@ Contexto de uso (solo como ejemplo): equipo de platform AI con paquetes internos
 3. Todo es opt-in: si una pieza no está, no hay gate y nada se rompe.
 4. El código decide, los prompts opinan. Los gates (hash, sello, exit code) son TypeScript pequeño y testeable; el juicio vive en prompts de EGM y Greptile.
 5. Crecer es añadir un hueco, no una rama dentro del loop.
-6. Un humano triasa los hallazgos; nada se aplica solo.
+6. Un humano triasa los hallazgos de review; nada de eso se aplica solo. Las decisiones del agente (`DECISION:`) sí se aplican, pero quedan registradas y se revisan en la PR.
 7. No se toca el CLI de OpenSpec ni sus comandos generados (`openspec update` los sobrescribe). Las piezas propias los envuelven leyendo la skill instalada y aplicando sobrescrituras.
 8. Una preferencia solo es fiable de noche si algo ejecutable la comprueba.
 
@@ -44,16 +44,22 @@ Nombres de comandos de OpenSpec: `/opsx:explore`, `/opsx:propose`… en Claude C
 | 6 | `status`, avisos y frenos | Por diseñar | — |
 | 7 | Umbral de Greptile como puerta | Por diseñar | — |
 
-Orden propuesto: 1, 2, 3, 4, 5, 6, 7. La 2 va primero porque es la que más acerca a "toda la noche sin intervención".
+Orden propuesto: 1, validación de 0b, 2, 4, 3, 5, 6, 7.
+
+- La 1 se hace en `feat/egm-integration`, porque los textos afectados son casi todos de esa rama.
+- Antes de diseñar la 2 se valida la 0b con un ticket real pequeño: la 2 toca `runTask`, donde vive el gate de EGM, y la pasada real da datos de qué bloqueos aparecen.
+- La 2 es la que más acerca a "toda la noche sin intervención".
+- La 4 sube por delante de la 3: el lint de `tasks.md` es pequeño, ejecutable y ataca directamente que las tareas dicten líneas de código.
 
 ## Decisiones tomadas
 
 ### 2. Contrato de autonomía
 
-- `BLOCKED:` deja de ser fatal. Hoy `runTask` lanza `Fatal` y para todo, sin rollback. Pasa a: guardar el trabajo parcial como parche en `.cascade/parked/<tarea>.patch`, hacer rollback de la tarea, aparcarla con su pregunta y seguir.
+- `BLOCKED:` deja de ser fatal. Hoy `runTask` lanza `Fatal` y para todo, sin rollback. Pasa a: guardar el trabajo parcial como parche en `openspec/changes/<change>/parked/<tarea>.patch`, hacer rollback de la tarea, aparcarla con su pregunta y seguir. El parche vive en el change para que viaje con la PR y respete la regla 1.
 - Dependientes: si la tarea declara `Depends: 1.2, 2.1`, se usa. Si no, rige la **barrera por sección** (una tarea aparcada aparca las siguientes de su sección). Las demás secciones continúan.
 - Convención `DECISION: <qué> — <por qué>` al final de la respuesta del agente, igual que ya se lee `COMMIT_SUBJECT:` y `BLOCKED:`.
 - El agente decide solo únicamente si es **reversible y de bajo impacto** (nombres, estructura interna, valores por defecto). Siempre aparca si toca secretos, IAM, migraciones o datos destructivos, API pública o configuración de producción.
+- Por la regla 8, ese límite lo comprueba código, no el prompt: una lista de rutas y patrones sensibles (por ejemplo `migrations/`, políticas IAM, `.env*`, `infra/`, `cdk.json`, la API pública declarada). Si el diff de la tarea toca alguno, la tarea se aparca sin consultar al agente. El prompt opina; el código decide.
 - Resumen final en lenguaje llano con tres bloques: hecho, decidido por el agente (con porqué) y aparcado (con su pregunta y el parche).
 - Descartado: portar el DAG de v2 (va contra la poda de v2).
 
@@ -103,7 +109,7 @@ La integración ya existe (milestone M3: cliente, shadow worktree, caché, `casc
 
 - Dónde vive el manifiesto de `setup` y qué formato usa (`.cascade/` es espacio de trabajo y no se commitea).
 - Dónde se guarda el resumen de la mañana: solo en pantalla y log, o también en el change.
-- Si `openspec/config.yaml` admite reglas por artefacto que guíen al `propose`; hay que comprobarlo antes de depender de ello.
+- Si `openspec/config.yaml` admite reglas por artefacto que guíen al `propose`; hay que comprobarlo antes de depender de ello. Se resuelve mirando el schema antes de empezar la 4.
 - Si el umbral de Greptile es global o por proyecto.
 
 ## Convenciones
