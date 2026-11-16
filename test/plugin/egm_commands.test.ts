@@ -60,6 +60,11 @@ describe.each(COMMANDS)("$name", (command) => {
       expect(text).toContain("skip step 2");
     });
 
+    test("forbids EGM's publish-as-RFC option, which writes to docs/designs and SITEMAP.md", () => {
+      expect(text).toMatch(/Do not offer or take .*Publish concepts_brief\.md as RFC/);
+      expect(text).toContain("SITEMAP.md");
+    });
+
     test("does not start Goldfish reviewers before the user confirms readiness", () => {
       expect(text).toContain("confirms");
     });

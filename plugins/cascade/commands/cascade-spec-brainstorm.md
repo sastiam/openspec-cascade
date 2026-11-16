@@ -34,6 +34,7 @@ Turns a half-formed idea into a brief that survives fresh-context review, before
    - The brief is `openspec/changes/<change>/brief.md`, not `concepts_brief.md`.
    - Do not start Goldfish reviewers until the user confirms that the working hypothesis is ready. This is EGM's own gate; keep it.
    - Do not run `egm-draft`: the design is written by OpenSpec in the next step, not as a separate design document.
+   - Do not offer or take the option "Publish concepts_brief.md as RFC for team feedback": it would write to `docs/designs/` (never allowed here) and register the RFC in `SITEMAP.md`, creating a second source of truth next to `openspec/`. In the closing question keep only the options that stay inside the change.
 
 5. **Hand over to OpenSpec.** Tell the user that the next step is `/opsx-propose <change>`, with `brief.md` as the source of intent. The change already exists, so `openspec new change` reports that it already exists: when running propose for this name, skip its creation step and continue at its next step, building the artifacts for the existing change. After the proposal exists, `/cascade-spec-review <change>` is the next gate.
 
