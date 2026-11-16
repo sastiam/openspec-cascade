@@ -537,3 +537,6 @@ export const HARDENING_CONSTANTS = {
   TRAILING_DOTS_AND_SPACES: /[.\s]+$/,
   TEST_FRAMEWORK_MODULES: ["bun:test", "vitest", "@jest/globals"] as const,
 } as const;
+
+/** How to tell the user to create a change: Claude Code uses `/opsx:propose`, other agents `/opsx-propose`. */
+export const OPENSPEC_PROPOSE_HINT = "/opsx:propose (or /opsx-propose in other agents)";

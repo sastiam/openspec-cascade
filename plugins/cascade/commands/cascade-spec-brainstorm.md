@@ -1,6 +1,6 @@
 ---
 name: cascade-spec-brainstorm
-description: Brainstorm an idea with EGM before proposing an OpenSpec change. Scaffolds the change and writes the agreed direction to brief.md inside it, then hands over to /opsx-propose.
+description: Brainstorm an idea with EGM before proposing an OpenSpec change. Scaffolds the change and writes the agreed direction to brief.md inside it, then hands over to /opsx:propose (Claude Code) or /opsx-propose (other agents).
 category: Planning
 tags: [cascade, openspec, egm, brainstorm]
 ---
@@ -35,6 +35,6 @@ Turns a half-formed idea into a brief that survives fresh-context review, before
    - Do not start Goldfish reviewers until the user confirms that the working hypothesis is ready. This is EGM's own gate; keep it.
    - Do not run `egm-draft`: the design is written by OpenSpec in the next step, not as a separate design document.
 
-5. **Hand over to OpenSpec.** Tell the user that the next step is `/opsx-propose <change>`, with `brief.md` as the source of intent. The change already exists, so `openspec new change` reports that it already exists: when running propose for this name, skip its creation step and continue at its next step, building the artifacts for the existing change. After the proposal exists, `/cascade-spec-review <change>` is the next gate.
+5. **Hand over to OpenSpec.** Tell the user that the next step is `/opsx:propose <change>` (Claude Code) or `/opsx-propose <change>` (other agents), with `brief.md` as the source of intent. The change already exists, so `openspec new change` reports that it already exists: when running propose for this name, skip its creation step and continue at its next step, building the artifacts for the existing change. After the proposal exists, `/cascade-spec-review <change>` is the next gate.
 
 6. **Report.** Say the path of `brief.md`, which findings the user accepted or rejected, and the next command.

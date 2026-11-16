@@ -25,7 +25,7 @@ import { startKeepAlive, type KeepAliveController, type KeepAliveOptions } from 
 import { selectVerifyChecks } from "../../fast_track";
 import { runVerificationPhase } from "../../qa";
 import { Fatal, RollbackStateBuffer, TaskFailureError } from "../../resilience";
-import { V2_PIPELINE_CONSTANTS } from "../config/constants";
+import { OPENSPEC_PROPOSE_HINT, V2_PIPELINE_CONSTANTS } from "../config/constants";
 import { ResilientEngineDecorator, type ResilienceOptions } from "../decorators/resilient_engine";
 import {
   summarizeTelemetry,
@@ -359,7 +359,7 @@ export class CascadeFacade {
       for (const changeReport of ctx.changes) {
         if (!existsSync(this.tasksPath(ctx, changeReport.change))) {
           changeReport.status = "missing";
-          this.output.info(`\n${changeReport.change}: MISSING (create it with /opsx:propose)`);
+          this.output.info(`\n${changeReport.change}: MISSING (create it with ${OPENSPEC_PROPOSE_HINT})`);
           continue;
         }
         const plan = await pipeline.plan(ctx.config, changeReport.change);
@@ -454,7 +454,7 @@ export class CascadeFacade {
       const tasksPath = this.tasksPath(ctx, changeReport.change);
       if (!existsSync(tasksPath)) {
         changeReport.status = "missing";
-        this.output.info(`\n${changeReport.change}: MISSING (create it with /opsx:propose)`);
+        this.output.info(`\n${changeReport.change}: MISSING (create it with ${OPENSPEC_PROPOSE_HINT})`);
         continue;
       }
       const tasks = readTasks(tasksPath);
@@ -732,7 +732,7 @@ export class CascadeFacade {
     const tasksPath = this.tasksPath(ctx, change);
     if (!existsSync(tasksPath)) {
       changeReport.status = "missing";
-      throw new Fatal(`${tasksPath} not found; create the change with /opsx:propose first`);
+      throw new Fatal(`${tasksPath} not found; create the change with ${OPENSPEC_PROPOSE_HINT} first`);
     }
     const skipped = new Set<string>();
     const initialTasks = readTasks(tasksPath);

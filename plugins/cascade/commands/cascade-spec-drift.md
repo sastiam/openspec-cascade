@@ -7,7 +7,7 @@ tags: [cascade, openspec, egm, drift]
 
 # /cascade-spec-drift — Spec vs code drift for an OpenSpec change
 
-Checks that what a change specified is what the code now does. `sdd-verify` tests runtime behavior of the diff; this command compares the written specification with the code. Run it after `apply` and before `/opsx-archive`.
+Checks that what a change specified is what the code now does. `sdd-verify` tests runtime behavior of the diff; this command compares the written specification with the code. Run it after `apply` and before `/opsx:archive` (Claude Code) or `/opsx-archive` (other agents).
 
 ## Usage
 
@@ -39,4 +39,4 @@ Checks that what a change specified is what the code now does. `sdd-verify` test
    - Leave the stamp `open` otherwise.
    Stamp after the last spec edit: a later edit to proposal, design, tasks or specs makes the stamp stale.
 
-7. **Report.** Say the path of `drift.md`, the stamp status, and that `openspec-cascade spec-gate check --stage drift --changes <change>` must pass before `/opsx-archive`.
+7. **Report.** Say the path of `drift.md`, the stamp status, and that `openspec-cascade spec-gate check --stage drift --changes <change>` must pass before `/opsx:archive` (Claude Code) or `/opsx-archive` (other agents).

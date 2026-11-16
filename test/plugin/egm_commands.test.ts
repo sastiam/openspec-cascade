@@ -33,6 +33,12 @@ describe.each(COMMANDS)("$name", (command) => {
     expect(text).toMatch(/\ndescription: \S/);
   });
 
+  test("names OpenSpec commands in both forms (Claude Code ':' and other agents '-')", () => {
+    const dash = [...text.matchAll(/\/opsx-([a-z]+)/g)].map((m) => m[1]);
+    expect(dash.length).toBeGreaterThan(0);
+    for (const cmd of dash) expect(text).toContain(`/opsx:${cmd}`);
+  });
+
   test("writes only inside the change folder; docs/designs is mentioned only as forbidden", () => {
     expect(text).toContain("openspec/changes/<change>/");
     expect(text).toContain(command.output);
