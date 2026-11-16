@@ -4,3 +4,9 @@ logs/
 .redteam_sandbox_*
 .agents/teamwork/
 dist/
+
+# graphify: caché y datos de esta máquina (el grafo sí se versiona)
+graphify-out/cache/
+graphify-out/cost.json
+graphify-out/.graphify_python
+graphify-out/.graphify_root
