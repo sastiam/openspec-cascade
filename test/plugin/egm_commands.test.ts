@@ -17,6 +17,7 @@ interface EgmCommand {
 
 const COMMANDS: EgmCommand[] = [
   { name: "cascade-spec-review", egmSkill: "egm-review", output: "review.md", stamp: "spec-gate stamp --stage review" },
+  { name: "cascade-spec-drift", egmSkill: "egm-drift-report", output: "drift.md", stamp: "spec-gate stamp --stage drift" },
 ];
 
 function read(name: string): string {
