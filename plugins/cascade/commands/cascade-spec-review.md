@@ -31,13 +31,16 @@ Reviews the planning artifacts of one OpenSpec change with the EGM (Elephant-Gol
 4. **Overrides to the EGM procedure.** These win over the defaults in the EGM skill:
    - `EGM artifact directory: openspec/changes/<change>`. Every report goes there, never to the working directory, never to `docs/designs/`.
    - The document under review is `openspec/changes/<change>/design.md`. Give the reviewers `proposal.md`, `tasks.md` and every `specs/*/spec.md` of the same change as referenced source material.
-   - The final report is `openspec/changes/<change>/review.md`. If EGM produces several files, `review.md` is the consolidated one and the others stay next to it.
+   - You must always write `openspec/changes/<change>/review.md`, whichever EGM preset the user chooses: it consolidates the stage reports, which may stay next to it.
+   - Do not offer or take EGM's "Resolve findings with agent" option (`egm-resolve`): it edits the target document directly. Spec fixes go through `openspec-update-change` after triage.
 
-5. **Triage with the user.** Present the findings and let the user choose which to address. Do not apply any finding unasked. Spec fixes go through `openspec-update-change`, never by editing artifacts freehand.
+5. **Mark the report open.** Immediately after `review.md` is written or updated, run `openspec-cascade spec-gate stamp --stage review --change <change> --status open`, even when an older `resolved` stamp exists: a re-run must never leave an old `resolved` stamp on fresh, untriaged findings.
 
-6. **Close the stage.** Run, from the repository root:
+6. **Triage with the user.** Present the findings and let the user choose which to address. Do not apply any finding unasked. Spec fixes go through `openspec-update-change`, never by editing artifacts freehand.
+
+7. **Close the stage.** Run, from the repository root:
    - `openspec-cascade spec-gate stamp --stage review --change <change> --status resolved` when every finding is addressed or explicitly declined by the user.
-   - `openspec-cascade spec-gate stamp --stage review --change <change> --status open` when findings remain.
+   - Leave the stamp `open` when findings remain.
    Stamp after the last spec edit: the stamp stores a hash of the change, and a later edit makes the review stale.
 
-7. **Report.** Say the path of `review.md`, the stamp status, and that `openspec-cascade spec-gate check --stage review --changes <change>` must pass before a night run.
+8. **Report.** Say the path of `review.md`, the stamp status, and that `openspec-cascade spec-gate check --stage review --changes <change>` must pass before a night run.

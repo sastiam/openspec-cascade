@@ -21,7 +21,8 @@ Turns a half-formed idea into a brief that survives fresh-context review, before
 
 1. **Preconditions.** Stop with a clear message if any of these fails:
    - The project uses OpenSpec: `openspec list --json` returns a root. If it does not, stop; never run `openspec init` here.
-   - `openspec/changes/<change>/` does not exist yet. If it exists, ask whether to reuse it, and write `brief.md` into it only after the user says yes.
+   - `openspec/changes/<change>/` does not exist yet. If it exists, ask whether to reuse it. If the user says yes, write `brief.md` into it and skip step 2: `openspec new change` fails on an existing directory.
+   - The session can create subagents: the Goldfish reviewers need fresh contexts. If it cannot, stop and say so.
    - The EGM plugin is installed: the glob `~/.claude/plugins/cache/egm/egm/*/skills/egm-brainstorm/SKILL.md` matches. If not, tell the user to run `claude plugin install egm@egm` and stop.
 
 2. **Scaffold the change.** Name the file you will write (`openspec/changes/<change>/brief.md`) and ask a yes/no question. After the user confirms, run `openspec new change "<change>"`. The brief lives inside the change so OpenSpec stays the only place with specs.

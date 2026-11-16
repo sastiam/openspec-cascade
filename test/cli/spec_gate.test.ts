@@ -71,6 +71,15 @@ describe("spec-gate", () => {
     expect(check(repo, "ghost")).toBe(NOT_OK);
   });
 
+  test("a repeated --changes flag checks every value, not only the last", () => {
+    const repo = makeRepo(["unreviewed", "ok"]);
+    stamp(repo, "ok", "resolved");
+    const argv = ["check", "--repo", repo, "--stage", "review", "--changes", "unreviewed", "--changes", "ok"];
+    const output = capture();
+    expect(runSpecGate(argv, output)).toBe(NOT_OK);
+    expect(output.err.join("\n")).toContain("unreviewed: review malformed");
+  });
+
   test("check rejects a change name with path traversal", () => {
     const repo = makeRepo(["a"]);
     expect(check(repo, "../a")).toBe(USAGE);

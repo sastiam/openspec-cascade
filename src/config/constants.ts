@@ -518,7 +518,11 @@ export const SPEC_GATE_CONSTANTS = {
   CHANGES_DIR: "changes",
   ACTION_CHECK: "check",
   ACTION_STAMP: "stamp",
-  CRLF: /\r\n/g,
+  LINE_BREAK: /\r\n?/g,
+  BOM: /^﻿/,
+  TRAILING_BLANKS: /[ \t]+$/gm,
+  TRAILING_NEWLINES: /\n+$/,
+  MARKER_KEYS: ["egm", "status", "hash"] as const,
   TASK_CHECKBOX: /^(\s*-\s*)\[[xX]\]/gm,
   TASK_CHECKBOX_OPEN: "$1[ ]",
 } as const;

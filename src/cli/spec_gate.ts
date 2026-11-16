@@ -24,15 +24,23 @@ const consoleOutput: SpecGateOutput = { info: (message) => console.log(message),
 const OPTIONS = {
   repo: { type: "string" },
   stage: { type: "string" },
-  changes: { type: "string" },
+  changes: { type: "string", multiple: true },
   change: { type: "string" },
   status: { type: "string" },
 } as const;
 
-function parseOptions(argv: readonly string[]): Record<keyof typeof OPTIONS, string | undefined> {
+interface SpecGateOptions {
+  readonly repo?: string;
+  readonly stage?: string;
+  readonly changes?: string[];
+  readonly change?: string;
+  readonly status?: string;
+}
+
+function parseOptions(argv: readonly string[]): SpecGateOptions {
   try {
     const { values } = parseArgs({ args: [...argv], options: OPTIONS, strict: true, allowPositionals: false });
-    return values as Record<keyof typeof OPTIONS, string | undefined>;
+    return values as SpecGateOptions;
   } catch (error) {
     throw new SpecGateUsageError(error instanceof Error ? error.message : String(error));
   }
@@ -61,9 +69,9 @@ function changeDirOf(repo: string, change: string): string {
   return join(repo, C.OPENSPEC_DIR, C.CHANGES_DIR, change);
 }
 
-function runCheck(options: ReturnType<typeof parseOptions>, output: SpecGateOutput): number {
+function runCheck(options: SpecGateOptions, output: SpecGateOutput): number {
   const stage = parseStage(options.stage);
-  const names = (options.changes ?? "").split(",").map((name) => name.trim()).filter((name) => name !== "").map(validChangeName);
+  const names = (options.changes ?? []).flatMap((value) => value.split(",")).map((name) => name.trim()).filter((name) => name !== "").map(validChangeName);
   if (names.length === 0) throw new SpecGateUsageError("--changes is required");
   const repo = resolve(options.repo ?? process.cwd());
   const failures = names.flatMap((change) => {
@@ -76,7 +84,7 @@ function runCheck(options: ReturnType<typeof parseOptions>, output: SpecGateOutp
   return EXIT_CODE_CONSTANTS.EXIT_CODE_SUCCESS;
 }
 
-function runStamp(options: ReturnType<typeof parseOptions>, output: SpecGateOutput): number {
+function runStamp(options: SpecGateOptions, output: SpecGateOutput): number {
   const stage = parseStage(options.stage);
   const status = parseStatus(options.status);
   if (options.change === undefined) throw new SpecGateUsageError("--change is required");

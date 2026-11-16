@@ -55,6 +55,11 @@ describe.each(COMMANDS)("$name", (command) => {
       expect(text).toContain("sdd-clarify");
     });
 
+    test("requires subagents and skips scaffolding when reusing an existing change", () => {
+      expect(text).toContain("create subagents");
+      expect(text).toContain("skip step 2");
+    });
+
     test("does not start Goldfish reviewers before the user confirms readiness", () => {
       expect(text).toContain("confirms");
     });
@@ -63,6 +68,19 @@ describe.each(COMMANDS)("$name", (command) => {
   if (command.stamp !== undefined) {
     test("closes the stage with spec-gate stamp", () => {
       expect(text).toContain(command.stamp ?? "");
+    });
+
+    test("stamps open right after writing the report, so a re-run never keeps an old resolved stamp", () => {
+      const openStamp = text.indexOf(`${command.stamp} --change <change> --status open`);
+      expect(openStamp).toBeGreaterThan(-1);
+      expect(text.slice(0, openStamp).toLowerCase()).toContain("immediately");
+    });
+  }
+
+  if (command.name === "cascade-spec-review") {
+    test("always writes review.md and forbids the egm-resolve shortcut", () => {
+      expect(text).toContain("always write");
+      expect(text).toContain("egm-resolve");
     });
   }
 });

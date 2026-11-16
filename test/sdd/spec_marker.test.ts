@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { computeChangeHash, evaluateStage, parseMarker, renderMarker } from "../../src/sdd/spec_marker";
+import { computeChangeHash, evaluateStage, parseMarker, renderMarker, stripMarker } from "../../src/sdd/spec_marker";
 
 const SHA256_HEX_LENGTH = 64;
 const SAMPLE_HASH = "a".repeat(SHA256_HEX_LENGTH);
@@ -43,6 +43,17 @@ describe("computeChangeHash", () => {
     expect(computeChangeHash(crlf)).toBe(computeChangeHash(lf));
   });
 
+  test("ignores trailing whitespace, final newline differences and a BOM", () => {
+    const base = makeChange(BASE_FILES);
+    const variants = [
+      { ...BASE_FILES, "design.md": "# Design \t\nHow.  \n" },
+      { ...BASE_FILES, "design.md": "# Design\nHow." },
+      { ...BASE_FILES, "design.md": "# Design\nHow.\n\n\n" },
+      { ...BASE_FILES, "design.md": "﻿# Design\nHow.\n" },
+    ];
+    for (const files of variants) expect(computeChangeHash(makeChange(files))).toBe(computeChangeHash(base));
+  });
+
   test("changes when design.md changes", () => {
     const before = makeChange(BASE_FILES);
     const after = makeChange({ ...BASE_FILES, "design.md": "# Design\nDifferent.\n" });
@@ -75,6 +86,23 @@ describe("parseMarker and renderMarker", () => {
 
   test("returns undefined for an unknown status", () => {
     expect(parseMarker(`---\negm: review\nstatus: maybe\nhash: ${SAMPLE_HASH}\n---\n`)).toBeUndefined();
+  });
+});
+
+describe("stripMarker", () => {
+  test("removes a pure EGM marker block and keeps the body", () => {
+    const stripped = stripMarker(`${renderMarker({ stage: "review", status: "open", hash: SAMPLE_HASH })}# Report\ntext\n`);
+    expect(stripped).toBe("# Report\ntext\n");
+  });
+
+  test("keeps a report whose own front matter carries other keys", () => {
+    const report = `---\negm: review\nsummary: important\n---\n# Report\n`;
+    expect(stripMarker(report)).toBe(report);
+  });
+
+  test("keeps a section between two horizontal rules even if a line starts with egm:", () => {
+    const report = "---\nFindings follow.\negm: a note the reviewer wrote\n---\nMore text\n";
+    expect(stripMarker(report)).toBe(report);
   });
 });
 

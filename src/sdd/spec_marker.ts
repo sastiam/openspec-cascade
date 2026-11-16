@@ -24,7 +24,13 @@ export interface StageEvaluation {
 }
 
 function normalize(content: string): string {
-  return content.replace(C.CRLF, "\n").replace(C.TASK_CHECKBOX, C.TASK_CHECKBOX_OPEN);
+  const body = content
+    .replace(C.BOM, "")
+    .replace(C.LINE_BREAK, "\n")
+    .replace(C.TRAILING_BLANKS, "")
+    .replace(C.TASK_CHECKBOX, C.TASK_CHECKBOX_OPEN)
+    .replace(C.TRAILING_NEWLINES, "");
+  return `${body}\n`;
 }
 
 function specFiles(changeDir: string): string[] {
@@ -52,7 +58,7 @@ export function computeChangeHash(changeDir: string): string {
  * Reads the leading front-matter block; returns undefined when it is absent or invalid.
  */
 export function parseMarker(markdown: string): SpecMarker | undefined {
-  const lines = markdown.replace(C.CRLF, "\n").split("\n");
+  const lines = markdown.replace(C.LINE_BREAK, "\n").split("\n");
   if (lines[0] !== C.FRONT_MATTER_FENCE) return undefined;
   const end = lines.indexOf(C.FRONT_MATTER_FENCE, 1);
   if (end === -1) return undefined;
@@ -71,15 +77,18 @@ export function parseMarker(markdown: string): SpecMarker | undefined {
 }
 
 /**
- * Removes a leading EGM marker block (any block that carries the `egm:` key) and returns the report body.
+ * Removes a leading block made only of the marker keys (`egm`, `status`, `hash`) and returns the report body; any other leading block is report content and stays.
  */
 export function stripMarker(markdown: string): string {
-  const lines = markdown.replace(C.CRLF, "\n").split("\n");
+  const lines = markdown.replace(C.LINE_BREAK, "\n").split("\n");
   if (lines[0] !== C.FRONT_MATTER_FENCE) return markdown;
   const end = lines.indexOf(C.FRONT_MATTER_FENCE, 1);
   if (end === -1) return markdown;
-  const isEgmBlock = lines.slice(1, end).some((line) => line.startsWith(`${C.KEY_STAGE}:`));
-  return isEgmBlock ? lines.slice(end + 1).join("\n") : markdown;
+  const block = lines.slice(1, end);
+  const keys = block.map((line) => line.slice(0, Math.max(line.indexOf(":"), 0)).trim());
+  const markerKeys: readonly string[] = C.MARKER_KEYS;
+  const isPureMarker = keys.includes(C.KEY_STAGE) && keys.every((key) => markerKeys.includes(key));
+  return isPureMarker ? lines.slice(end + 1).join("\n") : markdown;
 }
 
 /**
