@@ -71,6 +71,18 @@ export function parseMarker(markdown: string): SpecMarker | undefined {
 }
 
 /**
+ * Removes a leading EGM marker block (any block that carries the `egm:` key) and returns the report body.
+ */
+export function stripMarker(markdown: string): string {
+  const lines = markdown.replace(C.CRLF, "\n").split("\n");
+  if (lines[0] !== C.FRONT_MATTER_FENCE) return markdown;
+  const end = lines.indexOf(C.FRONT_MATTER_FENCE, 1);
+  if (end === -1) return markdown;
+  const isEgmBlock = lines.slice(1, end).some((line) => line.startsWith(`${C.KEY_STAGE}:`));
+  return isEgmBlock ? lines.slice(end + 1).join("\n") : markdown;
+}
+
+/**
  * Renders the front-matter block written by `spec-gate stamp`.
  */
 export function renderMarker(marker: SpecMarker): string {
