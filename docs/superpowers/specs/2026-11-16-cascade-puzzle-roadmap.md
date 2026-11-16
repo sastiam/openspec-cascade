@@ -35,8 +35,8 @@ Nombres de comandos de OpenSpec: `/opsx:explore`, `/opsx:propose`… en Claude C
 | # | Pieza | Estado hoy | Rama / PR |
 |---|---|---|---|
 | 0 | Fast-track de docs en `runTask` | Hecho | PR #47 |
-| 0b | EGM: `spec-gate` y comandos `cascade-spec-{brainstorm,review,drift}` | Hecho, sin probar con un ticket real | `feat/egm-integration` |
-| 1 | Nombres de comandos (`:` y `-`) en los textos propios | Pendiente | — |
+| 0b | EGM: `spec-gate` y comandos `cascade-spec-{brainstorm,review,drift}` | En main, sin probar con un ticket real | `main` |
+| 1 | Nombres de comandos (`:` y `-`) en los textos propios | En curso | `feat/command-names` |
 | 2 | Contrato de autonomía | Por diseñar | — |
 | 3 | `/cascade:explore` | Por diseñar | — |
 | 4 | `manual.md` y lint de `tasks.md` | Por diseñar | — |
@@ -46,7 +46,7 @@ Nombres de comandos de OpenSpec: `/opsx:explore`, `/opsx:propose`… en Claude C
 
 Orden propuesto: 1, validación de 0b, 2, 4, 3, 5, 6, 7.
 
-- La 1 se hace en `feat/egm-integration`, porque los textos afectados son casi todos de esa rama.
+- La 1 se hace en `feat/command-names`, desde main (la 0b ya está fusionada). Cubre solo los comandos de OpenSpec; los nombres de los comandos propios se deciden en la 3.
 - Antes de diseñar la 2 se valida la 0b con un ticket real pequeño: la 2 toca `runTask`, donde vive el gate de EGM, y la pasada real da datos de qué bloqueos aparecen.
 - La 2 es la que más acerca a "toda la noche sin intervención".
 - La 4 sube por delante de la 3: el lint de `tasks.md` es pequeño, ejecutable y ataca directamente que las tareas dicten líneas de código.
