@@ -80,7 +80,7 @@ describe("SelfImprover", () => {
   test("facade records failures, excludes telemetry from commits and injects directives into later prompts", async () => {
     const repo = await createTempGitRepo({ branch: "feat/self-improve" });
     repos.push(repo);
-    addOpenSpecChange(repo.repoDir, "si", { tasksMarkdown: "## 1. Build\n- [ ] 1.1 Build it. Verify: `bun run definitely-missing-script`\n" });
+    addOpenSpecChange(repo.repoDir, "si", { tasksMarkdown: "## 1. Build\n- [ ] 1.1 Build it.\n  Verify: `bun run definitely-missing-script`\n" });
     await runGitCommand(repo.repoDir, ["add", "-A"]);
     await runGitCommand(repo.repoDir, ["commit", "-m", "chore: fixture"]);
     const prompts: string[] = [];

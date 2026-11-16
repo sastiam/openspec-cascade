@@ -6,10 +6,11 @@ import type { EngineOutcome, EngineSessionOptions } from "../../engine";
 import { CascadeFacade, isFailClosedError, type CascadeOutput } from "../../src/facade";
 import { Fatal } from "../../resilience";
 import type { UnifiedEngine } from "../../src/pal/factory";
+import type { V2Pipeline } from "../../src/facade/v2_pipeline";
 import type { IPalProvider } from "../../src/pal/types";
 import { addOpenSpecChange, createTempGitRepo, runGitCommand, type TempGitRepo } from "../e2e/helpers/temp_repo";
 
-const TASKS = ["## 1. Build", "- [ ] 1.1 Create the greeting module", ""].join("\n");
+const TASKS = ["## 1. Build", "- [ ] 1.1 Create the greeting module", "  Verify: `bun run build`", ""].join("\n");
 
 class WorkingEngine implements UnifiedEngine {
   readonly name = "opencode" as const;
@@ -84,6 +85,7 @@ describe("CascadeFacade", () => {
   async function freshRepo(): Promise<TempGitRepo> {
     const repo = await createTempGitRepo();
     repos.push(repo);
+    writeFileSync(join(repo.repoDir, "package.json"), JSON.stringify({ scripts: { build: "echo built" } }));
     addOpenSpecChange(repo.repoDir, "add-greeting", { tasksMarkdown: TASKS });
     await commitFixture(repo);
     return repo;
@@ -127,7 +129,7 @@ describe("CascadeFacade", () => {
   });
 
   describe("docs-only fast-track", () => {
-    const VERIFY_TASKS = ["## 1. Build", "- [ ] 1.1 Update the greeting. Verify: `bun run build`", ""].join("\n");
+    const VERIFY_TASKS = ["## 1. Build", "- [ ] 1.1 Update the greeting.", "  Verify: `bun run build`", ""].join("\n");
 
     async function repoWithBuildScript(): Promise<TempGitRepo> {
       const repo = await createTempGitRepo();
@@ -160,14 +162,16 @@ describe("CascadeFacade", () => {
       expect(text).not.toContain("check: bun run build");
     });
 
-    test("does not skip checks when an earlier task committed unchecked code (commit-per-task mode)", async () => {
+    test("fast-tracks a docs task after a verified code task (commit-per-task mode)", async () => {
       const repo = await createTempGitRepo();
       repos.push(repo);
       writeFileSync(join(repo.repoDir, "package.json"), JSON.stringify({ scripts: { build: "echo built" } }));
       const tasks = [
         "## 1. Build",
         "- [ ] 1.1 Implement the parser. Commit `feat`",
-        "- [ ] 1.2 Update the guide. Verify: `bun run build`. Commit `docs`",
+        "  Verify: `bun run build`",
+        "- [ ] 1.2 Update the guide. Commit `docs`",
+        "  Verify: `bun run build`",
         "",
       ].join("\n");
       addOpenSpecChange(repo.repoDir, "add-greeting", { tasksMarkdown: tasks });
@@ -188,7 +192,7 @@ describe("CascadeFacade", () => {
       expect(result.tasks.map((t) => t.status)).toEqual(["done", "done"]);
       const text = output.lines.join("\n");
       expect(text).toContain("check: bun run build");
-      expect(text).not.toContain("fast-track");
+      expect(text).toContain("fast-track");
     });
 
     test("still runs the build check when the task touched code", async () => {
@@ -273,7 +277,7 @@ describe("CascadeFacade", () => {
   test("human tasks are skipped and reported", async () => {
     const repo = await createTempGitRepo();
     repos.push(repo);
-    addOpenSpecChange(repo.repoDir, "human-only", { tasksMarkdown: "## 1. Ship\n- [ ] 1.1 Open the PR for review\n" });
+    addOpenSpecChange(repo.repoDir, "human-only", { tasksMarkdown: "## 1. Ship\n- [ ] 1.1 Open the PR for review\n  Verify: the pull request exists\n" });
     await commitFixture(repo);
     const result = await new CascadeFacade({ engine: new WorkingEngine(completeTask("human-only")), output: captureOutput() }).run(
       configFor(repo, "human-only"),
@@ -291,5 +295,98 @@ describe("CascadeFacade", () => {
     expect(engine.engineType).toBe("jules");
     expect(isFailClosedError(new Fatal("x"))).toBe(true);
     expect(isFailClosedError(new Error("x"))).toBe(false);
+  });
+
+  describe("tasks.md lint preflight", () => {
+    const UNVERIFIED = ["## 1. Build", "- [ ] 1.1 Create the greeting module", ""].join("\n");
+    const VERIFIED = ["## 1. Build", "- [ ] 1.1 Create the greeting module", "  Verify: `bun run build`", ""].join("\n");
+
+    async function repoWith(changes: Record<string, string>): Promise<TempGitRepo> {
+      const repo = await createTempGitRepo();
+      repos.push(repo);
+      writeFileSync(join(repo.repoDir, "package.json"), JSON.stringify({ scripts: { build: "echo built" } }));
+      for (const [change, tasksMarkdown] of Object.entries(changes)) addOpenSpecChange(repo.repoDir, change, { tasksMarkdown });
+      await commitFixture(repo);
+      return repo;
+    }
+
+    test("a finding stops the run before any engine session", async () => {
+      const repo = await repoWith({ bad: UNVERIFIED });
+      const engine = new WorkingEngine(completeTask("bad"));
+      const result = await new CascadeFacade({ engine, output: captureOutput() }).run(configFor(repo, "bad"));
+      expect(result.exitCode).toBe(2);
+      expect(result.errorKind).toBe("fail_closed");
+      expect(result.error).toContain("bad: tasks.md:2: missing-verify");
+      expect(engine.prompts).toHaveLength(0);
+    });
+
+    test("findings of every listed change are reported, grouped by change", async () => {
+      const repo = await repoWith({ a: UNVERIFIED, b: UNVERIFIED });
+      const result = await new CascadeFacade({ engine: new WorkingEngine(completeTask("a")), output: captureOutput() }).run(
+        configFor(repo, "a,b"),
+      );
+      expect(result.exitCode).toBe(2);
+      expect(result.error).toContain("a: tasks.md:2: missing-verify");
+      expect(result.error).toContain("b: tasks.md:2: missing-verify");
+    });
+
+    test("a finding in the second change stops the run before the first change starts", async () => {
+      const repo = await repoWith({ good: VERIFIED, bad: UNVERIFIED });
+      const engine = new WorkingEngine(completeTask("good"));
+      const result = await new CascadeFacade({ engine, output: captureOutput() }).run(configFor(repo, "good,bad"));
+      expect(result.exitCode).toBe(2);
+      expect(result.error).toContain("bad: tasks.md");
+      expect(engine.prompts).toHaveLength(0);
+      expect(readFileSync(join(repo.repoDir, "openspec", "changes", "good", "tasks.md"), "utf8")).toContain("- [ ] 1.1");
+    });
+
+    test("the v2 pipeline stops on a finding too", async () => {
+      const repo = await repoWith({ bad: UNVERIFIED });
+      const pipelineCalls: string[] = [];
+      const v2Pipeline = {
+        plan: async () => {
+          pipelineCalls.push("plan");
+          throw new Error("unexpected");
+        },
+        runChange: async () => {
+          pipelineCalls.push("runChange");
+          throw new Error("unexpected");
+        },
+      } as unknown as V2Pipeline;
+      const result = await new CascadeFacade({ engine: new WorkingEngine(completeTask("bad")), output: captureOutput(), v2Pipeline }).run(
+        configFor(repo, "bad", { mode: "v2" }),
+      );
+      expect(result.exitCode).toBe(2);
+      expect(result.error).toContain("bad: tasks.md:2: missing-verify");
+      expect(pipelineCalls).toEqual([]);
+    });
+
+    test("a dry run does not lint", async () => {
+      const repo = await repoWith({ bad: UNVERIFIED });
+      const result = await new CascadeFacade({ engine: new WorkingEngine(completeTask("bad")), output: captureOutput() }).run(
+        configFor(repo, "bad", { dryRun: true }),
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.error).toBeUndefined();
+    });
+
+    test("a change that was not listed is not linted", async () => {
+      const repo = await repoWith({ good: VERIFIED, bad: UNVERIFIED });
+      const result = await new CascadeFacade({ engine: new WorkingEngine(completeTask("good")), output: captureOutput(), resilience: false }).run(
+        configFor(repo, "good"),
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.changes[0]).toMatchObject({ change: "good", status: "done" });
+    });
+
+    test("a listed change without tasks.md is left to the existing missing-file handling", async () => {
+      const repo = await repoWith({ good: VERIFIED });
+      const result = await new CascadeFacade({ engine: new WorkingEngine(completeTask("good")), output: captureOutput() }).run(
+        configFor(repo, "absent"),
+      );
+      expect(result.exitCode).toBe(2);
+      expect(result.error).toContain("not found");
+      expect(result.error).not.toContain("missing-verify");
+    });
   });
 });

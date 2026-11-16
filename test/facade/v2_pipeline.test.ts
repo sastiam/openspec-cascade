@@ -14,7 +14,8 @@ const CHANGE = "add-greeting";
 const TASKS = [
   "## 1. Implementation",
   "",
-  "- [ ] 1.1 Implement deterministic core-behavior execution behavior. Verify: `bun --version`",
+  "- [ ] 1.1 Implement deterministic core-behavior execution behavior.",
+  "  Verify: `bun --version`",
   "",
 ].join("\n");
 

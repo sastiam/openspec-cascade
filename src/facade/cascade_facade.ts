@@ -5,7 +5,7 @@
  * engine construction (factory + resilience + telemetry decorators), the per-task
  * session/verification/commit loop, git rollback and the structured run result.
  */
-import { appendFileSync, existsSync, mkdirSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describeToolInput, oneLine } from "../../antigravity";
 import {
@@ -25,8 +25,9 @@ import { startKeepAlive, type KeepAliveController, type KeepAliveOptions } from 
 import { selectVerifyChecks } from "../../fast_track";
 import { runVerificationPhase } from "../../qa";
 import { Fatal, RollbackStateBuffer, TaskFailureError } from "../../resilience";
-import { OPENSPEC_PROPOSE_HINT, V2_PIPELINE_CONSTANTS } from "../config/constants";
+import { OPENSPEC_PROPOSE_HINT, TASKS_LINT_CONSTANTS, V2_PIPELINE_CONSTANTS } from "../config/constants";
 import { ResilientEngineDecorator, type ResilienceOptions } from "../decorators/resilient_engine";
+import { formatFinding, lintTasks } from "../sdd/tasks_lint";
 import {
   summarizeTelemetry,
   TelemetryMetricsDecorator,
@@ -404,8 +405,23 @@ export class CascadeFacade {
     this.say(ctx, `Cascade v2 finished. Estimated cost $${ctx.totalCostUsd.toFixed(CONSTANTS.DECIMAL_PLACES_USD)}\n${report.join("\n")}`);
   }
 
+  /**
+   * Lints the tasks.md of every listed change before any session starts; a dry run starts no session, so it is not linted.
+   * A listed change without tasks.md is left to the existing missing-file handling.
+   */
+  private lintChanges(ctx: RunContext): void {
+    if (ctx.config.dryRun) return;
+    const findings = ctx.config.changes.flatMap((change) => {
+      const tasksPath = this.tasksPath(ctx, change);
+      if (!existsSync(tasksPath)) return [];
+      return lintTasks(readFileSync(tasksPath, "utf8")).map((finding) => formatFinding(change, finding));
+    });
+    if (findings.length > 0) throw new Fatal(`${TASKS_LINT_CONSTANTS.FATAL_HEADER}\n${findings.join("\n")}`);
+  }
+
   private async preflight(ctx: RunContext): Promise<void> {
     if (!ctx.config.changes.length) throw new Fatal("Pass --changes a,b,c in cascade order");
+    this.lintChanges(ctx);
     if (ctx.config.settings) {
       if (!existsSync(ctx.config.settings)) throw new Fatal(`--settings file not found: ${ctx.config.settings}`);
       if (ctx.config.engine !== "claude") {

@@ -25,6 +25,7 @@ bun run cascade.ts --changes <a,b,c> --mode v2 --resilient
 ## Features
 
 - **Continuous 24/7 Execution:** Sequences multiple OpenSpec changes automatically.
+- **tasks.md Lint Preflight:** Before any engine session starts, in every mode except `--dry-run`, the facade lints the `tasks.md` of every listed change (`lint-tasks` rules: no code blocks, every unchecked task has an indented `Verify:` line) and stops with the findings if there are any.
 - **Git Rollback Buffer:** Cleanly resets working tree (`git reset --hard` & `git clean -fd`) if max retries (3) are exhausted.
 - **Heartbeat Watchdog:** Detects and recovers stalled agent sessions exceeding 5-minute SLAs.
 - **Victory Livelock Prevention:** Detects repeating failure cycles and triggers escalation ladders.
