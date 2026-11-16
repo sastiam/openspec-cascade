@@ -20,14 +20,13 @@ import { detectRuntime } from "../runtime/base_spawner";
 import { getDefaultSpawner } from "../runtime/spawner";
 import type { ISpawner } from "../runtime/types";
 import { SDD_HOOK_CONSTANTS, serializeSddHookRules } from "../sdd/hook_rules";
+import type { CliOutput } from "./change_args";
+import { runLintTasks } from "./lint_tasks";
 import { runSpecGate } from "./spec_gate";
 
 export type CliSubcommand = (typeof CLI_COMMAND_CONSTANTS.SUBCOMMANDS)[number];
 
-export interface CliOutput {
-  info(message: string): void;
-  error(message: string): void;
-}
+export type { CliOutput };
 
 export interface SubcommandDependencies {
   readonly spawner?: ISpawner;
@@ -258,6 +257,8 @@ export async function runSubcommand(
         return await reviewCommand(argv, output, dependencies);
       case "spec-gate":
         return runSpecGate(argv, output);
+      case "lint-tasks":
+        return runLintTasks(argv, output);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

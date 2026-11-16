@@ -260,7 +260,9 @@ export function addOpenSpecChange(
         "## 1. Implementation",
         "",
         `- [ ] 1.1 Implement deterministic ${capabilitySlug} execution behavior`,
-        `- [ ] 1.2 Verify: \`bun test\`. Commit \`feat(${capabilitySlug})\``,
+        "  Verify: `bun test`",
+        `- [ ] 1.2 Run the tests. Commit \`feat(${capabilitySlug})\``,
+        "  Verify: `bun test`",
         "",
       ].join("\n");
     writeRelativeFile(changeDir, "tasks.md", tasksContent);

@@ -110,6 +110,7 @@ bun run cascade.ts review --repo <path> --base main
 bun run cascade.ts catalog --sync --owner <org> --project <n> --owner-type organization
 bun run cascade.ts drift --catalog projects/agnostic_looper/tasks_catalog.json --owner <org> --project <n>
 bun run cascade.ts spec-gate check --repo <path> --stage review --changes change-a,change-b
+bun run cascade.ts lint-tasks --repo <path> --changes change-a,change-b
 ```
 
 | Flag / env | Meaning |
