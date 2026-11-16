@@ -6,9 +6,9 @@
 
 ## What Changes
 
-- When `openspec/changes/<change>/` does not exist, `spec-gate check` reports why instead of a missing report:
-  - archived: the change is named as archived, with its folder under `openspec/changes/archive/`;
-  - unknown: the change is named as not existing.
+- When `openspec/changes/<change>/` does not exist, `spec-gate check` reports why instead of a missing report, in the same line format it already uses (`<change>: <stage> <reason> (<path>)`):
+  - archived: `tasks-lint: review archived (openspec/changes/archive/2026-11-16-tasks-lint)`;
+  - no change folder: `foo: review no change folder (openspec/changes/foo)`.
 - The exit code stays `1` in both cases, so callers (`forja wt night`, scripts) behave as today.
 - Changes whose folder exists are checked exactly as today.
 
@@ -23,4 +23,5 @@
 
 - Code: `src/cli/spec_gate.ts` (`check` path only) and `src/config/constants.ts`.
 - Tests: `test/cli/spec_gate.test.ts`, including the existing archived-or-unknown test.
+- Docs: `docs/cli.md` (the `spec-gate` row and the list of `check` reasons).
 - No change to `stamp`, to the marker format, to exit codes or to any other subcommand.
