@@ -31,9 +31,9 @@ v1 ejecuta todos los comandos `Verify:` de una tarea tras cada sesión, aunque l
 
 Módulo nuevo `fast_track.ts` en la raíz (junto a `qa.ts`) con su `fast_track.test.ts`. Sus piezas:
 
-1. `parseGitStatusZ(output)`: lista de rutas a partir de `git status --porcelain -z -uall`. No hace `trim` por línea: el prefijo de dos caracteres de estado se descarta por posición (el bug de v2 perdía ` M fichero`). `-uall` expande directorios sin trackear en ficheros. Maneja renombrados (`R`/`C` llevan dos rutas en `-z`).
-2. `detectAffectedFiles(cwd, runner)`: ejecuta el comando y devuelve `string[]`; devuelve `undefined` si falla.
-3. `isDocsOnly(files)`: `true` solo si la lista no está vacía y todas las rutas son documentación (`.md`, `.mdx`, `.txt`, `.rst`, `docs/**` sin código; `LICENSE`, `README*`). Cualquier extensión de código, `package.json`, lockfile, config o ruta desconocida lo hace `false`.
+1. `parseNulList(output)`: rutas separadas por NUL, sin vacías. Revisión (2026-11-16, al escribir el plan): no se parsea `git status`, porque `defaultCommandRunner` hace `trim()` del stdout y eso borraría el espacio inicial de ` M fichero` (el bug de v2). En su lugar se usan dos comandos sin prefijo de estado.
+2. `detectAffectedFiles(cwd, runner)`: ejecuta `git diff --name-only -z --no-renames HEAD` (staged + sin stagear; un renombrado sale como borrado + alta, así que cuentan las dos rutas) y `git ls-files --others --exclude-standard -z` (sin trackear, ya expandido a ficheros). Devuelve `string[]`; `undefined` si cualquiera falla.
+3. `isDocsOnly(files)`: `true` solo si la lista no está vacía y todas las rutas son documentación: extensión `.md`, `.mdx`, `.txt` o `.rst` (sin distinguir mayúsculas), o nombre `LICENSE`/`README*`/`CHANGELOG*` sin extensión. Todo lo demás (código, `package.json`, lockfiles, config, imágenes, rutas desconocidas) lo hace `false`.
 4. `classifyCheck(command)`: `typecheck | test | build | lint | other`, por tokens de palabra y no por subcadena (`latest` no es `test`).
 5. `selectChecks(commands, files, opts)`: si `isDocsOnly` y no `opts.forceFull`, quita `typecheck|test|build`; conserva `lint` y `other`. Devuelve `{ run, skipped }`.
 
@@ -43,7 +43,7 @@ Reglas de seguridad: lista vacía, `git` con error o `undefined` → se ejecuta 
 
 ## Tests (TDD)
 
-Casos mínimos: ` M a.md`, `M  a.md`, `?? dir/x.md` con `-uall`, renombrado, ruta con espacios; mezcla md + ts → no docs-only; lista vacía → no docs-only; `latest`/`attest` no son test; `forceFull` nunca omite; git que falla ejecuta todo.
+Casos mínimos: modificado sin stagear, staged, sin trackear en directorio nuevo, renombrado `.ts`→`.md`, borrado de código, ruta con espacios; mezcla md + ts → no docs-only; lista vacía → no docs-only; `latest`/`attest` no son test; `forceFull` nunca omite; git que falla ejecuta todo.
 
 ## Decisiones propias (el usuario puede corregirlas)
 
