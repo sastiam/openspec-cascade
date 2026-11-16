@@ -4,6 +4,7 @@
  * Detects which files a task touched and lets `runTask` skip heavy checks (typecheck, test, build)
  * when every touched file is documentation. Any doubt means "run everything".
  */
+import { posix } from "node:path";
 import { CONSTANTS } from "./config";
 import { defaultCommandRunner, type CommandRunner } from "./qa";
 
@@ -38,4 +39,69 @@ export async function detectAffectedFiles(
   } catch {
     return undefined;
   }
+}
+
+export type CheckKind = "typecheck" | "test" | "build" | "lint" | "other";
+
+const DOC_EXTENSIONS: ReadonlySet<string> = new Set([".md", ".mdx", ".txt", ".rst"]);
+/** Extension-less documentation files, matched by lower-cased name prefix. */
+const DOC_NAME_PREFIXES: readonly string[] = ["readme", "license", "changelog"];
+
+/** Keyword tokens per check kind, in priority order. Matching is by whole token, never by substring. */
+const CHECK_TOKENS: ReadonlyArray<readonly [Exclude<CheckKind, "other">, ReadonlySet<string>]> = [
+  ["typecheck", new Set(["tsc", "typecheck"])],
+  ["test", new Set(["test", "tests", "jest", "vitest", "mocha", "playwright", "cypress"])],
+  ["lint", new Set(["lint", "eslint", "biome"])],
+  ["build", new Set(["build"])],
+];
+
+/** Kinds that a docs-only change cannot affect; lint and unknown commands still run. */
+const SKIPPABLE_KINDS: ReadonlySet<CheckKind> = new Set(["typecheck", "test", "build"]);
+
+const TOKEN_SEPARATOR = /[^a-z0-9]+/;
+
+function isDocFile(path: string): boolean {
+  const base = posix.basename(path).toLowerCase();
+  const ext = posix.extname(base);
+  if (DOC_EXTENSIONS.has(ext)) return true;
+  return ext === "" && DOC_NAME_PREFIXES.some((prefix) => base.startsWith(prefix));
+}
+
+/**
+ * True only when there is at least one file and every one of them is documentation.
+ */
+export function isDocsOnly(files: readonly string[] | undefined): boolean {
+  if (!files || files.length === 0) return false;
+  return files.every(isDocFile);
+}
+
+/**
+ * Classifies a verification command by whole-word tokens (`latest` is not `test`).
+ */
+export function classifyCheck(command: string): CheckKind {
+  const tokens = new Set(command.toLowerCase().split(TOKEN_SEPARATOR).filter(Boolean));
+  for (const [kind, keywords] of CHECK_TOKENS) {
+    for (const token of tokens) {
+      if (keywords.has(token)) return kind;
+    }
+  }
+  return "other";
+}
+
+/**
+ * Splits commands into those to run and those safe to skip. Skips only for docs-only changes
+ * and never when `forceFull` is set.
+ */
+export function selectChecks(
+  commands: readonly string[],
+  files: readonly string[] | undefined,
+  opts: { forceFull: boolean },
+): { run: string[]; skipped: string[] } {
+  if (opts.forceFull || !isDocsOnly(files)) return { run: [...commands], skipped: [] };
+  const run: string[] = [];
+  const skipped: string[] = [];
+  for (const command of commands) {
+    (SKIPPABLE_KINDS.has(classifyCheck(command)) ? skipped : run).push(command);
+  }
+  return { run, skipped };
 }

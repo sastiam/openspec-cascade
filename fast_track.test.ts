@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { defaultCommandRunner, type CommandRunner, type CommandRunnerResult } from "./qa";
-import { detectAffectedFiles, parseNulList } from "./fast_track";
+import { classifyCheck, detectAffectedFiles, isDocsOnly, parseNulList, selectChecks } from "./fast_track";
 
 const OK = (stdout: string): CommandRunnerResult => ({ code: 0, stdout, stderr: "", output: stdout });
 const FAIL: CommandRunnerResult = { code: 1, stdout: "", stderr: "boom", output: "boom" };
@@ -81,5 +81,73 @@ describe("detectAffectedFiles (real git repo)", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("isDocsOnly", () => {
+  test("accepts documentation files, including spaces and upper-case extensions", () => {
+    expect(isDocsOnly(["README.md", "docs/a.MDX", "LICENSE", "docs/my notes.md", "README.MD"])).toBe(true);
+  });
+
+  test("rejects empty and undefined lists", () => {
+    expect(isDocsOnly([])).toBe(false);
+    expect(isDocsOnly(undefined)).toBe(false);
+  });
+
+  test("rejects a mix of docs and code", () => {
+    expect(isDocsOnly(["a.md", "src/a.ts"])).toBe(false);
+  });
+
+  test("rejects manifests, lockfiles, images and code under docs/", () => {
+    expect(isDocsOnly(["package.json"])).toBe(false);
+    expect(isDocsOnly(["bun.lock"])).toBe(false);
+    expect(isDocsOnly(["docs/img.png"])).toBe(false);
+    expect(isDocsOnly(["docs/x/y.ts"])).toBe(false);
+  });
+});
+
+describe("classifyCheck", () => {
+  test("typecheck", () => {
+    expect(classifyCheck("bunx tsc --noEmit")).toBe("typecheck");
+    expect(classifyCheck("bun run typecheck")).toBe("typecheck");
+  });
+
+  test("test", () => {
+    expect(classifyCheck("bun test")).toBe("test");
+    expect(classifyCheck("bun run test:e2e")).toBe("test");
+    expect(classifyCheck("npx vitest run")).toBe("test");
+  });
+
+  test("lint and build", () => {
+    expect(classifyCheck("bun run lint")).toBe("lint");
+    expect(classifyCheck("eslint .")).toBe("lint");
+    expect(classifyCheck("bun run build")).toBe("build");
+  });
+
+  test("substrings do not count as keywords", () => {
+    expect(classifyCheck("bun run latest")).toBe("other");
+    expect(classifyCheck("bun run attest")).toBe("other");
+    expect(classifyCheck("bun run db:generate")).toBe("other");
+    expect(classifyCheck("nuxt prepare")).toBe("other");
+  });
+});
+
+describe("selectChecks", () => {
+  const commands = ["bunx tsc --noEmit", "bun test", "bun run lint", "bun run build", "nuxt prepare"];
+
+  test("docs-only skips typecheck, test and build but keeps lint and unknown commands", () => {
+    expect(selectChecks(commands, ["docs/a.md"], { forceFull: false })).toEqual({
+      run: ["bun run lint", "nuxt prepare"],
+      skipped: ["bunx tsc --noEmit", "bun test", "bun run build"],
+    });
+  });
+
+  test("forceFull never skips", () => {
+    expect(selectChecks(commands, ["docs/a.md"], { forceFull: true })).toEqual({ run: commands, skipped: [] });
+  });
+
+  test("code changes or unknown files run everything", () => {
+    expect(selectChecks(commands, ["docs/a.md", "src/a.ts"], { forceFull: false }).run).toEqual(commands);
+    expect(selectChecks(commands, undefined, { forceFull: false }).run).toEqual(commands);
   });
 });
