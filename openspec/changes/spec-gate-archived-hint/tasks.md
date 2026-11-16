@@ -12,5 +12,5 @@
 
 ## 2. Docs and full suite
 
-- [ ] 2.1 In `docs/cli.md`, update the `spec-gate` row so exit 1 also covers a change that is archived or has no change folder, and the `check` bullet so its list of reasons is `missing`, `malformed`, `open`, `stale`, `archived` and `no change folder`, with the two example lines from design.md.
+- [x] 2.1 In `docs/cli.md`, update the `spec-gate` row so exit 1 also covers a change that is archived or has no change folder, and the `check` bullet so its list of reasons is `missing`, `malformed`, `open`, `stale`, `archived` and `no change folder`, with the two example lines from design.md.
   Verify: `bun test` passes with zero failures.
