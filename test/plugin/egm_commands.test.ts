@@ -33,10 +33,11 @@ describe.each(COMMANDS)("$name", (command) => {
     expect(text).toMatch(/\ndescription: \S/);
   });
 
-  test("names OpenSpec commands in both forms (Claude Code ':' and other agents '-')", () => {
-    const dash = [...text.matchAll(/\/opsx-([a-z]+)/g)].map((m) => m[1]);
-    expect(dash.length).toBeGreaterThan(0);
-    for (const cmd of dash) expect(text).toContain(`/opsx:${cmd}`);
+  test("names OpenSpec skills for Claude Code and OpenCode, never the old /opsx commands", () => {
+    expect(text).not.toMatch(/\/opsx[:-]/);
+    const skills = [...text.matchAll(/\/(openspec-[a-z-]+)/g)].map((m) => m[1]);
+    expect(skills.length).toBeGreaterThan(0);
+    for (const skill of skills) expect(text).toContain(`@${skill}`);
   });
 
   test("writes only inside the change folder; docs/designs is mentioned only as forbidden", () => {
@@ -57,7 +58,7 @@ describe.each(COMMANDS)("$name", (command) => {
     test("scaffolds the change itself and tells propose to skip its already-exists creation step", () => {
       expect(text).toContain("openspec new change");
       expect(text).toContain("already exists");
-      expect(text).toContain("/opsx-propose");
+      expect(text).toContain("/openspec-propose");
       expect(text).toContain("sdd-clarify");
     });
 

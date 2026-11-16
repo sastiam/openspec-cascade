@@ -28,7 +28,7 @@ worktree ─► /cascade:explore ─► propose ─► spec review ─► [casca
 
 Un worktree = un ticket de Linear = un change = una rama = una PR. El ID del ticket va en el nombre del change.
 
-Nombres de comandos de OpenSpec: `/opsx:explore`, `/opsx:propose`… en Claude Code; `/opsx-explore`, `/opsx-propose`… en otros agentes. Los textos propios deben nombrar ambas formas.
+Nombres de OpenSpec: desde la 2.0 no hay comandos `/opsx`; son skills (`openspec-propose`, `openspec-apply-change`, `openspec-archive-change`…) que forja instala globalmente en `~/.claude/skills`. Claude Code las invoca como `/openspec-propose` y OpenCode como `@openspec-propose`. Los textos propios nombran las dos formas.
 
 ## Piezas, estado y orden
 
@@ -36,7 +36,7 @@ Nombres de comandos de OpenSpec: `/opsx:explore`, `/opsx:propose`… en Claude C
 |---|---|---|---|
 | 0 | Fast-track de docs en `runTask` | Hecho | PR #47 |
 | 0b | EGM: `spec-gate` y comandos `cascade-spec-{brainstorm,review,drift}` | En main; ciclo completo recorrido con `tasks-lint` (notas en `docs/superpowers/notes/2026-11-16-validacion-0b.md`), falta la noche corta | `main` |
-| 1 | Nombres de comandos (`:` y `-`) en los textos propios | Hecho, con un hueco: los textos nombran `/opsx:*`, que no existen en esta instalación (ver notas de la 0b) | PR #50 |
+| 1 | Nombres de las skills de OpenSpec en los textos propios | Hecho | `fix/openspec-skill-names` |
 | 2 | Contrato de autonomía | Por diseñar | — |
 | 3 | `/cascade:explore` | Por diseñar | — |
 | 4 | `manual.md` y lint de `tasks.md` | Lint de bloques de código y `Verify:` hecho (`lint-tasks`); verbos manuales y `manual.md` por diseñar | PR #51 y #52 |
@@ -46,7 +46,7 @@ Nombres de comandos de OpenSpec: `/opsx:explore`, `/opsx:propose`… en Claude C
 
 Orden propuesto: 1, validación de 0b, 2, 4, 3, 5, 6, 7.
 
-- La 1 se hizo en `feat/command-names`, desde main (la 0b ya estaba fusionada). Cubre solo los comandos de OpenSpec; los nombres de los comandos propios se deciden en la 3.
+- La 1 se rehízo tras validar la 0b: OpenSpec 2.0 cambió los comandos `/opsx` por skills. El plugin ya no lleva sus copias de las skills de OpenSpec (eran de la 1.14.3); las instala forja.
 - Antes de diseñar la 2 se valida la 0b con un ticket real pequeño: la 2 toca `runTask`, donde vive el gate de EGM, y la pasada real da datos de qué bloqueos aparecen.
 - La 2 es la que más acerca a "toda la noche sin intervención".
 - La 4 sube por delante de la 3: el lint de `tasks.md` es pequeño, ejecutable y ataca directamente que las tareas dicten líneas de código.
