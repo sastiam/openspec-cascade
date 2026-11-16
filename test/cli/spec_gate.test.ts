@@ -35,6 +35,10 @@ function makeRepo(changes: string[]): string {
   return repo;
 }
 
+function makeArchive(repo: string, entries: string[]): void {
+  for (const entry of entries) mkdirSync(join(repo, "openspec", "changes", "archive", entry), { recursive: true });
+}
+
 function stamp(repo: string, change: string, status: string, stage = "review"): number {
   return runSpecGate(["stamp", "--repo", repo, "--stage", stage, "--change", change, "--status", status], capture());
 }
@@ -66,9 +70,60 @@ describe("spec-gate", () => {
     expect(report).toContain("malformed");
   });
 
-  test("check exits 1 with a missing report for an archived or unknown change", () => {
+  test("check reports an archived change with its archive directory", () => {
+    const repo = makeRepo([]);
+    makeArchive(repo, ["2026-11-16-tasks-lint"]);
+    const output = capture();
+    expect(check(repo, "tasks-lint", output)).toBe(NOT_OK);
+    expect(output.err).toEqual(["tasks-lint: review archived (openspec/changes/archive/2026-11-16-tasks-lint)"]);
+  });
+
+  test("check reports the most recent archive of a change archived twice", () => {
+    const repo = makeRepo([]);
+    makeArchive(repo, ["2026-01-05-thing", "2026-03-09-thing", "2026-02-01-thing"]);
+    const output = capture();
+    expect(check(repo, "thing", output)).toBe(NOT_OK);
+    expect(output.err).toEqual(["thing: review archived (openspec/changes/archive/2026-03-09-thing)"]);
+  });
+
+  test("check reports no change folder when the change and the archive directory do not exist", () => {
+    const repo = makeRepo([]);
+    const output = capture();
+    expect(check(repo, "foo", output)).toBe(NOT_OK);
+    expect(output.err).toEqual(["foo: review no change folder (openspec/changes/foo)"]);
+  });
+
+  test("check does not treat an archive directory with a shared suffix as archived", () => {
+    const repo = makeRepo([]);
+    makeArchive(repo, ["2026-01-01-big-thing"]);
+    const output = capture();
+    expect(check(repo, "thing", output)).toBe(NOT_OK);
+    expect(output.err).toEqual(["thing: review no change folder (openspec/changes/thing)"]);
+  });
+
+  test("check does not treat a dot in the change name as a wildcard", () => {
+    const repo = makeRepo([]);
+    makeArchive(repo, ["2026-01-01-a-b"]);
+    const output = capture();
+    expect(check(repo, "a.b", output)).toBe(NOT_OK);
+    expect(output.err).toEqual(["a.b: review no change folder (openspec/changes/a.b)"]);
+  });
+
+  test("check keeps reporting a missing report for an existing change, even with an archived copy", () => {
     const repo = makeRepo(["a"]);
-    expect(check(repo, "ghost")).toBe(NOT_OK);
+    makeArchive(repo, ["2026-01-01-a"]);
+    const output = capture();
+    expect(check(repo, "a", output, "drift")).toBe(NOT_OK);
+    expect(output.err).toEqual(["a: drift missing (drift.md)"]);
+  });
+
+  test("check reports only the archived change in a mixed list", () => {
+    const repo = makeRepo(["a"]);
+    makeArchive(repo, ["2026-11-16-old"]);
+    expect(stamp(repo, "a", "resolved")).toBe(OK);
+    const output = capture();
+    expect(check(repo, "old,a", output)).toBe(NOT_OK);
+    expect(output.err).toEqual(["old: review archived (openspec/changes/archive/2026-11-16-old)"]);
   });
 
   test("a repeated --changes flag checks every value, not only the last", () => {
