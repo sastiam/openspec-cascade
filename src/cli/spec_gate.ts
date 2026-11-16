@@ -8,11 +8,18 @@ import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { EXIT_CODE_CONSTANTS, HARDENING_CONSTANTS, SPEC_GATE_CONSTANTS as C } from "../config/constants";
 import { computeChangeHash, evaluateStage, renderMarker, stripMarker, type SpecStage, type SpecStatus } from "../sdd/spec_marker";
-import type { CliOutput } from "./commands";
+
+/**
+ * Output sink of the subcommand; structurally identical to `CliOutput` in `commands.ts`, declared here to avoid an import cycle.
+ */
+export interface SpecGateOutput {
+  info(message: string): void;
+  error(message: string): void;
+}
 
 class SpecGateUsageError extends Error {}
 
-const consoleOutput: CliOutput = { info: (message) => console.log(message), error: (message) => console.error(message) };
+const consoleOutput: SpecGateOutput = { info: (message) => console.log(message), error: (message) => console.error(message) };
 
 const OPTIONS = {
   repo: { type: "string" },
@@ -54,7 +61,7 @@ function changeDirOf(repo: string, change: string): string {
   return join(repo, C.OPENSPEC_DIR, C.CHANGES_DIR, change);
 }
 
-function runCheck(options: ReturnType<typeof parseOptions>, output: CliOutput): number {
+function runCheck(options: ReturnType<typeof parseOptions>, output: SpecGateOutput): number {
   const stage = parseStage(options.stage);
   const names = (options.changes ?? "").split(",").map((name) => name.trim()).filter((name) => name !== "").map(validChangeName);
   if (names.length === 0) throw new SpecGateUsageError("--changes is required");
@@ -69,7 +76,7 @@ function runCheck(options: ReturnType<typeof parseOptions>, output: CliOutput): 
   return EXIT_CODE_CONSTANTS.EXIT_CODE_SUCCESS;
 }
 
-function runStamp(options: ReturnType<typeof parseOptions>, output: CliOutput): number {
+function runStamp(options: ReturnType<typeof parseOptions>, output: SpecGateOutput): number {
   const stage = parseStage(options.stage);
   const status = parseStatus(options.status);
   if (options.change === undefined) throw new SpecGateUsageError("--change is required");
@@ -87,7 +94,7 @@ function runStamp(options: ReturnType<typeof parseOptions>, output: CliOutput): 
 /**
  * Runs `spec-gate check|stamp`. Returns the exit code; never throws.
  */
-export function runSpecGate(argv: readonly string[], output: CliOutput = consoleOutput): number {
+export function runSpecGate(argv: readonly string[], output: SpecGateOutput = consoleOutput): number {
   try {
     const [action, ...rest] = argv;
     const options = parseOptions(rest);
