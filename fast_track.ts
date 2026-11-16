@@ -105,3 +105,30 @@ export function selectChecks(
   }
   return { run, skipped };
 }
+
+export interface SelectVerifyChecksOptions {
+  cwd: string;
+  /** True for "full verification" tasks and `fullGate`: never skip anything. */
+  forceFull: boolean;
+  runner?: CommandRunner;
+  say?: (message: string) => void;
+  log?: (event: string, data: Record<string, unknown>) => void;
+}
+
+/**
+ * Entry point for `runTask`: returns the verification commands that must actually run.
+ * Reports through `say`/`log` only when something was skipped.
+ */
+export async function selectVerifyChecks(
+  commands: readonly string[],
+  opts: SelectVerifyChecksOptions,
+): Promise<string[]> {
+  if (opts.forceFull || commands.length === 0) return [...commands];
+  const files = await detectAffectedFiles(opts.cwd, opts.runner);
+  const { run, skipped } = selectChecks(commands, files, { forceFull: opts.forceFull });
+  if (skipped.length > 0) {
+    opts.say?.(`  fast-track: docs-only change, skipping ${skipped.join(", ")}`);
+    opts.log?.("fast_track", { skipped, files });
+  }
+  return run;
+}

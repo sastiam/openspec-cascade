@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { defaultCommandRunner, type CommandRunner, type CommandRunnerResult } from "./qa";
-import { classifyCheck, detectAffectedFiles, isDocsOnly, parseNulList, selectChecks } from "./fast_track";
+import { classifyCheck, detectAffectedFiles, isDocsOnly, parseNulList, selectChecks, selectVerifyChecks } from "./fast_track";
 
 const OK = (stdout: string): CommandRunnerResult => ({ code: 0, stdout, stderr: "", output: stdout });
 const FAIL: CommandRunnerResult = { code: 1, stdout: "", stderr: "boom", output: "boom" };
@@ -149,5 +149,65 @@ describe("selectChecks", () => {
   test("code changes or unknown files run everything", () => {
     expect(selectChecks(commands, ["docs/a.md", "src/a.ts"], { forceFull: false }).run).toEqual(commands);
     expect(selectChecks(commands, undefined, { forceFull: false }).run).toEqual(commands);
+  });
+});
+
+describe("selectVerifyChecks", () => {
+  const commands = ["bunx tsc --noEmit", "bun test", "bun run lint"];
+  const docsRunner: CommandRunner = async (command) =>
+    command.startsWith("git diff") ? OK("docs/a.md\0") : OK("");
+
+  test("docs-only skips heavy checks, announces it once and logs the event", async () => {
+    const said: string[] = [];
+    const logged: Array<{ event: string; data: Record<string, unknown> }> = [];
+    const run = await selectVerifyChecks(commands, {
+      cwd: "/x",
+      forceFull: false,
+      runner: docsRunner,
+      say: (message) => said.push(message),
+      log: (event, data) => logged.push({ event, data }),
+    });
+    expect(run).toEqual(["bun run lint"]);
+    expect(said).toHaveLength(1);
+    expect(said[0]).toContain("fast-track");
+    expect(said[0]).toContain("bun test");
+    expect(logged).toEqual([
+      { event: "fast_track", data: { skipped: ["bunx tsc --noEmit", "bun test"], files: ["docs/a.md"] } },
+    ]);
+  });
+
+  test("stays silent when nothing is skipped", async () => {
+    const said: string[] = [];
+    const logged: unknown[] = [];
+    const codeRunner: CommandRunner = async (command) =>
+      command.startsWith("git diff") ? OK("src/a.ts\0") : OK("");
+    const run = await selectVerifyChecks(commands, {
+      cwd: "/x",
+      forceFull: false,
+      runner: codeRunner,
+      say: (message) => said.push(message),
+      log: (...args) => logged.push(args),
+    });
+    expect(run).toEqual(commands);
+    expect(said).toEqual([]);
+    expect(logged).toEqual([]);
+  });
+
+  test("forceFull and empty command lists never touch git", async () => {
+    let calls = 0;
+    const counting: CommandRunner = async () => {
+      calls++;
+      return OK("");
+    };
+    expect(await selectVerifyChecks(commands, { cwd: "/x", forceFull: true, runner: counting })).toEqual(commands);
+    expect(await selectVerifyChecks([], { cwd: "/x", forceFull: false, runner: counting })).toEqual([]);
+    expect(calls).toBe(0);
+  });
+
+  test("a runner that throws runs every command", async () => {
+    const throwing: CommandRunner = async () => {
+      throw new Error("spawn failed");
+    };
+    expect(await selectVerifyChecks(commands, { cwd: "/x", forceFull: false, runner: throwing })).toEqual(commands);
   });
 });
