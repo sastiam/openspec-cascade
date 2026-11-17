@@ -1,7 +1,7 @@
 ---
 egm: drift
-status: open
-hash: e47f4ca5cedc7b03508cb7b6c4c6f6d5aaad8b2b954aba3d26508d0f86d33b8e
+status: resolved
+hash: a23a46187c9a2af87e8c2392cb7ff98cc1499c1059ff2241188f7986773951c8
 ---
 ## design.md
 
@@ -17,3 +17,8 @@ hash: e47f4ca5cedc7b03508cb7b6c4c6f6d5aaad8b2b954aba3d26508d0f86d33b8e
 
 - **Major: the "Dry run" scenario is only partly tested.** `spec.md:179-181` requires that "the lint does not run and the dry run prints its plan". The only test, `test/facade/cascade_facade.test.ts:421-428`, checks just `exitCode === 0` and `error === undefined`. Nothing checks that the plan was printed (`printPlan`, `cascade_facade.ts:331-332`).
 - **Nit: the "Another repository" scenario has no dedicated test.** For `spec.md:125-127`, every CLI test in `test/cli/lint_tasks.test.ts` (for example `:61-62`) passes `--repo` pointing at a temporary repository, so it is covered only as a side effect. No test compares this against the default (`process.cwd()`, `src/cli/lint_tasks.ts:52`) to show that the given repository is used instead of the current directory.
+
+## Triage (2026-11-17)
+
+- Fixed (task 4.1, f637668): the "Dry run" test now asserts the printed plan; `TASKS_LINT_CONSTANTS` documents every rule and `MANUAL_STEP_PHRASES` documents that phrases go into the regex unescaped.
+- Accepted without change: Context line numbers, `MANUAL_STEP_PHRASES` as a separate array, no dedicated test for "Another repository".

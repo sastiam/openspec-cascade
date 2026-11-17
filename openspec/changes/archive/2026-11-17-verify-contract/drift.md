@@ -1,7 +1,7 @@
 ---
 egm: drift
-status: open
-hash: b92042bc649222472c2292ce6240170cbdfd532c2f8d531e72970f161204a46a
+status: resolved
+hash: 1688b985fb70f32f7753b88e179e5bea3ac5c21e5aab7cdad6242ffe527c2aa9
 ---
 ## design.md
 
@@ -18,3 +18,8 @@ hash: b92042bc649222472c2292ce6240170cbdfd532c2f8d531e72970f161204a46a
   - The only test is the facade test. It uses a repo with a `package.json` and a different task check, `bun run unit:check` (`test/facade/cascade_facade.test.ts:454-457, :490-507`).
   - Its prompt check confirms only that `engine.prompts[0]` contains `bun run arch:check` (`cascade_facade.test.ts:506`). No test checks that the prompt also shows the task's own check, which the spec requires with "show both".
   - No test asserts the exact merged list for the scenario's task lines.
+
+## Triage (2026-11-17)
+
+- Fixed (task 5.1, 0b09d37): regression guards for "Architecture check on a task with Verify" (exact merged list, both checks in the prompt) and "Nothing to report" (no `ignored=` flag, no `verify_ignored` event).
+- Accepted without change: baseline failure output printed by `runVerificationPhase` outside the facade output.

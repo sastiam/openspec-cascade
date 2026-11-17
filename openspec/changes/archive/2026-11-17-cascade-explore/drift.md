@@ -1,7 +1,7 @@
 ---
 egm: drift
-status: open
-hash: 49c0c7fa42dff25028929cfe9768d186ccc7a4c595d631e5f2a7c0c30adceb09
+status: resolved
+hash: ac063e6318a73e41d2730b76a3dd3b4486485abeaff6e9f788c9dc1a9e4fb5cc
 ---
 ## design.md
 
@@ -57,3 +57,10 @@ hash: 49c0c7fa42dff25028929cfe9768d186ccc7a4c595d631e5f2a7c0c30adceb09
   - **"Brief with a manual step"** (spec.md:139-141). "Manual steps never go into `tasks.md`" (explore.md:164) is not checked.
   - **"Existing change"** (spec.md:12-14). "ask whether to reuse it" (explore.md:33) is not checked.
   - **"Change already has tasks"** (spec.md:19-21). "go straight to the readiness check" and the skipping of the brief are not checked. Only the "already has tasks.md" literal is.
+
+## Triage (2026-11-17)
+
+- Fixed (task 3.1, ed1ad1e): the AWS exclusion covers any call that writes a local file; regression guards for write tools, review decline, missing EGM, subagent fallback and manual steps.
+- Fixed (task 3.2): `/cascade:explore` in README.md and docs/cli.md, `/cascade:cascade` in the plugin command list, `/cascade:cascade-spec-review` in its own title and usage.
+- Spec and design updated to match the command: subagent fallback, no `manual.md` without manual steps, "Not applicable" fill rule, report contents, single yes/no naming files, missing tools in "Sources consulted".
+- Accepted without change: `.github/workflows/` vs `.github/workflows/*`, locations of `/openspec-propose` and `@openspec-explore` across sections, extra wording in Load context and the `sdd-clarify` description, no automated test for doc content beyond the `bun -e` checks, and the other partly tested scenarios.

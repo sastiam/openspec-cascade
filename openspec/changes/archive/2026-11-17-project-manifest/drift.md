@@ -1,7 +1,7 @@
 ---
 egm: drift
-status: open
-hash: ff495f99d840a760a3a5324f67586453a5ea7081a18d21bacd4a15405b265a9f
+status: resolved
+hash: f720448e6faa7949eb3e2ed519dcb5a72405eb26e397e057cb8256457c2b62f6
 ---
 ## design.md
 
@@ -20,3 +20,10 @@ hash: ff495f99d840a760a3a5324f67586453a5ea7081a18d21bacd4a15405b265a9f
 - **Discovery source labels are wrong when `XDG_CONFIG_HOME` is set (Major).** spec.md:120 and :142 ("`sources` list both files") depend on source paths being correct. For the global OpenCode files the label is always `~/.config/opencode/...`, whatever `$XDG_CONFIG_HOME` is (`src/manifest/discover.ts:217`, `:224`). Same defect as the first design.md finding.
 - **Scenario "Stale project key" is only partly tested (Nit).** spec.md:104-106 requires that discovery "exits 0". The only test calls `discover()` directly and checks the result (`test/manifest/discover.test.ts:80-84`). No test runs `runSetup(["discover", ...])` with a stale `projects` key and checks the exit code. The CLI discover tests (`test/cli/setup.test.ts:154-172`) have no `~/.claude.json` fixture.
 - **Scenario "Missing connector" is only partly tested (Nit).** spec.md:166-168 requires `/cascade:setup` to register a connector the user names with `setup add`. `test/plugin/setup_command.test.ts:7-16`, `:41-43` only checks that the strings `claude.ai` and `setup add` appear somewhere in `plugins/cascade/commands/setup.md`. It does not check that the ask-for-missing-helpers step (`setup.md:23`) leads to `setup add`.
+
+## Triage (2026-11-17)
+
+- Fixed in code (task 5.1, e78699e): global OpenCode source labels follow `$XDG_CONFIG_HOME`; new requirement "Discovery source labels" with scenario "XDG outside home".
+- Fixed in code (task 5.2): header comments of `src/cli/setup.ts` and `src/cli/commands.ts`.
+- Spec updated to match the code: "setup writes" (JSON files vs. the YAML rules write) and indented `--json` output in "Discovery output" and "setup show"; design.md records the indent and the label rule.
+- Accepted without change: Context line numbers, single source per plugin, `CliUsageError` path for invalid flag values, `doctor` rethrow of unexpected spawner errors, strict layer error text, partial tests of "Stale project key" and "Missing connector".
