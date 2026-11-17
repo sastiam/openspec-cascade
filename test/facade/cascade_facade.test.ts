@@ -418,13 +418,16 @@ describe("CascadeFacade", () => {
       expect(pipelineCalls).toEqual([]);
     });
 
-    test("a dry run does not lint", async () => {
+    test("a dry run does not lint and prints its plan", async () => {
       const repo = await repoWith({ bad: UNVERIFIED });
-      const result = await new CascadeFacade({ engine: new WorkingEngine(completeTask("bad")), output: captureOutput() }).run(
+      const output = captureOutput();
+      const result = await new CascadeFacade({ engine: new WorkingEngine(completeTask("bad")), output }).run(
         configFor(repo, "bad", { dryRun: true }),
       );
       expect(result.exitCode).toBe(0);
       expect(result.error).toBeUndefined();
+      expect(output.lines.join("\n")).toContain("bad: 1 pending");
+      expect(output.errors.join("\n")).not.toContain("missing-verify");
     });
 
     test("a change that was not listed is not linted", async () => {

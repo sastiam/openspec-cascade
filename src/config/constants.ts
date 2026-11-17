@@ -536,7 +536,8 @@ export const SPEC_GATE_CONSTANTS = {
 } as const;
 
 /**
- * Static checks on a change's tasks.md: code blocks and unchecked tasks without a `Verify:` line.
+ * Phrases of the `manual-step` rule. Each phrase is inserted into a regex unescaped (spaces become `\s+`),
+ * so a phrase must not contain regex metacharacters.
  */
 const MANUAL_STEP_PHRASES: readonly string[] = [
   "manually",
@@ -564,6 +565,11 @@ const MANUAL_STEP_PHRASES: readonly string[] = [
   "ejecuta tú",
 ];
 
+/**
+ * Static checks on a change's tasks.md and manual.md. tasks.md: `no-code-block`, `missing-verify`
+ * (unchecked task without a `Verify:` line) and `manual-step` (task that asks for a human action).
+ * manual.md: `missing-check` (step without a `Check:` line) and `manual-checkbox` (step with a checkbox).
+ */
 export const TASKS_LINT_CONSTANTS = {
   FILE_NAME: "tasks.md",
   RULE_NO_CODE_BLOCK: "no-code-block",
