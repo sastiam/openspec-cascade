@@ -65,6 +65,11 @@ describe("taskChecks", () => {
     }
   }
 
+  test("Architecture check on a task with Verify (regression guard)", () => {
+    const lines = ["## 1. Build", "- [ ] 1.1 Create the module.", "  Verify: `bun test` passes"];
+    expect(checksFor(lines, [ARCH_CHECK])).toEqual(["bun test", ARCH_CHECK]);
+  });
+
   test("Duplicate command", () => {
     const lines = ["## 1. Build", "- [ ] 1.1 Create it", `  Verify: \`${ARCH_CHECK}\` passes`];
     expect(checksFor(lines, [ARCH_CHECK])).toEqual([ARCH_CHECK]);

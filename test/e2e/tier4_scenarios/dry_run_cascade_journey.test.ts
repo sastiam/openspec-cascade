@@ -69,6 +69,8 @@ describe("Tier 4 Scenarios: Full Dry-Run Cascade User Journey", () => {
       expect(result.exitCode).toBe(E2E_CONSTANTS.EXIT_CODE_SUCCESS);
       expect(result.stdout).toContain("change-alpha: 2 pending");
       expect(result.stdout).toContain("1.3 commit=feat(api) verify=[bun test]");
+      const planLine = result.stdout.split("\n").find((line) => line.includes("1.3 commit=feat(api)"));
+      expect(planLine).not.toContain("ignored=");
       expect(result.stdout).toContain("change-beta: 2 pending (one commit per section)");
       expect(result.stdout).toContain("change-missing: MISSING");
       expect(readFileSync(join(fixture.repoDir, "src/app.ts"), "utf8")).toBe(

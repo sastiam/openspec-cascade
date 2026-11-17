@@ -507,6 +507,18 @@ describe("alwaysVerify", () => {
     expect(hasLine(output, `  check: ${UNIT_CHECK}`)).toBe(true);
     expect(output.lines.filter((line) => line.endsWith(`  check: ${ARCH_CHECK}`))).toHaveLength(1);
     expect(engine.prompts[0]).toContain(ARCH_CHECK);
+    expect(engine.prompts[0]).toContain(UNIT_CHECK);
+  });
+
+  test("Nothing to report writes no verify_ignored event (regression guard)", async () => {
+    const repo = await repoWith(TASK_A);
+    const result = await new CascadeFacade({
+      engine: new WorkingEngine(completeTask("add-greeting")),
+      output: captureOutput(),
+      resilience: false,
+    }).run(configFor(repo, "add-greeting", { alwaysVerify: [] }));
+    expect(result.exitCode).toBe(SUCCESS_EXIT_CODE);
+    expect(readFileSync(result.logFile ?? "", "utf8")).not.toContain('"event":"verify_ignored"');
   });
 
   test("Command before the marker is reported", async () => {
