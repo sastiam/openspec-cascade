@@ -18,7 +18,6 @@ interface EgmCommand {
 const COMMANDS: EgmCommand[] = [
   { name: "cascade-spec-review", egmSkill: "egm-review", output: "review.md", stamp: "spec-gate stamp --stage review" },
   { name: "cascade-spec-drift", egmSkill: "egm-drift-report", output: "drift.md", stamp: "spec-gate stamp --stage drift" },
-  { name: "cascade-spec-brainstorm", egmSkill: "egm-brainstorm", output: "brief.md", stamp: undefined },
   { name: "explore", egmSkill: "egm-brainstorm", output: "brief.md", stamp: undefined },
 ];
 
@@ -54,29 +53,6 @@ describe.each(COMMANDS)("$name", (command) => {
     expect(text).toContain("egm@egm");
     expect(text).toContain("EGM artifact directory: openspec/changes/<change>");
   });
-
-  if (command.name === "cascade-spec-brainstorm") {
-    test("scaffolds the change itself and tells propose to skip its already-exists creation step", () => {
-      expect(text).toContain("openspec new change");
-      expect(text).toContain("already exists");
-      expect(text).toContain("/openspec-propose");
-      expect(text).toContain("sdd-clarify");
-    });
-
-    test("requires subagents and skips scaffolding when reusing an existing change", () => {
-      expect(text).toContain("create subagents");
-      expect(text).toContain("skip step 2");
-    });
-
-    test("forbids EGM's publish-as-RFC option, which writes to docs/designs and SITEMAP.md", () => {
-      expect(text).toMatch(/Do not offer or take .*Publish concepts_brief\.md as RFC/);
-      expect(text).toContain("SITEMAP.md");
-    });
-
-    test("does not start Goldfish reviewers before the user confirms readiness", () => {
-      expect(text).toContain("confirms");
-    });
-  }
 
   if (command.name === "explore") {
     const wholeLines = (headings: string[]): number[] => {
@@ -282,5 +258,49 @@ describe.each(COMMANDS)("$name", (command) => {
       expect(text).toContain("always write");
       expect(text).toContain("egm-resolve");
     });
+
+    test("requires a tasks.md that passes the tasks linter, with a fixed upgrade sentence and no override", () => {
+      for (const literal of [
+        "If `tasks.md` is missing",
+        "openspec-cascade lint-tasks --changes <change>",
+        "exit 1",
+        "exit 2",
+        "command not found",
+        "Update openspec-cascade (forja apply looper) and run /cascade:cascade-spec-review <change> again.",
+      ]) {
+        expect(text).toContain(literal);
+      }
+      const order = ["design.md` exists", "If `tasks.md` is missing", "exit 1", "exit 2", "The EGM plugin is installed"];
+      const positions = order.map((literal) => text.indexOf(literal));
+      for (const position of positions) expect(position).toBeGreaterThan(-1);
+      expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    });
   }
+});
+
+describe("cascade-spec-brainstorm alias", () => {
+  const text = read("cascade-spec-brainstorm");
+  const body = text.replace(/^---\n[\s\S]*?\n---\n/, "");
+
+  test("keeps its frontmatter and delegates to explore", () => {
+    for (const literal of [
+      "name: cascade-spec-brainstorm",
+      "description: Deprecated alias for /cascade:explore",
+      "category:",
+      "tags:",
+      "/cascade:explore $ARGUMENTS",
+    ]) {
+      expect(text).toContain(literal);
+    }
+  });
+
+  test("has a one-line body without headings", () => {
+    const lines = body.split("\n").filter((line) => line.trim() !== "");
+    expect(lines).toHaveLength(1);
+    expect(body.split("\n").some((line) => line.startsWith("#"))).toBe(false);
+  });
+
+  test("never names the old /opsx commands", () => {
+    expect(text).not.toMatch(/\/opsx/);
+  });
 });

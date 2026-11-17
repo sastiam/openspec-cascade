@@ -212,14 +212,18 @@ bun run cascade.ts setup rules --write --repo <ruta>
 [EGM](https://github.com/google/elephant-goldfish-model) (instalar con `claude plugin install egm@egm`) añade revisores "pez dorado" sin contexto previo. OpenSpec sigue siendo la fuente de verdad: los informes viven dentro de `openspec/changes/<change>/`.
 
 ```text
-/cascade-spec-brainstorm <change> <idea>   → brief.md
-/openspec-propose  (o @openspec-propose)   → proposal, design, specs, tasks
-/cascade-spec-review <change>              → review.md  (+ spec-gate stamp --stage review)
+/cascade:setup                             → manifest de helpers (una vez por repo)
+/cascade:explore <change> <idea>           → brief.md, artefactos (proposal, design, specs, tasks), manual.md y comprobación de preparación
+/cascade:cascade-spec-review <change>      → review.md  (+ spec-gate stamp --stage review)
 spec-gate check --stage review             → debe dar 0 antes de night-run / cascade
 cascade --changes <change>                 → apply
-/cascade-spec-drift <change>               → drift.md   (+ spec-gate stamp --stage drift)
+/cascade:cascade-spec-drift <change>       → drift.md   (+ spec-gate stamp --stage drift)
 spec-gate check --stage drift              → debe dar 0 antes de /openspec-archive-change (o @openspec-archive-change)
 ```
+
+- **Flujo en OpenCode:** `@openspec-propose`, y después `openspec validate <change> --strict` y `openspec-cascade lint-tasks --changes <change>` como comprobación de preparación. `/cascade:explore` solo existe en Claude Code.
+- `/cascade:explore` ejecuta propose en el mismo hilo. Si se vuelve a ejecutar `/cascade:explore <change>` sobre un change que ya tiene `tasks.md`, salta directamente a la comprobación de preparación. `/cascade:cascade-spec-brainstorm` queda como alias obsoleto.
+- La investigación de solo lectura es una regla del prompt, no código: los límites duros son la política IAM del perfil AWS declarado y el sandbox.
 
 - `stamp` escribe al principio del informe un bloque `---` con `egm`, `status` (`resolved` o `open`) y `hash`. El hash cubre `proposal.md`, `design.md`, `tasks.md` y `specs/*/spec.md`; ignora las casillas `[x]` de las tareas y los finales de línea CRLF, de modo que marcar tareas durante `apply` no invalida la revisión. Editar cualquier artefacto después de sellar deja el informe `stale`.
 - `check` informa de todos los changes que fallan, no solo del primero. Los motivos son `missing`, `malformed`, `open`, `stale`, `archived` y `no change folder`. Los dos últimos se comprueban antes que cualquier informe y salen con `1` igual que el resto, por ejemplo: `tasks-lint: review archived (openspec/changes/archive/2026-11-16-tasks-lint)` y `foo: review no change folder (openspec/changes/foo)`.
@@ -256,7 +260,7 @@ Con `telemetry.enabled` (por defecto), cada sesión y cada fallo de verificació
 
 ## 9. Plugin de Claude Code
 
-`node bin/install.mjs` registra el marketplace y el plugin `cascade` (agentes, comandos `/cascade`, `/cascade:setup`, `/cascade-looper`, `/cascade-spec-brainstorm`, `/cascade-spec-review` y `/cascade-spec-drift`, skills y el hook `PreToolUse`). El hook (`sdd_gate.mjs` / `sdd_gate.cjs`, lógica en `sdd_gate_core.cjs`) lee `sdd_rules.json`, generado desde `SDD_CONSTANTS` con `bun run scripts/sync_plugin.ts`; `--check` falla si está desactualizado.
+`node bin/install.mjs` registra el marketplace y el plugin `cascade` (agentes, comandos `/cascade`, `/cascade:setup`, `/cascade:explore`, `/cascade:cascade-looper`, `/cascade:cascade-spec-review` y `/cascade:cascade-spec-drift`, skills y el hook `PreToolUse`). El hook (`sdd_gate.mjs` / `sdd_gate.cjs`, lógica en `sdd_gate_core.cjs`) lee `sdd_rules.json`, generado desde `SDD_CONSTANTS` con `bun run scripts/sync_plugin.ts`; `--check` falla si está desactualizado.
 
 ---
 

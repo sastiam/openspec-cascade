@@ -21,6 +21,7 @@ Reviews the planning artifacts of one OpenSpec change with the EGM (Elephant-Gol
 
 1. **Preconditions.** Stop with a clear message if any of these fails:
    - `openspec/changes/<change>/design.md` exists. If not, tell the user to run `/openspec-propose` (Claude Code) or `@openspec-propose` (OpenCode) first.
+   - If `tasks.md` is missing in `openspec/changes/<change>/`, tell the user to run `/openspec-propose` (Claude Code) or `@openspec-propose` (OpenCode) first and stop. Otherwise run `openspec-cascade lint-tasks --changes <change>` from the repository root. On exit 1, show the findings and stop. On exit 2 or command not found, stop, report a tooling problem and print exactly "Update openspec-cascade (forja apply looper) and run /cascade:cascade-spec-review <change> again." There is no override.
    - The EGM plugin is installed: the glob `~/.claude/plugins/cache/egm/egm/*/skills/egm-review/SKILL.md` matches. If not, tell the user to run `claude plugin install egm@egm` and stop.
    - The session can create subagents. A review in the same context is not a Goldfish review.
 

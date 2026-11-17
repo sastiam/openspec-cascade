@@ -45,8 +45,13 @@ Full CLI reference (Spanish): [`docs/cli.md`](docs/cli.md).
 - **Self-improvement:** failures are recorded (secrets redacted) in `.cascade/telemetry/*.jsonl`; recurring
   failure signatures become up to 5 remediation directives injected into later prompts.
 - **Spec review with EGM (optional):** with the [EGM plugin](https://github.com/google/elephant-goldfish-model)
-  installed, `/cascade-spec-brainstorm`, `/cascade-spec-review` and `/cascade-spec-drift` add fresh-context
+  installed, `/cascade:explore`, `/cascade:cascade-spec-review` and `/cascade:cascade-spec-drift` add fresh-context
   reviewers before and after a run, and `spec-gate check` refuses changes whose review is open or stale.
+  `/cascade:explore <change> <idea>` investigates, writes the brief, runs propose and ends with a readiness
+  check; re-running it on a change that has `tasks.md` goes straight to that check.
+  `/cascade:cascade-spec-brainstorm` is a deprecated alias. Read-only investigation is a prompt rule; the hard
+  limits are the IAM policy of the declared AWS profile and the sandbox. In OpenCode, run `@openspec-propose`,
+  then `openspec validate <change> --strict` and `openspec-cascade lint-tasks --changes <change>`.
   See [`docs/cli.md`](docs/cli.md).
 - **Pre-PR review:** `review --base <branch>` runs a Greptile review on a shadow snapshot of your working tree,
   auto-fixes mechanical findings and stops on risky ones, bounded to 3 rounds.
