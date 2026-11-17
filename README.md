@@ -26,7 +26,7 @@ Full CLI reference (Spanish): [`docs/cli.md`](docs/cli.md).
 - **Commits:** a task that names a type (``Commit `fix(deps)` ``) is committed with that type. In changes that
   name no types, one commit per section. The agent can never commit, push, reset, checkout, stash or run
   migrations.
-- **Human tasks** (opening a PR, deciding delivery) are skipped and listed at the end. A real
+- **Human tasks** (opening a PR, deciding delivery) are skipped and listed at the end. Human-only steps go in `manual.md` (each with an indented `Check:` line, no checkbox); the `manual-step` rule rejects them in `tasks.md`, and they are listed at the end of a v1 run. A real
   `BLOCKED: <reason>` from the agent stops the cascade.
 - **In-repo skills & directives:** automatically discovers skills in `.agents/skills/` and `.claude/skills/`,
   plus root directive files (`AGENTS.md`, `CLAUDE.md`), injecting an indexed catalog and project constraints

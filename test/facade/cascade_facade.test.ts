@@ -128,6 +128,45 @@ describe("CascadeFacade", () => {
     expect(engine.prompts[0]).toContain("Implement ONLY task 1.1");
   });
 
+  describe("manual steps in the final report", () => {
+    const MANUAL = ["- Approve the release", "  Check: the release shows Approved", ""].join("\n");
+    const STATUS_LINE = "add-greeting: done";
+    const MANUAL_LINE = "  manual: Approve the release — check: the release shows Approved";
+
+    async function finalReport(manualMarkdown?: string): Promise<string[]> {
+      const repo = await createTempGitRepo();
+      repos.push(repo);
+      writeFileSync(join(repo.repoDir, "package.json"), JSON.stringify({ scripts: { build: "echo built" } }));
+      addOpenSpecChange(repo.repoDir, "add-greeting", { tasksMarkdown: TASKS });
+      if (manualMarkdown !== undefined) {
+        writeFileSync(join(repo.repoDir, "openspec", "changes", "add-greeting", "manual.md"), manualMarkdown);
+      }
+      await commitFixture(repo);
+      const output = captureOutput();
+      const result = await new CascadeFacade({
+        engine: new WorkingEngine(completeTask("add-greeting")),
+        output,
+        resilience: false,
+      }).run(configFor(repo, "add-greeting"));
+      expect(result.exitCode).toBe(0);
+      const finished = output.lines.find((line) => line.includes("Cascade finished"));
+      return (finished ?? "").split("\n");
+    }
+
+    test("a change with manual.md lists its steps right after the status line", async () => {
+      const lines = await finalReport(MANUAL);
+      const statusIndex = lines.indexOf(STATUS_LINE);
+      expect(statusIndex).toBeGreaterThan(-1);
+      expect(lines[statusIndex + 1]).toBe(MANUAL_LINE);
+    });
+
+    test("a change without manual.md gets no manual line", async () => {
+      const lines = await finalReport();
+      expect(lines).toContain(STATUS_LINE);
+      expect(lines.some((line) => line.includes("manual:"))).toBe(false);
+    });
+  });
+
   describe("docs-only fast-track", () => {
     const VERIFY_TASKS = ["## 1. Build", "- [ ] 1.1 Update the greeting.", "  Verify: `bun run build`", ""].join("\n");
 

@@ -27,7 +27,7 @@ import { runVerificationPhase } from "../../qa";
 import { Fatal, RollbackStateBuffer, TaskFailureError } from "../../resilience";
 import { OPENSPEC_PROPOSE_HINT, TASKS_LINT_CONSTANTS, V2_PIPELINE_CONSTANTS, VERIFY_CONSTANTS } from "../config/constants";
 import { ResilientEngineDecorator, type ResilienceOptions } from "../decorators/resilient_engine";
-import { formatFinding, lintManual, lintTasks } from "../sdd/tasks_lint";
+import { formatFinding, lintManual, lintTasks, parseManualSteps } from "../sdd/tasks_lint";
 import {
   summarizeTelemetry,
   TelemetryMetricsDecorator,
@@ -339,6 +339,7 @@ export class CascadeFacade {
       for (const changeReport of ctx.changes) {
         const skipped = await this.runChange(ctx, changeReport);
         report.push(`${changeReport.change}: done${skipped.length ? `, human tasks pending: ${skipped.join(", ")}` : ""}`);
+        report.push(...this.manualReportLines(ctx, changeReport.change));
       }
       this.say(
         ctx,
@@ -347,6 +348,12 @@ export class CascadeFacade {
     } finally {
       this.keepAliveController.stop();
     }
+  }
+
+  private manualReportLines(ctx: RunContext, change: string): string[] {
+    const manualPath = this.manualPath(ctx, change);
+    if (!existsSync(manualPath)) return [];
+    return parseManualSteps(readFileSync(manualPath, "utf8")).map(({ step, check }) => `  manual: ${step} — check: ${check}`);
   }
 
   private async checkAlwaysVerifyBaseline(ctx: RunContext): Promise<void> {

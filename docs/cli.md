@@ -137,7 +137,7 @@ Solo el segmento Verify produce checks. Los comandos escritos antes del marcador
 | `drift` | `cascade.ts drift --catalog <archivo> (--remote-json <archivo> \| --owner <o> --project <n>)` | Compara el catálogo local con el proyecto o con una instantánea JSON. `1` si hay drift. |
 | `review` | `cascade.ts review --base <rama> [--rounds <n≤3>] [--repo <ruta>] [--engine <motor>]` | Bucle pre-PR acotado: revisión Greptile sobre un shadow worktree, corrección automática de hallazgos mecánicos, parada en hallazgos de riesgo. `0` si queda limpio. |
 | `spec-gate` | `cascade.ts spec-gate check --stage <review\|drift> --changes <a,b> [--repo <ruta>]`<br>`cascade.ts spec-gate stamp --stage <review\|drift> --change <a> --status <resolved\|open> [--repo <ruta>]` | Comprueba (`check`) o sella (`stamp`) los informes EGM `review.md` y `drift.md` de un change de OpenSpec. `0` si todos los changes pasan; `1` si alguno falta, está abierto, caducó, no tiene bloque de estado, está archivado o no tiene carpeta de change. |
-| `lint-tasks` | `cascade.ts lint-tasks --changes <a,b> [--repo <ruta>]` | Revisa el `tasks.md` de cada change: bloques de código (`no-code-block`) y tareas sin marcar que no tienen una línea `Verify:` sangrada (`missing-verify`). Los hallazgos salen por stderr como `<change>: tasks.md:<línea>: <regla> <mensaje>`. `0` si todos pasan; `1` si hay hallazgos; `2` por uso inválido, incluido un `tasks.md` que falta (a diferencia de `spec-gate check`, que sale con `1` si falta un informe, porque `tasks.md` es una entrada obligatoria y el informe es un artefacto generado). |
+| `lint-tasks` | `cascade.ts lint-tasks --changes <a,b> [--repo <ruta>]` | Revisa el `tasks.md` de cada change: bloques de código (`no-code-block`) y tareas sin marcar que no tienen una línea `Verify:` sangrada (`missing-verify`). Los hallazgos salen por stderr como `<change>: tasks.md:<línea>: <regla> <mensaje>`. `0` si todos pasan; `1` si hay hallazgos; `2` por uso inválido, incluido un `tasks.md` que falta (a diferencia de `spec-gate check`, que sale con `1` si falta un informe, porque `tasks.md` es una entrada obligatoria y el informe es un artefacto generado). También revisa `manual.md` cuando existe (`missing-check`, `manual-checkbox`) y sale con `1` si tiene hallazgos; en `tasks.md` añade la regla `manual-step`. |
 
 Códigos de salida de los subcomandos: `0` éxito, `1` hallazgos/drift/estado no saludable, `2` entrada inválida o error fail-closed (por ejemplo, Greptile no instalado).
 
@@ -160,6 +160,16 @@ spec-gate check --stage drift              → debe dar 0 antes de /openspec-arc
 - Es opt-in: nada lo ejecuta salvo que se llame. `night-run` debe invocar `spec-gate check --stage review --changes <lista>` antes de lanzar y abortar si no sale `0`.
 - A diferencia de `spec-gate`, el lint de `tasks.md` no depende de que `night-run` lo invoque: la fachada de cascade lo ejecuta en el preflight, antes de cualquier sesión del motor y en todos los modos salvo `--dry-run`, sobre todos los changes de `--changes`. Si hay hallazgos, se detiene con `Fatal` (salida `2`) y los lista agrupados por change. Solo se revisan las tareas sin marcar, así que los changes ya completados no se ven afectados.
 - Solape con las skills existentes: `sdd-clarify` (preguntas ligeras) y `sdd-checklist` (rúbrica en el mismo contexto) son la primera pasada barata; EGM es la segunda, con contexto limpio. `sdd-verify` prueba el comportamiento en runtime y no sustituye a la comprobación de drift.
+
+### Pasos manuales (`manual.md`)
+
+Los pasos que solo puede hacer una persona van en `manual.md`, dentro del change, y no en `tasks.md`.
+
+- **Formato:** cada paso es un elemento de lista de primer nivel (`- `, `* ` o `1. `) seguido de una línea sangrada `Check:` con el resultado observable. Sin checkbox.
+- **`missing-check`:** el paso no tiene una línea `Check:` sangrada con texto.
+- **`manual-checkbox`:** el paso tiene checkbox (`[ ]` o `[x]`); quítalo para que OpenSpec no lo cuente como tarea.
+- **`manual-step`:** en `tasks.md`, una tarea sin marcar que pide una acción humana. El texto entre backticks se ignora, así que se puede mencionar la frase sin que cuente.
+- El arnés solo lista los pasos al final de una ejecución v1 (`manual: <paso> — check: <check>`); no los ejecuta ni los verifica.
 
 ---
 
