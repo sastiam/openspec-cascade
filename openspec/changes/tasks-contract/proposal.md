@@ -6,12 +6,13 @@
 
 ## What Changes
 
-- New `lint-tasks` rule `manual-step`. An unchecked task whose text asks for a human or manual action is a finding. Phrases are matched in English and Spanish ("manually", "by hand", "the user must", "ask the user", "deploy to", "manualmente", "a mano", "el usuario debe", "despliega en"…). Text inside backtick spans is ignored. The three phrases cascade already skips as human tasks ("open the PR", "git push", "decide the delivery") are not findings, so existing changes keep working.
-- New optional file `openspec/changes/<change>/manual.md`. It lists the steps a human does, each with an indented `Check:` line that says how to confirm the step read-only. It has no checkboxes, so OpenSpec does not count it as tasks. `lint-tasks` also checks `manual.md` when it exists:
+- New `lint-tasks` rule `manual-step`. An unchecked task whose text asks for a human or manual action is a finding. Phrases are matched in English and Spanish ("manually", "by hand", "the user must run", "ask the user", "deploy to staging", "check in the console", "manualmente", "a mano", "el usuario debe", "ejecuta tú"…), case-insensitively, as whole phrases with Unicode-aware boundaries. Text inside backtick spans is ignored; this is the documented escape hatch. Tasks that cascade already skips as human tasks ("open the PR", "git push", "decide the delivery") are not findings, so existing changes keep working.
+- New optional file `openspec/changes/<change>/manual.md`. It lists the steps a human does as top-level list items, each with an indented `Check:` line that says how to confirm the step read-only. It has no checkboxes, so OpenSpec does not count it as tasks. `lint-tasks` and the preflight also check `manual.md` when it exists:
   - a checkbox is a finding (`manual-checkbox`);
   - a step without a `Check:` line is a finding (`missing-check`).
-- At the end of a run, the final report lists each change's manual steps with their checks. This version only lists them; nothing runs them.
-- Docs: `docs/cli.md` and `README.md` describe the rule and `manual.md`.
+- The preflight fatal header becomes the neutral `lint-tasks failed; fix these findings before running:`, since findings can now come from either file.
+- At the end of a v1 run, the final report lists each change's manual steps with their checks, one `  manual: <step> — check: <check>` line per step. This version only lists them; nothing runs them. The v2 pipeline is being deprecated and its report is out of scope.
+- Docs: `docs/cli.md` and `README.md` describe the rule, the backtick escape and `manual.md`.
 
 ## Capabilities
 
@@ -20,10 +21,12 @@
 None.
 
 ### Modified Capabilities
-- `tasks-lint`: two new requirements. Manual steps in `tasks.md` are findings. `manual.md` is linted when present.
+- `tasks-lint`: five new requirements (manual steps in `tasks.md` are findings; the phrase list; `manual.md` steps need a `Check:` line; `manual.md` has no checkboxes; manual steps are listed at the end of a v1 run). Three existing requirements are modified to cover `manual.md`: "lint-tasks subcommand", "lint-tasks output and exit codes" and "Preflight before any engine session".
 
 ## Impact
 
-- Code: `src/sdd/tasks_lint.ts` (new rule; `manual.md` lint), `src/config/constants.ts` (`TASKS_LINT_CONSTANTS`: rule names, messages, phrase list), `src/cli/lint_tasks.ts` and `lintChanges` in `src/facade/cascade_facade.ts` (also read `manual.md`), the final report in `CascadeFacade.execute`.
-- Behavior: a change whose unchecked tasks contain manual phrasing now fails preflight with exit 2, like code blocks today. Checked tasks are never linted, so finished changes are unaffected.
-- Tests: `test/sdd/tasks_lint.test.ts` (or the existing tasks-lint test file), `test/cli/lint_tasks.test.ts`, `test/facade/cascade_facade.test.ts`.
+- Code: `src/sdd/tasks_lint.ts` (new rule; `lintManual`, `parseManualSteps`; `formatFinding` file-name parameter), `src/config/constants.ts` (`TASKS_LINT_CONSTANTS`: rule names, messages, `CODE_SPAN`, phrase patterns, `manual.md` line patterns, renamed `FATAL_HEADER`), `src/cli/lint_tasks.ts` and `lintChanges` in `src/facade/cascade_facade.ts` (also read `manual.md`), the v1 final report in `CascadeFacade.execute`.
+- Behavior: `lint-tasks` exits 1 when `tasks.md` or `manual.md` has findings. The preflight stops the run with a fatal error (exit 2) when a listed change's open tasks contain manual phrasing or its `manual.md` breaks a rule, in v1 and v2, like code blocks today. Checked tasks are never linted, so finished changes are unaffected.
+- Rollout: open changes with manual phrasing will fail preflight after merge. Run `lint-tasks` over the open changes before merging.
+- Tests: `test/sdd/tasks_lint.test.ts`, `test/cli/lint_tasks.test.ts`, `test/facade/cascade_facade.test.ts`.
+- No security or scalability impact: local markdown parsing only.

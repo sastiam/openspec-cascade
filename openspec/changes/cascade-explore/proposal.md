@@ -8,26 +8,27 @@ The main source of rework is weak planning. The OpenSpec explore session:
 - does not use the project's helpers unless the user remembers to name them (Watson, Stitch, the design-system MCP);
 - produces tasks with manual steps.
 
-The user wants one planning command that does this well, absorbs the existing `/cascade-spec-brainstorm`, and only declares a change ready for an unattended run once its tasks pass the lint. This is roadmap piece 3.
+The user wants one planning command that does this well, absorbs the existing `/cascade:cascade-spec-brainstorm`, and only declares a change ready for an unattended run once its tasks pass the tasks linter. This is roadmap piece 3.
 
 ## What Changes
 
-- New plugin command `/cascade:explore <change> <idea or Linear link>`.
-  - It reads and follows the installed OpenSpec explore skill (`openspec-explore`), with overrides, and never edits that skill.
-  - It loads the merged manifest (`openspec-cascade setup show --json`, from `project-manifest`) and consults each entry when its `whenToUse` applies. Watson and EGM are planning aids.
+- New plugin command file `plugins/cascade/commands/explore.md`, invoked as `/cascade:explore <change> <idea or Linear link>` (frontmatter name `explore`).
+  - It reads and follows the installed OpenSpec explore skill (`openspec-explore`) and the EGM brainstorm skill, with cascade overrides that win over both. It never edits either skill.
+  - It loads the merged manifest with `openspec-cascade setup show --json` (from `project-manifest`) and consults each entry when its `whenToUse` applies. Watson and EGM are planning aids.
   - Given a Linear link, it reads the issue through the Linear MCP when the session has it, and otherwise asks for the text.
-  - It investigates read-only before asking. It reads the repo, the CLI tools in the manifest (for example the AWS CLI with the declared read-only profile, and `gh run list` / `gh run view` for CI), and MCP servers. It then asks only what it could not find, one focused question at a time.
-  - It writes `openspec/changes/<change>/brief.md` with a fixed set of sections. They always include "Sources consulted", "Deploy and CI risks" and "Manual steps", the last one destined for `manual.md`.
-  - At the readiness gate it offers the EGM Goldfish review and runs it only when the user confirms.
-  - It hands over to `/openspec-propose`. Once the tasks exist, it runs `openspec validate --strict` and `openspec-cascade lint-tasks`, and calls the change ready for an unattended run only when both pass. The next gate is `/cascade-spec-review`.
-- `/cascade-spec-brainstorm` becomes a short alias that points to `/cascade:explore`.
-- `/cascade-spec-review` gains one precondition: `lint-tasks` passes for the change.
+  - It investigates read-only before asking, under a written allowlist: AWS only with the `profile` of the manifest's aws entry and only `describe-*`, `list-*` and `get-*` verbs, minus secret-bearing and file-writing calls; MCP tools with read-only name prefixes; `gh run list`, `gh run view --log-failed`, `gh workflow view`; read-only git. It always inventories the repo's CI workflows, deploy scripts and IaC. It then asks only what it could not find, one focused question at a time.
+  - It writes `openspec/changes/<change>/brief.md` with a fixed set of sections, including "Sources consulted" (every manifest entry and every CLI command run), "Deploy and CI risks" and "Manual steps".
+  - At the single readiness gate it offers the EGM Goldfish review and runs it only when the user confirms.
+  - It then follows the installed `openspec-propose` skill in the same thread, writes `manual.md` from the brief's manual steps, and runs the readiness check: `openspec validate <change> --strict` and `openspec-cascade lint-tasks --changes <change>`, with at most 3 fix rounds. It calls the change ready only when the last run of both exits 0. The next gate is `/cascade:cascade-spec-review`.
+  - Running `/cascade:explore <change>` on a change that already has `tasks.md` skips straight to the readiness check.
+- `/cascade:cascade-spec-brainstorm` becomes a deprecated alias that delegates to `/cascade:explore $ARGUMENTS`.
+- `/cascade:cascade-spec-review` gains one precondition: `tasks.md` exists and `openspec-cascade lint-tasks --changes <change>` exits 0.
 - Docs: `README.md` and `docs/cli.md` describe the planning flow.
 
 ## Capabilities
 
 ### New Capabilities
-- `cascade-explore`: the planning command's contract. It covers inputs, read-only investigation, the use of the manifest, the brief format, the review gate and the readiness check.
+- `cascade-explore`: the planning command's contract. It covers inputs, preconditions, precedence of overrides, read-only investigation, the use of the manifest, the brief format, the review gate, the propose step and the readiness check.
 
 ### Modified Capabilities
 
@@ -35,7 +36,7 @@ None.
 
 ## Impact
 
-- New: `plugins/cascade/commands/cascade-explore.md`, and content tests in `test/plugin/`.
-- Modified: `plugins/cascade/commands/cascade-spec-brainstorm.md` (alias), `plugins/cascade/commands/cascade-spec-review.md` (lint precondition), `test/plugin/egm_commands.test.ts`, `docs/cli.md`, `README.md`.
-- Depends on `project-manifest` for `setup show --json` and on `tasks-contract` for the lint rules. This change is ordered after both.
-- No runtime code changes. The command is a prompt, so its contract is verified by content tests, as the other plugin commands are.
+- New: `plugins/cascade/commands/explore.md`, and content tests in `test/plugin/egm_commands.test.ts`.
+- Modified: `plugins/cascade/commands/cascade-spec-brainstorm.md` (alias), `plugins/cascade/commands/cascade-spec-review.md` (tasks precondition), `test/plugin/egm_commands.test.ts`, `docs/cli.md`, `README.md`.
+- Depends on `project-manifest` for `setup show --json` (including the `profile` field of an entry) and on `tasks-contract` for the tasks linter rules and the `manual.md` format. This change is ordered after both.
+- No runtime code changes. The command is a prompt, so its contract is verified by content tests, as the other plugin commands are. Read-only access is a prompt rule; the hard limits are the IAM policy of the declared AWS profile and the sandbox.

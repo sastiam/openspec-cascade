@@ -1,0 +1,23 @@
+---
+egm: review
+status: open
+hash: e47d95c4b3530d167fa36d2e29cb1d2722d52e6bc6d947c875fc5d978d40c5a9
+---
+# Review: verify-contract (EGM stage 7: design, structural, style)
+
+Status: findings open, pending triage.
+
+## Blockers
+- `alwaysVerify` is only merged in v1 `runTask`; v2 (`v2_pipeline.ts:230,360`) never applies it, so the spec's "every task" fails in v2 mode.
+- Task 3.1 is docs-only, so the docs-only fast-track skips the only full-suite `bun test` (applies to the final docs task of every change in this PR).
+
+## Major
+- The segment starts at the first `\bVerify:` anywhere, including inside instructions or backticks; lint-tasks defines the marker as an indented continuation line (`VERIFY_LINE`). Use the same definition.
+- Tasks without Verify plus `alwaysVerify`: the harness would mark the box when checks pass even if the agent never ticked it. Require checkbox and checks.
+- The merged list must replace `verify` before `taskPrompt` (line 614) and in `printPlan` (line 482), or the agent is never told about the project-wide check.
+- `isSafeVerifyCommand` lives in `src/facade/tasks.ts`; importing it into `src/config/schemas.ts` inverts layering (import cycle). Validate with `HARDENING_CONSTANTS.SHELL_CONTROL_PATTERN` in the config layer, on the resolved schema too (overrides path), with `superRefine` to name the command.
+- `both tsc` and `E2E` detections must also read the segment; full verification combined with a Verify marker is unspecified.
+- Missing risk: an `alwaysVerify` that already fails on the starting state fails every task.
+
+## Nits
+- No Alternatives section; `alwaysVerify` entries run as written (no Nuxt/tsc rewrites); line references will go stale; name helpers and the exact expected lists in tasks.
