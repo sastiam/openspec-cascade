@@ -505,6 +505,7 @@ export const CascadeFileConfigSchema = z.strictObject({
   logDir: RuntimeConfigSchema.shape.logDir.optional(),
   settings: RuntimeConfigSchema.shape.settings,
   mode: RuntimeConfigSchema.shape.mode.optional(),
+  manifest: z.unknown().optional(),
 
   usageLimitPercent: EngineConfigSchema.shape.usageLimitPercent.optional(),
   resetMarginMs: EngineConfigSchema.shape.resetMarginMs.optional(),

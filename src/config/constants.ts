@@ -614,6 +614,22 @@ export const HARDENING_CONSTANTS = {
 } as const;
 
 /**
+ * Project manifest: where helpers (MCP servers, skills, plugins, CLI tools) are recorded and how entries are validated.
+ */
+export const MANIFEST_CONSTANTS = {
+  GLOBAL_DIR: "openspec-cascade",
+  GLOBAL_FILE: "manifest.json",
+  PROJECT_KEY: "manifest",
+  ENTRY_TYPES: ["mcp", "skill", "plugin", "cli"] as const,
+  HOSTS: ["claude-code", "opencode"] as const,
+  WHEN_TO_USE_MAX_LENGTH: 200,
+  PROFILE_PATTERN: /^[A-Za-z0-9._-]+$/,
+  CHECK_TIMEOUT_MS: 15000,
+  JSON_INDENT: 2,
+  KNOWN_CLI_TOOLS: ["rtk", "gh", "aws", "greptile", "opencode", "engram", "codebase-memory-mcp", "openspec", "docker", "bun"] as const,
+} as const;
+
+/**
  * How to tell the user to create a change. OpenSpec 2.0 ships skills, not `/opsx` commands;
  * forja installs them globally, so Claude Code invokes `/openspec-propose` and OpenCode `@openspec-propose`.
  */

@@ -217,6 +217,16 @@ describe("Layered Dynamic Stack Config Loader & Lazy CLI (F04)", () => {
     ]);
   });
 
+  test("loads a config file whose manifest key is broken without validating it", () => {
+    const repoDir = makeTempDir("cascade-broken-manifest-");
+    writeFileSync(
+      join(repoDir, ".openspec-cascade.json"),
+      JSON.stringify({ changes: ["file-change-1"], manifest: { entries: 5 } }),
+    );
+
+    expect(loadConfig({ argv: [], env: {}, cwd: repoDir }).changes).toEqual(["file-change-1"]);
+  });
+
   test("rejects empty --repo, CASCADE_REPO, overrides.repo, and --log-dir before path normalization", () => {
     const dir = makeTempDir("cascade-empty-repo-");
 
