@@ -24,7 +24,7 @@ The scope differs from the brief on purpose:
 
 ## What Changes
 
-- **Per-task rollback baseline.** When a task starts, the harness records the full working tree, including uncommitted work of earlier tasks and untracked files. A rollback restores that tree, not HEAD. Files deleted before the task stay deleted. This fixes the existing `--resilient` data loss.
+- **Per-task rollback baseline.** When a v1 task starts, the harness records the full working tree, including uncommitted work of earlier tasks and untracked files. A rollback restores that tree, not HEAD. Files deleted before the task stay deleted. This fixes the existing `--resilient` data loss. The tree restore is opt-in in the shared rollback buffer and only the v1 facade turns it on, so v2 and gate 3 keep today's behavior. Untracked excluded paths (such as `.atl`) are left alone; tracked files are reverted as today. A failed rollback now stops the run with exit 2.
 - **Parking.** `--resilient` / `--continue-on-failure`, plus the new alias `--park`, now park the task instead of skipping it. Without the switch the behavior is as today. Parking with rollback off (`--no-rollback` or `rollbackOnFailure: false`) is a config error (exit 2).
 
   A task is parked when its reply has `BLOCKED: <reason>` (kind `question`) or when it runs out of attempts (kind `failure`). Parking does six things, in this order:
@@ -40,7 +40,7 @@ The scope differs from the brief on purpose:
   On the next run:
   - one line per parked task says whether it is answered, waiting for an answer, or stale;
   - a parked task with an empty answer is skipped without a session;
-  - one with an answer is retried with the parked file in the prompt;
+  - one with an answer is retried with the parked file in the prompt; the answer does not need to be committed;
   - when it passes, its parked files are deleted in the commit that holds its work;
   - a stale parked file (task gone, task checked, or task text changed) is ignored for scheduling.
 - **Run summary and exit code.** The final report and a file `openspec/changes/<change>/run-summary.md` (one section per run, committed) list done tasks with commits, parked tasks with the file to answer, waiting tasks, stale parked files, and human and manual steps. The summary is also written when the run stops on a run-level error. Exit codes: 0 all done, 1 crash, 2 fatal or fail-closed, 3 parked or waiting tasks. Failures are no longer reported as human tasks.
@@ -64,8 +64,12 @@ The scope differs from the brief on purpose:
 
 ## Impact
 
+- **Dependencies.** This change is implemented in a second unattended run, after `verify-contract` (`alwaysVerify`), `tasks-contract` (`parseManualSteps`, tasks linter rules), `project-manifest` and `cascade-explore` on the same branch.
 - **Code.**
-  - `src/engine/rollback_buffer.ts`: tree snapshot and tree restore.
+  - `src/engine/rollback_buffer.ts`: opt-in tree snapshot and tree restore (`restoreTree`).
+  - `src/integration/greptile/shadow.ts`: a public `snapshotTree` extracted from the shadow snapshot.
+  - `resilience.ts`: `RollbackFailedError`.
+  - `src/sdd/head_freshness.ts` (new): the HEAD freshness check.
   - `src/facade/cascade_facade.ts`: `runTask`, `runChange`, `execute`, `run`, result types, the review step and a `greptileClient` dependency.
   - `src/facade/tasks.ts`: prompt addition for resumed tasks.
   - New `src/park/` (parked-file format, state, patch capture, summary renderer).
@@ -76,5 +80,6 @@ The scope differs from the brief on purpose:
   - `src/cli/commands.ts`: `reviewCommand` uses the shared factory; `status` registered.
   - `src/config/*`: the `--park` alias, the parking-needs-rollback check, `codeReview` keys, `EXIT_CODE_PARKED`, `PARK_CONSTANTS`.
   - `src/core/pre_pr_loop.ts`: called from the facade, unchanged. This is a recorded exception to "no new imports from `src/core`".
+- **Tests changed on purpose.** `test/e2e/tier3_combinations/cli_stack_pm_combinations.test.ts` (parking with rollback off) and `test/facade/cascade_facade.test.ts` (the last commit is now the summary commit).
 - **Behavior.** With `--resilient`, a failed task now leaves a parked file and commits, and the run exits 3 instead of 0. `--resilient --no-rollback` now fails to load. `forja wt night` treats any non-zero exit as a failure message. The forja side is outside this repo, and the docs say so.
 - **Unchanged.** v2 mode, the K brake, `Depends:`, `DECISION:` and sensitive paths. The last two go to `autonomy-guard`, which follows this change and replaces the interim secret rule for patches.

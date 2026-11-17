@@ -1,7 +1,7 @@
 ---
 egm: review
-status: open
-hash: 6c3886947a1356adc042a6eff4317044d02aa916f2d70bd5ff5adaeaf9053765
+status: resolved
+hash: ff495f99d840a760a3a5324f67586453a5ea7081a18d21bacd4a15405b265a9f
 ---
 # Review: project-manifest (EGM stage 7)
 

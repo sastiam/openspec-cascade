@@ -1,7 +1,7 @@
 ---
 egm: review
-status: open
-hash: 107c4895380e2be86fbb4ac39354c9e2fca93edfea91791a180fcf480fcf7fe4
+status: resolved
+hash: 49c0c7fa42dff25028929cfe9768d186ccc7a4c595d631e5f2a7c0c30adceb09
 ---
 # Review: cascade-explore (EGM stage 7)
 

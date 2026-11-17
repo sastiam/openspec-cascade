@@ -21,11 +21,19 @@ For stage `code-review`, the stamp SHALL add a `head` key with the HEAD commit S
 - **THEN** the marker of `code-review.md` has `head: abc123` in its full SHA form
 
 ### Requirement: Code-review freshness follows HEAD
-For stage `code-review`, the check SHALL report `stale` when `head` is not a known commit, or when the diff between `head` and HEAD changes any path other than `code-review.md` files. A diff that only changes `code-review.md` files SHALL keep the stamp fresh.
+For stage `code-review`, the check SHALL report `stale` when the change hash differs, when `head` is not a known commit, or when the diff between `head` and HEAD changes any path other than `code-review.md` files. A diff that only changes `code-review.md` files SHALL keep the stamp fresh.
 
 #### Scenario: Own record commit stays fresh
 - **WHEN** the stamped `code-review.md` is committed after stamping
 - **THEN** `spec-gate check --stage code-review --changes a` exits 0
+
+#### Scenario: Unknown head
+- **WHEN** the marker's `head` names no commit in the repository
+- **THEN** `spec-gate check --stage code-review --changes a` reports `a: code-review stale (code-review.md)` and exits 1
+
+#### Scenario: Head key missing
+- **WHEN** a `code-review` marker has no `head` key
+- **THEN** `spec-gate check --stage code-review --changes a` reports `a: code-review malformed (code-review.md)` and exits 1
 
 #### Scenario: Code changed after the review
 - **WHEN** a commit after `head` changes `src/a.ts`

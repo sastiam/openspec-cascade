@@ -1,7 +1,7 @@
 ---
 egm: review
-status: open
-hash: 7d05c9dd7fdcd53956cba91613cfeab184c6a0bd79cd4c25ebca9c7d78e3f4a0
+status: resolved
+hash: e47f4ca5cedc7b03508cb7b6c4c6f6d5aaad8b2b954aba3d26508d0f86d33b8e
 ---
 # Review: tasks-contract (EGM stage 7)
 

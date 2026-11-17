@@ -1,7 +1,7 @@
 ---
 egm: review
-status: open
-hash: e47d95c4b3530d167fa36d2e29cb1d2722d52e6bc6d947c875fc5d978d40c5a9
+status: resolved
+hash: b92042bc649222472c2292ce6240170cbdfd532c2f8d531e72970f161204a46a
 ---
 # Review: verify-contract (EGM stage 7: design, structural, style)
 

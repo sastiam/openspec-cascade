@@ -7,7 +7,7 @@ Runs the Greptile review before the PR in v1 runs, applies only mechanical fixes
 ## ADDED Requirements
 
 ### Requirement: Code review after a clean run
-When `codeReview.afterRun` is true in `.openspec-cascade.json` and a v1 run ends with outcome 0, the harness SHALL run the existing pre-PR review loop against `codeReview.base`, with at most `codeReview.rounds` rounds, after the run summary is committed. When the setting is off or absent, nothing SHALL change. A run that ends with 1, 2 or 3 SHALL NOT start the review.
+When `codeReview.afterRun` is true in `.openspec-cascade.json` and a v1 run ends with outcome 0, the harness SHALL run the existing pre-PR review loop against `codeReview.base`, with at most `codeReview.rounds` rounds, after the run summary is committed. `codeReview.afterRun` SHALL be the only switch; the `greptile` config keys SHALL NOT be read by this step. When the setting is off or absent, nothing SHALL change. A run that ends with 1, 2 or 3 SHALL NOT start the review.
 
 #### Scenario: Review off
 - **WHEN** `codeReview` is absent from the config
@@ -32,7 +32,7 @@ The review fixer SHALL run through the run's engine, with the run's settings, bu
 - **THEN** the session goes to the run's engine and its cost is added to the run total
 
 ### Requirement: Mechanical fixes are checked before commit
-Before the review, the harness SHALL record the HEAD SHA and a tree snapshot. When the loop leaves changes, it SHALL run `alwaysVerify` and the default verify commands and commit `fix: apply Greptile review fixes` only when all pass. When a check fails, or the fixer made a commit, it SHALL reset to the pre-review HEAD and tree and record why.
+Before the review, the harness SHALL record the HEAD SHA and a tree snapshot. When the loop leaves changes, it SHALL run `alwaysVerify` and the default checks (`defaultVerify`, with the same package-manager fallback as task checks) and commit `fix: apply Greptile review fixes` only when all pass. When a check fails, or the fixer made a commit, it SHALL reset to the pre-review HEAD and tree and record why.
 
 #### Scenario: Fix breaks a check
 - **WHEN** a mechanical fix makes a check fail
@@ -61,11 +61,11 @@ The harness SHALL write `openspec/changes/<change>/code-review.md` for each chan
 - **THEN** both `code-review.md` files hold the same review body
 
 ### Requirement: Stamp before commit
-The harness SHALL stamp each `code-review.md` with stage `code-review` and the reviewed HEAD before committing it, then commit it in a single path-limited `chore(<change>): record code review` commit. The tree SHALL be clean after the review step.
+The harness SHALL stamp each `code-review.md` with stage `code-review` and the reviewed HEAD, which is the HEAD after the fix commit when there is one, before committing it, then commit it in a single path-limited `chore(<change>): record code review` commit. The tree SHALL be clean after the review step.
 
 #### Scenario: Clean tree after review
 - **WHEN** the review step ends
-- **THEN** `git status --porcelain` is empty, outside never-commit paths, and the committed `code-review.md` holds the stamp
+- **THEN** `git status --porcelain` is empty outside `neverCommit` and the workspace excludes (the bridge writes `.cascade/`), and the committed `code-review.md` holds the stamp
 
 ### Requirement: Threshold decides the stamp
 The stamp SHALL be `resolved` when the review status is clean or empty and, if `codeReview.minConfidence` is set, the reported confidence is at least that value. Otherwise it SHALL be `open`. A review with no reported confidence SHALL NOT pass a set threshold.
