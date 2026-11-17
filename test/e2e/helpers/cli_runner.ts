@@ -101,6 +101,7 @@ export function buildIsolatedEnv(
 
   env.HOME = homeDir;
   env.XDG_CACHE_HOME = join(homeDir, ".cache");
+  env.XDG_CONFIG_HOME = join(homeDir, ".config");
   env.PATH = buildMergedPath(overrides?.PATH);
 
   if (overrides) {

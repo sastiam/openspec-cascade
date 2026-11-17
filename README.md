@@ -146,6 +146,29 @@ Refuses to run on `stable`, `main` or `master` (except `--dry-run`). Change ids 
 (`[A-Za-z0-9][A-Za-z0-9._-]*`), and task `Verify:` commands containing shell operators (`;`, `&`, `|`, `$(`,
 redirections) are ignored.
 
+### Helper manifest (`setup`)
+
+The manifest records which helpers (MCP servers, skills, plugins, CLI tools) a project can use and when. `setup` discovers and registers them; it never installs anything. Runs do not read it: only `doctor` and `cascade-explore` do.
+
+```bash
+bun run cascade.ts setup discover --json --repo <path>
+bun run cascade.ts setup add --scope project --name stitch --type mcp --when "Before UI tasks, fetch the screen design" --host opencode
+bun run cascade.ts setup remove --scope project --name stitch --type mcp
+bun run cascade.ts setup show --json --repo <path>
+bun run cascade.ts setup rules --write --repo <path>
+```
+
+- **Actions.** `discover [--json]`, `add --scope project|global --name --type --when [--required] [--check] [--profile] [--host]...` (upsert by name and type; `--host` repeats), `remove --scope --name --type`, `show [--json]`, `rules [--write]` (appends suggested `rules` to `openspec/config.yaml` only if it has no `rules` key; otherwise exit 1). Exit `2` on usage errors or an invalid manifest.
+- **Two layers.** Global: `$XDG_CONFIG_HOME/openspec-cascade/manifest.json` (default `~/.config/openspec-cascade/manifest.json`). Project: the `manifest` key of `.openspec-cascade.json`. Both hold `{"entries": [...]}`; a project entry replaces the global one with the same (`name`, `type`). No secrets, only names.
+- **Entry fields.** `name`; `type` (`mcp`, `skill`, `plugin`, `cli`); `whenToUse` (required, one line, max 200 chars); `required` (boolean, default false); `check` (optional single command); `profile` (optional non-secret name, e.g. an AWS profile, passed as `--profile`); `hosts` (optional, `claude-code` and/or `opencode`).
+- **`show --json`.** `{"entries":[{name, type, whenToUse, required, check?, profile?, hosts?, layer}]}`, sorted by name then type; `layer` is `global` or `project`; unset optional fields are omitted.
+- **`discover --json`.** `{"candidates":[{name, type, sources, hosts, inManifest}], "skipped":[{source, reason}]}`; `inManifest` is `null`, `global` or `project`. Only names are read, never values.
+- **`doctor`.** Adds one check per entry. It runs the `check` of global entries by default and the `check` of project entries only with `--run-project-checks`, because the project layer comes from the repository. A failing required entry is `fail`, an optional one `warn`; an invalid manifest is one failing `manifest` check.
+- **Read-only is not enforced.** A `check` runs exactly as written; keeping it read-only is up to whoever writes it.
+- **claude.ai connectors** cannot be discovered; register them by hand with `setup add`.
+- **Claude Code:** run `/cascade:setup`. It runs `discover`, proposes helpers, lets you pick them and write a `whenToUse` for each, asks about missing ones, calls `add`, and offers `rules`.
+- **OpenCode:** there is no command file; run the CLI actions above directly (`discover`, `add`, `show`, `rules`).
+
 ### Logs
 
 Each run writes a JSON Lines file named `<timestamp>.jsonl`. The directory is chosen in this order:
