@@ -179,6 +179,14 @@ export function verifyCommands(
 }
 
 /**
+ * Returns the task's own checks followed by the project-wide `alwaysVerify` commands, de-duplicated, as written.
+ */
+export function taskChecks(task: Task, config: CascadeConfig): string[] {
+  const own = verifyCommands(task, config.fullGate, { repoRoot: config.repo, config });
+  return [...new Set([...own, ...config.alwaysVerify])];
+}
+
+/**
  * Extracts a genuine BLOCKED reason while ignoring empty sentinel responses like "none".
  */
 export function blockedReason(result: string): string | undefined {

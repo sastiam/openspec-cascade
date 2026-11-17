@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { parseTasks } from "../../src/facade/tasks";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { loadConfig } from "../../config";
+import { parseTasks, taskChecks } from "../../src/facade/tasks";
 
 const BOM = "﻿";
 const LINES = ["## 1. Build", "- [ ] 1.1 Create the module", "  Verify: `bun test`", "- [x] 1.2 Done already"];
@@ -39,5 +43,44 @@ describe("parseTasks: line endings and BOM", () => {
     expect(summary(`${BOM}- [ ] 1.1 First\n  Verify: \`bun test\``)).toEqual([
       { id: "1.1", done: false, line: 0, verified: true },
     ]);
+  });
+});
+
+describe("taskChecks", () => {
+  const ARCH_CHECK = "bun run arch:check";
+
+  function checksFor(lines: string[], alwaysVerify: string[]): string[] {
+    const dir = mkdtempSync(join(tmpdir(), "task-checks-"));
+    try {
+      const config = loadConfig({
+        argv: ["--repo", dir, "--changes", "demo"],
+        env: {},
+        cwd: dir,
+        overrides: { alwaysVerify },
+      });
+      const [task] = parseTasks(lines.join("\n"));
+      return taskChecks(task!, config);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  test("Duplicate command", () => {
+    const lines = ["## 1. Build", "- [ ] 1.1 Create it", `  Verify: \`${ARCH_CHECK}\` passes`];
+    expect(checksFor(lines, [ARCH_CHECK])).toEqual([ARCH_CHECK]);
+  });
+
+  test("Commands run as written", () => {
+    const lines = ["## 1. Build", "- [ ] 1.1 Create it", "  Verify: `bun test` passes"];
+    expect(checksFor(lines, ["bunx tsc --noEmit", "bun audit"])).toEqual(["bun test", "bunx tsc --noEmit", "bun audit"]);
+  });
+
+  test("Empty setting", () => {
+    const lines = ["## 1. Build", "- [ ] 1.1 Create it", "  Verify: `bun test` passes"];
+    expect(checksFor(lines, [])).toEqual(["bun test"]);
+  });
+
+  test("Task without Verify and without full verification", () => {
+    expect(checksFor(["## 1. Build", "- [ ] 1.1 Create it"], [])).toEqual([]);
   });
 });

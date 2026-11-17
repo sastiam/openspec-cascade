@@ -25,7 +25,7 @@ import { startKeepAlive, type KeepAliveController, type KeepAliveOptions } from 
 import { selectVerifyChecks } from "../../fast_track";
 import { runVerificationPhase } from "../../qa";
 import { Fatal, RollbackStateBuffer, TaskFailureError } from "../../resilience";
-import { OPENSPEC_PROPOSE_HINT, TASKS_LINT_CONSTANTS, V2_PIPELINE_CONSTANTS } from "../config/constants";
+import { OPENSPEC_PROPOSE_HINT, TASKS_LINT_CONSTANTS, V2_PIPELINE_CONSTANTS, VERIFY_CONSTANTS } from "../config/constants";
 import { ResilientEngineDecorator, type ResilienceOptions } from "../decorators/resilient_engine";
 import { formatFinding, lintTasks } from "../sdd/tasks_lint";
 import {
@@ -46,8 +46,9 @@ import {
   isLastOfSection,
   markDone,
   readTasks,
+  ignoredCommands,
+  taskChecks,
   taskPrompt,
-  verifyCommands,
   type Task,
 } from "./tasks";
 import { V2Pipeline, type V2ChangeReport, type V2RunHooks } from "./v2_pipeline";
@@ -333,6 +334,7 @@ export class CascadeFacade {
         this.output.info(`\nusage: ${ctx.usage ? JSON.stringify(ctx.usage) : "unavailable (API key or token without user:profile scope)"}`);
         return;
       }
+      await this.checkAlwaysVerifyBaseline(ctx);
       const report: string[] = [];
       for (const changeReport of ctx.changes) {
         const skipped = await this.runChange(ctx, changeReport);
@@ -345,6 +347,20 @@ export class CascadeFacade {
     } finally {
       this.keepAliveController.stop();
     }
+  }
+
+  private async checkAlwaysVerifyBaseline(ctx: RunContext): Promise<void> {
+    if (ctx.config.alwaysVerify.length === 0) return;
+    const baseline = await runVerificationPhase({
+      commands: [...ctx.config.alwaysVerify],
+      cwd: ctx.config.repo,
+      timeoutMs: ctx.config.commandTimeoutMs,
+      stopOnFirstFailure: false,
+      hooks: { log: (event, data) => this.log(ctx, event, data) },
+    });
+    if (baseline.success) return;
+    const commands = baseline.failures.map((failure) => failure.command).join(", ");
+    throw new Fatal(`${VERIFY_CONSTANTS.ALWAYS_VERIFY_BASELINE_FAILED} ${commands}`);
   }
 
   private v2Pipeline(directives: readonly RemediationDirective[]): V2Pipeline {
@@ -479,7 +495,8 @@ export class CascadeFacade {
       const perSection = commitsPerSection(tasks);
       this.output.info(`\n${changeReport.change}: ${pending.length} pending${perSection ? " (one commit per section)" : ""}`);
       for (const task of pending) {
-        const verify = verifyCommands(task, ctx.config.fullGate, { repoRoot: ctx.config.repo, config: ctx.config });
+        const verify = taskChecks(task, ctx.config);
+        const ignored = ignoredCommands(task);
         const flags = [
           CONSTANTS.HUMAN_TASK_REGEX.test(task.text) ? "HUMAN-SKIP" : "",
           commitTypeOf(task)
@@ -488,6 +505,7 @@ export class CascadeFacade {
               ? "commit=agent"
               : "",
           verify.length ? `verify=[${verify.join(" | ")}]` : "",
+          ignored.length ? `ignored=[${ignored.join(" | ")}]` : "",
         ].filter(Boolean);
         this.output.info(`  ${task.id} ${flags.join(" ")}`);
       }
@@ -604,7 +622,9 @@ export class CascadeFacade {
     task: Task,
     sectionCommit: boolean,
   ): Promise<void> {
-    const verify = verifyCommands(task, ctx.config.fullGate, { repoRoot: ctx.config.repo, config: ctx.config });
+    const verify = taskChecks(task, ctx.config);
+    const ignored = ignoredCommands(task);
+    if (ignored.length) this.log(ctx, "verify_ignored", { change, taskId: task.id, commands: ignored });
     const commitType = commitTypeOf(task);
     if (ctx.lastVerifiedSha === undefined) {
       const head = await this.git(ctx, ["rev-parse", "HEAD"]);
