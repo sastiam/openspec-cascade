@@ -19,6 +19,7 @@ const COMMANDS: EgmCommand[] = [
   { name: "cascade-spec-review", egmSkill: "egm-review", output: "review.md", stamp: "spec-gate stamp --stage review" },
   { name: "cascade-spec-drift", egmSkill: "egm-drift-report", output: "drift.md", stamp: "spec-gate stamp --stage drift" },
   { name: "cascade-spec-brainstorm", egmSkill: "egm-brainstorm", output: "brief.md", stamp: undefined },
+  { name: "explore", egmSkill: "egm-brainstorm", output: "brief.md", stamp: undefined },
 ];
 
 function read(name: string): string {
@@ -74,6 +75,193 @@ describe.each(COMMANDS)("$name", (command) => {
 
     test("does not start Goldfish reviewers before the user confirms readiness", () => {
       expect(text).toContain("confirms");
+    });
+  }
+
+  if (command.name === "explore") {
+    const wholeLines = (headings: string[]): number[] => {
+      const lines = text.split("\n");
+      let from = 0;
+      return headings.map((heading) => {
+        const index = lines.indexOf(heading, from);
+        from = index + 1;
+        return index;
+      });
+    };
+
+    test("frontmatter leaves model invocation enabled", () => {
+      expect(text).not.toContain("disable-model-invocation");
+    });
+
+    test("has the section headings as whole lines in order", () => {
+      const headings = [
+        "## Usage",
+        "## Preconditions",
+        "## Precedence and overrides",
+        "## Load context",
+        "## Read-only investigation",
+        "### Read-only allowlist",
+        "### The command's own writes",
+        "## Readiness gate",
+      ];
+      const indexes = wholeLines(headings);
+      for (const index of indexes) expect(index).toBeGreaterThan(-1);
+      expect(indexes).toEqual([...indexes].sort((a, b) => a - b));
+    });
+
+    test("states usage and preconditions", () => {
+      for (const literal of [
+        "/cascade:explore <change> <idea or Linear link>",
+        "already has tasks.md",
+        "Claude Code only",
+        "@openspec-explore",
+        "sdd-clarify",
+        "openspec list --json",
+        "skills/openspec-explore/SKILL.md",
+        "openspec-cascade setup show --json",
+        "no manifest",
+        "already exists",
+        "without running `openspec new change`",
+      ]) {
+        expect(text).toContain(literal);
+      }
+    });
+
+    test("states the precedence and the overrides", () => {
+      for (const literal of [
+        "Cascade overrides > EGM brainstorm skill > openspec-propose skill > openspec-explore skill",
+        "Do not stop after the artifacts",
+        "Do not present the apply prompt",
+        "/openspec-propose",
+        "@openspec-propose",
+        "EGM artifact directory: openspec/changes/<change>",
+        "openspec/changes/<change>/brief.md",
+        "egm-draft",
+        "SITEMAP.md",
+      ]) {
+        expect(text).toContain(literal);
+      }
+      expect(text).toMatch(/Do not offer or take .*Publish concepts_brief\.md as RFC/);
+    });
+
+    test("loads config, Linear and the manifest", () => {
+      for (const literal of ["openspec/config.yaml", "Linear MCP", "paste"]) expect(text).toContain(literal);
+    });
+
+    test("lists the read-only allowlist, its exclusions and the command's own writes", () => {
+      for (const literal of [
+        "--profile",
+        "`name`",
+        "`aws`",
+        "`type`",
+        "`cli`",
+        "secretsmanager",
+        "--with-decryption",
+        "kms decrypt",
+        "authorization-token",
+        "login-password",
+        "sts get-",
+        "sts assume-role",
+        "lambda get-function",
+        "get-function-configuration",
+        "ecs describe-task-definition",
+        "s3api get-object",
+        "gh run list --limit",
+        "gh run view --log-failed",
+        "gh workflow view",
+        "get_",
+        "list_",
+        "search_",
+        "openspec new change",
+        "IAM",
+      ]) {
+        expect(text).toContain(literal);
+      }
+    });
+
+    test("requires the deploy and CI inventory and a bounded context", () => {
+      for (const literal of [".github/workflows/", "--max-items", "one question per message", "account IDs", "ARNs"]) {
+        expect(text).toContain(literal);
+      }
+    });
+
+    test("gates the Goldfish review on confirmation and a late EGM check", () => {
+      for (const literal of [
+        "skills/egm-brainstorm/SKILL.md",
+        "docs/claude.md",
+        "egm@egm",
+        "Goldfish",
+        "confirms",
+        "create subagents",
+      ]) {
+        expect(text).toContain(literal);
+      }
+    });
+
+    test("has the closing section headings after the readiness gate", () => {
+      const headings = [
+        "## Readiness gate",
+        "## Write brief.md",
+        "## Propose",
+        "## Readiness check and fix loop",
+        "## Report",
+      ];
+      const indexes = wholeLines(headings);
+      for (const index of indexes) expect(index).toBeGreaterThan(-1);
+      expect(indexes).toEqual([...indexes].sort((a, b) => a - b));
+    });
+
+    test("holds the brief template as one markdown fence with each heading once", () => {
+      const lines = text.split("\n");
+      const briefHeadings = [
+        "## Overview",
+        "## Sources consulted",
+        "## Findings",
+        "## Deploy and CI risks",
+        "## Manual steps",
+        "## Goals and Non-Goals",
+        "## Alternatives weighed",
+        "## Decisions",
+        "## Open questions",
+      ];
+      const start = lines.indexOf("## Write brief.md");
+      const end = lines.indexOf("## Propose");
+      expect(start).toBeGreaterThan(-1);
+      expect(end).toBeGreaterThan(start);
+      expect(lines.slice(start, end)).toContain("```markdown");
+      const indexes = wholeLines(briefHeadings);
+      for (const [position, heading] of briefHeadings.entries()) {
+        expect(indexes[position]).toBeGreaterThan(start);
+        expect(indexes[position]).toBeLessThan(end);
+        expect(lines.filter((line) => line === heading)).toHaveLength(1);
+      }
+      expect(indexes).toEqual([...indexes].sort((a, b) => a - b));
+    });
+
+    test("proposes inline and writes manual.md without checkboxes", () => {
+      for (const literal of ["manual.md", "Check:", "no checkboxes", "skip its creation step"]) {
+        expect(text).toContain(literal);
+      }
+    });
+
+    test("runs the readiness check, the bounded fix loop and the tooling stop", () => {
+      for (const literal of [
+        "openspec validate <change> --strict",
+        "openspec-cascade lint-tasks --changes <change>",
+        "--repo",
+        "exit 1",
+        "exit 2",
+        "command not found",
+        "at most 3",
+        "any artifact",
+        "/openspec-update-change",
+        "@openspec-update-change",
+        "Update openspec-cascade (forja apply looper) and run /cascade:explore <change> again.",
+        "ready for an unattended run",
+        "/cascade:cascade-spec-review",
+      ]) {
+        expect(text).toContain(literal);
+      }
     });
   }
 
