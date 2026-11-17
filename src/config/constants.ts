@@ -492,7 +492,7 @@ export const PRE_PR_CONSTANTS = {
  * Integration subcommands dispatched by `cascade.ts` before regular flag parsing.
  */
 export const CLI_COMMAND_CONSTANTS = {
-  SUBCOMMANDS: ["doctor", "catalog", "drift", "review", "spec-gate", "lint-tasks"] as const,
+  SUBCOMMANDS: ["doctor", "catalog", "drift", "review", "spec-gate", "lint-tasks", "setup"] as const,
   ENGINE_BINARIES: { claude: "claude", opencode: "opencode", antigravity: "agy", jules: "jules" } as const,
   DEFAULT_OWNER_TYPE: "user" as const,
   OWNER_TYPES: ["user", "organization"] as const,

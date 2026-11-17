@@ -22,6 +22,7 @@ import type { ISpawner } from "../runtime/types";
 import { SDD_HOOK_CONSTANTS, serializeSddHookRules } from "../sdd/hook_rules";
 import type { CliOutput } from "./change_args";
 import { runLintTasks } from "./lint_tasks";
+import { runSetup } from "./setup";
 import { runSpecGate } from "./spec_gate";
 
 export type CliSubcommand = (typeof CLI_COMMAND_CONSTANTS.SUBCOMMANDS)[number];
@@ -259,6 +260,8 @@ export async function runSubcommand(
         return runSpecGate(argv, output);
       case "lint-tasks":
         return runLintTasks(argv, output);
+      case "setup":
+        return runSetup(argv, output);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

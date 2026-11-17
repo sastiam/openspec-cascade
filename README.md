@@ -111,6 +111,7 @@ node --import ./scripts/node_ts_register.mjs cascade.ts --repo <path> --changes 
 
 # Integration subcommands
 bun run cascade.ts doctor --repo <path>
+bun run cascade.ts setup discover --repo <path>
 bun run cascade.ts review --repo <path> --base main
 bun run cascade.ts catalog --sync --owner <org> --project <n> --owner-type organization
 bun run cascade.ts drift --catalog projects/agnostic_looper/tasks_catalog.json --owner <org> --project <n>

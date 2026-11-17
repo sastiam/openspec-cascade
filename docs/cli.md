@@ -133,6 +133,7 @@ Solo el segmento Verify produce checks. Los comandos escritos antes del marcador
 | Subcomando | Uso | Salida |
 |---|---|---|
 | `doctor` | `cascade.ts doctor [--repo <ruta>]` | Diagnóstico de runtime, git, OpenSpec, binarios de motores, Greptile, sincronía de hooks y telemetría. `0` si no hay checks `fail`. |
+| `setup` | `cascade.ts setup discover [--json] [--repo <ruta>]`<br>`cascade.ts setup show [--json] [--repo <ruta>]`<br>`cascade.ts setup rules` | Descubre los helpers (servidores MCP, skills, plugins y herramientas CLI), muestra el manifiesto fusionado de las capas global y de proyecto e imprime las reglas sugeridas para `openspec/config.yaml`. `0` si termina bien; `2` por uso inválido o manifiesto inválido. |
 | `catalog` | `cascade.ts catalog --sync --owner <o> --project <n> [--owner-type user\|organization] [--output <dir>]` | Genera el catálogo de tareas desde un GitHub Project (requiere `gh` autenticado). |
 | `drift` | `cascade.ts drift --catalog <archivo> (--remote-json <archivo> \| --owner <o> --project <n>)` | Compara el catálogo local con el proyecto o con una instantánea JSON. `1` si hay drift. |
 | `review` | `cascade.ts review --base <rama> [--rounds <n≤3>] [--repo <ruta>] [--engine <motor>]` | Bucle pre-PR acotado: revisión Greptile sobre un shadow worktree, corrección automática de hallazgos mecánicos, parada en hallazgos de riesgo. `0` si queda limpio. |
