@@ -538,6 +538,32 @@ export const SPEC_GATE_CONSTANTS = {
 /**
  * Static checks on a change's tasks.md: code blocks and unchecked tasks without a `Verify:` line.
  */
+const MANUAL_STEP_PHRASES: readonly string[] = [
+  "manually",
+  "manual step",
+  "manual steps",
+  "by hand",
+  "the user must run",
+  "the user must approve",
+  "the user should run",
+  "ask the user",
+  "deploy to staging",
+  "deploy to production",
+  "deploy to prod",
+  "check in the console",
+  "set in the console",
+  "you must run",
+  "manualmente",
+  "a mano",
+  "el usuario debe",
+  "pide al usuario",
+  "despliega en",
+  "desplegar en",
+  "revisa en la consola",
+  "configura en la consola",
+  "ejecuta tú",
+];
+
 export const TASKS_LINT_CONSTANTS = {
   FILE_NAME: "tasks.md",
   RULE_NO_CODE_BLOCK: "no-code-block",
@@ -554,6 +580,13 @@ export const TASKS_LINT_CONSTANTS = {
   VERIFY_LINE: /^\s+(?:[-*]\s+)?Verify:\s*\S/,
   BLANK_LINE: /^\s*$/,
   INDENTED_LINE: /^\s/,
+  CODE_SPAN: /`[^`]*`/g,
+  RULE_MANUAL_STEP: "manual-step",
+  MESSAGE_MANUAL_STEP:
+    "task asks for a human action; move it to manual.md or describe the outcome the agent produces (text in backticks is ignored)",
+  MANUAL_STEP_PATTERNS: MANUAL_STEP_PHRASES.map(
+    (phrase) => new RegExp(`(?<![\\p{L}\\p{N}_])${phrase.replace(/ /g, "\\s+")}(?![\\p{L}\\p{N}_])`, "iu"),
+  ),
   OK_PREFIX: "lint-tasks: ok",
   FATAL_HEADER: "tasks.md failed lint-tasks; fix these findings before running:",
   USAGE_PREFIX: "USAGE: cascade lint-tasks",

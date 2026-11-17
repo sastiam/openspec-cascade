@@ -1,9 +1,10 @@
 /**
- * Static checks on an OpenSpec `tasks.md`: fenced code blocks, and unchecked tasks without a `Verify:` line.
+ * Static checks on an OpenSpec `tasks.md`: fenced code blocks, unchecked tasks without a `Verify:` line, and
+ * unchecked tasks that ask for a human action (`manual-step`, ignoring text in backticks).
  *
  * Pure: it takes the markdown text and returns findings; reading files and deciding which changes to lint is the caller's job.
  */
-import { TASKS_LINT_CONSTANTS as C } from "../config/constants";
+import { FORMAT_CONSTANTS, TASKS_LINT_CONSTANTS as C } from "../config/constants";
 
 export interface TaskFinding {
   readonly line: number;
@@ -19,6 +20,7 @@ interface Fence {
 interface PendingTask {
   readonly line: number;
   verified: boolean;
+  readonly lines: string[];
 }
 
 /**
@@ -52,8 +54,16 @@ export function lintTasks(markdown: string): TaskFinding[] {
   let task: PendingTask | undefined;
 
   const flushTask = (): void => {
-    if (task !== undefined && !task.verified) {
+    if (task === undefined) return;
+    if (!task.verified) {
       findings.push({ line: task.line, rule: C.RULE_MISSING_VERIFY, message: C.MESSAGE_MISSING_VERIFY });
+    }
+    const raw = task.lines.join(" ");
+    if (!FORMAT_CONSTANTS.HUMAN_TASK_REGEX.test(raw)) {
+      const visible = raw.replace(C.CODE_SPAN, " ");
+      if (C.MANUAL_STEP_PATTERNS.some((pattern) => pattern.test(visible))) {
+        findings.push({ line: task.line, rule: C.RULE_MANUAL_STEP, message: C.MESSAGE_MANUAL_STEP });
+      }
     }
     task = undefined;
   };
@@ -71,10 +81,13 @@ export function lintTasks(markdown: string): TaskFinding[] {
     }
     if (C.UNCHECKED_TASK.test(text)) {
       flushTask();
-      task = { line, verified: false };
+      task = { line, verified: false, lines: [text.trim()] };
     } else if (task !== undefined) {
       if (C.BLANK_LINE.test(text) || !C.INDENTED_LINE.test(text)) flushTask();
-      else if (C.VERIFY_LINE.test(text)) task.verified = true;
+      else {
+        if (opened === undefined) task.lines.push(text.trim());
+        if (C.VERIFY_LINE.test(text)) task.verified = true;
+      }
     }
   }
   flushTask();
@@ -82,7 +95,7 @@ export function lintTasks(markdown: string): TaskFinding[] {
 }
 
 /**
- * Renders a finding as `<change>: tasks.md:<line>: <rule> <message>`, the line the CLI and the preflight both print.
+ * Renders a finding (`no-code-block`, `missing-verify` or `manual-step`) as `<change>: tasks.md:<line>: <rule> <message>`, the line the CLI and the preflight both print.
  */
 export function formatFinding(change: string, finding: TaskFinding): string {
   return `${change}: ${C.FILE_NAME}:${finding.line}: ${finding.rule} ${finding.message}`;

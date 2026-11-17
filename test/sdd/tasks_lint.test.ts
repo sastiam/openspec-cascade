@@ -187,3 +187,122 @@ describe("normalizeLines", () => {
     expect(normalizeLines("a\rb")).toEqual(["a", "b"]);
   });
 });
+
+const MANUAL_STEP = "manual-step";
+const ENGLISH_PHRASES = [
+  "manually",
+  "manual step",
+  "manual steps",
+  "by hand",
+  "the user must run",
+  "the user must approve",
+  "the user should run",
+  "ask the user",
+  "deploy to staging",
+  "deploy to production",
+  "deploy to prod",
+  "check in the console",
+  "set in the console",
+  "you must run",
+];
+const SPANISH_PHRASES = [
+  "manualmente",
+  "a mano",
+  "el usuario debe",
+  "pide al usuario",
+  "despliega en",
+  "desplegar en",
+  "revisa en la consola",
+  "configura en la consola",
+  "ejecuta tú",
+];
+
+function task(text: string, ...rest: string[]): string {
+  return doc(`- [ ] 1.1 ${text}`, ...rest, VERIFY);
+}
+
+describe("lintTasks: manual-step", () => {
+  test("English manual step", () => {
+    expect(found(task("Deploy to staging and confirm the endpoint answers"))).toEqual([{ line: 1, rule: MANUAL_STEP }]);
+  });
+
+  test("phrase inside a code span", () => {
+    expect(found(task("Add the `deploy to staging` label to the help text"))).toEqual([]);
+  });
+
+  test("phrase on a continuation line", () => {
+    expect(found(doc("- [ ] 1.1 Publish the release notes", "  then deploy to production", VERIFY))).toEqual([
+      { line: 1, rule: MANUAL_STEP },
+    ]);
+  });
+
+  test("checked manual step", () => {
+    expect(found(doc("- [x] 1.1 Deploy to staging"))).toEqual([]);
+  });
+
+  test("two phrases in one task give one finding", () => {
+    expect(found(task("Manually deploy to staging"))).toEqual([{ line: 1, rule: MANUAL_STEP }]);
+  });
+
+  test("manual step without Verify", () => {
+    expect(found("- [ ] 1.1 Deploy to staging")).toEqual([
+      { line: 1, rule: NO_VERIFY },
+      { line: 1, rule: MANUAL_STEP },
+    ]);
+  });
+
+  test("every English phrase", () => {
+    for (const phrase of ENGLISH_PHRASES) {
+      expect(found(task(`Please ${phrase} now`))).toEqual([{ line: 1, rule: MANUAL_STEP }]);
+    }
+  });
+
+  test("every Spanish phrase", () => {
+    for (const phrase of SPANISH_PHRASES) {
+      expect(found(task(`Por favor ${phrase} ahora`))).toEqual([{ line: 1, rule: MANUAL_STEP }]);
+    }
+  });
+
+  test("Spanish manual step", () => {
+    expect(found(task("El usuario debe aprobar el cambio en la consola"))).toEqual([{ line: 1, rule: MANUAL_STEP }]);
+  });
+
+  test("non-ASCII phrase before punctuation", () => {
+    expect(found(task("Luego ejecuta tú."))).toEqual([{ line: 1, rule: MANUAL_STEP }]);
+  });
+
+  test("phrase inside a longer word", () => {
+    expect(found(task("Document the redeploy to staging script"))).toEqual([]);
+  });
+
+  test("narrowed phrases", () => {
+    for (const text of [
+      "Print the error in the console",
+      "The user must see an error toast",
+      "The user should see the banner",
+      "Deploy to the docs folder",
+      "Muestra el error en la consola",
+    ]) {
+      expect(found(task(text))).toEqual([]);
+    }
+  });
+
+  test("unlisted inflection", () => {
+    expect(found(task("The script deploys to staging"))).toEqual([]);
+  });
+
+  test("existing human task", () => {
+    expect(found(task("Open the PR"))).toEqual([]);
+  });
+
+  test("human task inside a code span", () => {
+    expect(found(task("Ask the user to run `git push`"))).toEqual([]);
+  });
+
+  test("formatFinding names the rule and message", () => {
+    const [finding] = lintTasks(task("Deploy to staging"));
+    expect(formatFinding("demo", finding as NonNullable<typeof finding>)).toBe(
+      "demo: tasks.md:1: manual-step task asks for a human action; move it to manual.md or describe the outcome the agent produces (text in backticks is ignored)",
+    );
+  });
+});
