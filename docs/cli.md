@@ -103,11 +103,28 @@ Cada motor se construye con `EngineFactory` y se envuelve con `ResilientEngineDe
 | `--resilient` / `--continue-on-failure` | `CASCADE_RESILIENT` | Continúa con la siguiente tarea tras un fallo (con rollback). |
 | `-h`, `--help` | — | Muestra la ayuda. |
 
+#### `alwaysVerify`
+
+Lista de comandos que se ejecutan como checks en todas las tareas. Solo se define en el archivo de configuración (no tiene flag ni variable de entorno) y está vacía por defecto. Ejemplo (un check de arquitectura):
+
+```json
+{ "alwaysVerify": ["bun run check:architecture"] }
+```
+
+- Solo aplica en v1; en v2 se ignora y se emite una advertencia.
+- Los comandos se ejecutan exactamente como están escritos.
+- Los comandos con operadores de shell se rechazan al cargar la configuración.
+- Se ejecuta una pasada base antes de la primera tarea; si falla, la ejecución se detiene.
+
 Precedencia: overrides programáticos > CLI > `CASCADE_*` > `.openspec-cascade.json` > valores por defecto.
 
 ### Comandos de verificación desde `tasks.md`
 
 Solo se aceptan spans entre backticks que empiecen por `bun`, `bunx`, `npm`, `pnpm`, `yarn` o `tsc --noEmit`, y **se descartan** los que contengan operadores de control de shell (`;`, `&`, `|`, `` ` ``, `$(`, `${`, `>`, `<`, saltos de línea). Si no queda ninguno se aplica la verificación por defecto.
+
+**Marcador Verify.** El segmento Verify de una tarea empieza en su marcador: la primera línea de continuación indentada que empieza con un marcador de lista opcional (`-` o `*`) seguido de `Verify:` (la misma regla `VERIFY_LINE` que usa el verificador de `tasks.md`). Si la tarea no tiene esa línea, se usa como marcador el primer `Verify:` de la propia línea de la tarea que quede fuera de los backticks (forma en línea, conservada por compatibilidad; las ejecuciones reales exigen la línea indentada). Un `Verify:` dentro de backticks o a mitad de una línea de continuación no es marcador.
+
+Solo el segmento Verify produce checks. Los comandos escritos antes del marcador se ignoran y se informan en el log de la ejecución y en el plan de `--dry-run`.
 
 ---
 

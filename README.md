@@ -15,9 +15,14 @@ Full CLI reference (Spanish): [`docs/cli.md`](docs/cli.md).
 - **Cascade:** changes run in the order given; a change finishes before the next one starts.
 - **One fresh session per task.** State lives in `tasks.md` and git, so an interrupted run resumes at the first
   unchecked task.
-- **Checks are the oracle.** A task containing `Verify:` or "full verification" gets its commands run by the
-  harness (backticked `bun …` spans plus shorthand like "lint", "build", "both tsc", "E2E"). Up to 3 attempts per
-  task; each retry receives the failing output.
+- **Checks are the oracle.** Only a task's Verify segment produces checks: it starts at the indented
+  `Verify:` line (optional list marker; the same rule `lint-tasks` enforces), or, as a compatibility fallback, at
+  the first `Verify:` on the task line outside backticks. Backticked `bun …` spans there (plus shorthand like
+  "lint", "build", "both tsc", "E2E") are run by the harness; commands written before the marker are ignored and
+  reported in the run log and the dry-run plan. Up to 3 attempts per task; each retry receives the failing output.
+  `alwaysVerify` (config file only, empty by default, v1 only) lists extra commands such as an architecture
+  check; they run exactly as written (shell operators are rejected at load) and once as a baseline before the
+  first task.
 - **Commits:** a task that names a type (``Commit `fix(deps)` ``) is committed with that type. In changes that
   name no types, one commit per section. The agent can never commit, push, reset, checkout, stash or run
   migrations.
