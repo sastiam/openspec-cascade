@@ -5,7 +5,7 @@ hash: 7d05c9dd7fdcd53956cba91613cfeab184c6a0bd79cd4c25ebca9c7d78e3f4a0
 ---
 # Review: tasks-contract (EGM stage 7)
 
-Status: findings open, pending triage.
+Status: triaged; all findings addressed or withdrawn.
 
 ## Blockers
 - JavaScript `\b` does not treat "ú" as a word character, so "ejecuta tú" can never match; use Unicode lookarounds with the `u` flag.
@@ -24,3 +24,17 @@ Status: findings open, pending triage.
 
 ## Nits
 - Exit code wording (lint-tasks exits 1, preflight stops fatal); inflections/plurals; proposal says two requirements, there are five.
+
+## Stage 9 (implementation readiness, codebase details, style)
+
+Findings were applied to the artifacts on 2026-11-17. Main points:
+- Regression-guard tests are exempt from the red-first rule; behavior-changing tests must fail first.
+- Every subcommand or flag is documented in the same task that adds it (docs-parity test), and the last code task runs the whole suite.
+- Verify lines use only commands the harness runs (`bun ...`); doc content checks use `bun -e`, not grep.
+- Exact literals, fixtures and helper names are given in design.md and tasks.md; ESLint rules (no magic numbers, explicit return types) are stated.
+
+## Triage resolution
+
+- Stage 7 decisions taken by the author on 2026-11-17: v1 only (v2 is being deprecated); read-only investigation with a declared AWS profile and MCP read verbs; manifest with `profile` and `hosts`; doctor runs project checks only with `--run-project-checks`; manifest validated loosely during runs; explore runs propose inline; narrowed manual-step phrases.
+- Decision "checkbox plus checks for tasks without Verify" was withdrawn: the preflight lint already rejects such tasks, so the case cannot occur in real runs.
+- All remaining findings were addressed in the artifacts; none were declined.

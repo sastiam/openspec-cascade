@@ -25,6 +25,10 @@ The lint SHALL report one finding, rule `manual-step`, on the line of each unche
 - **WHEN** an unchecked task says "Manually deploy to staging"
 - **THEN** the lint reports exactly one `manual-step` finding for that task
 
+#### Scenario: Manual step without Verify
+- **WHEN** an unchecked task says "Deploy to staging" and has no `Verify:` line
+- **THEN** the lint reports `missing-verify` and then `manual-step` on the task line
+
 ### Requirement: Manual-step phrase list
 Phrases SHALL match case-insensitively and only as whole phrases: the characters before and after a phrase SHALL NOT be a Unicode letter, digit or underscore. Only the listed forms match; a plural or inflection matches only when it is listed. A task whose raw block, with backtick spans kept, matches the human-task pattern ("open the PR", "git push", "decide the delivery") SHALL NOT be a finding.
 
@@ -86,10 +90,6 @@ When `manual.md` exists in the change folder, the lint SHALL also check it. A st
 #### Scenario: List item inside a fence
 - **WHEN** a list item without a `Check:` line sits inside a fenced block in `manual.md`
 - **THEN** the lint reports no finding for it
-
-#### Scenario: No manual.md
-- **WHEN** the change has no `manual.md`
-- **THEN** the lint reports only `tasks.md` findings
 
 ### Requirement: manual.md has no checkboxes
 A step whose text starts with a checkbox (`[ ]`, `[x]` or `[X]` after the list marker) SHALL be a finding, rule `manual-checkbox`, on the step line, so that OpenSpec never counts manual steps as tasks. A checkbox step without a `Check:` line SHALL get both findings, `manual-checkbox` first.
@@ -156,6 +156,10 @@ The subcommand SHALL print each finding to stderr as `<change>: <file>:<line>: <
 #### Scenario: Clean manual.md
 - **WHEN** a listed change has a clean `tasks.md` and a clean `manual.md`
 - **THEN** the command prints the ok line and exits 0
+
+#### Scenario: No manual.md
+- **WHEN** a listed change has one `tasks.md` finding and no `manual.md`
+- **THEN** the command prints only that `tasks.md` line and exits 1
 
 ### Requirement: Preflight before any engine session
 Before any engine session starts, the looper SHALL lint the `tasks.md` and any `manual.md` of every change passed in `--changes`, in every execution mode. On findings it SHALL stop with a fatal error headed `lint-tasks failed; fix these findings before running:`, listing them in the `lint-tasks` line format and order, grouped by change. It SHALL NOT lint changes not passed, nor in dry-run. A missing `tasks.md` is left to the missing-file handling.

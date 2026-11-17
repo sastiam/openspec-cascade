@@ -33,9 +33,10 @@ See [proposal.md](proposal.md). Unchecked tasks in `tasks.md` sometimes ask for 
 ## Decisions
 
 - **`manual-step` runs in `flushTask`, on the whole block.**
-  - While scanning, the task keeps its block lines: the task line and each continuation line, trimmed. Fenced lines are not part of the block. At flush, the lines are joined with a single space (the raw block).
+  - While scanning, the current task block (the `PendingTask` being built, from its unchecked task line until it is flushed) keeps its lines: the task line and each continuation line, trimmed. Fenced lines are not part of the block, and neither is the opening fence line itself: a line that opens a fence gets its `no-code-block` finding and is not collected. At flush, the lines are joined with a single space (the raw block).
   - Human-task exemption: if the raw block, with backtick spans kept, matches `HUMAN_TASK_REGEX`, the rule does not fire. This matches the runner, which tests the same regex on text with spans kept. So "Ask the user to run `git push`" is exempt.
-  - Phrase match: the raw block with every `TASKS_LINT_CONSTANTS.CODE_SPAN` match (`` /`[^`]*`/g ``, new constant) replaced by a space is tested against `MANUAL_STEP_PATTERNS`. Text in backticks is the documented escape hatch.
+  - Phrase match: the raw block with every `TASKS_LINT_CONSTANTS.CODE_SPAN` match (`` /`[^`]*`/g ``, new constant) replaced by a space is tested against `MANUAL_STEP_PATTERNS`. Text in backticks is the documented escape hatch. `CODE_SPAN` carries the `g` flag, so it is used only with `String.prototype.replace`, never with `.test` or `.exec` (a global regex keeps `lastIndex` between calls).
+  - The finding is reported on the task line. When the same task also lacks a `Verify:` line, `flushTask` pushes `missing-verify` first and `manual-step` second; the stable sort by line keeps that order.
   - `MANUAL_STEP_PATTERNS` is a readonly list of regexes with flags `iu`. Each is `(?<![\p{L}\p{N}_])<phrase>(?![\p{L}\p{N}_])`, with the spaces inside a phrase written as `\s+`. `\b` is not used: in JavaScript it treats "ú" as a non-word character, so "ejecuta tú" would never match.
   - The phrases (English): manually, manual step, manual steps, by hand, the user must run, the user must approve, the user should run, ask the user, deploy to staging, deploy to production, deploy to prod, check in the console, set in the console, you must run. (Spanish): manualmente, a mano, el usuario debe, pide al usuario, despliega en, desplegar en, revisa en la consola, configura en la consola, ejecuta tú.
   - Phrases match as listed. There is no stemming: a plural or inflection matches only when it is listed ("manual steps" is listed; "deploys to staging" is not).
@@ -47,13 +48,16 @@ See [proposal.md](proposal.md). Unchecked tasks in `tasks.md` sometimes ask for 
   - `CHECK_LINE = /^\s+(?:[-*]\s+)?Check:\s*\S/`, the same form as `VERIFY_LINE`: indented, optional list marker, case-sensitive, non-empty text.
   - `MANUAL_CHECKBOX = /^(?:[-*]|\d+\.)\s+\[[ xX]\]/`. A checkbox step gives `manual-checkbox`; if it also has no `Check:` line it gives `missing-check` too. Both are on the step line, `manual-checkbox` first (findings are sorted by line with a stable sort, and pushed in that order).
   - New constants: `MANUAL_FILE_NAME = "manual.md"`, `RULE_MISSING_CHECK = "missing-check"`, `RULE_MANUAL_CHECKBOX = "manual-checkbox"`, `MESSAGE_MISSING_CHECK = "step has no indented Check: line with text; add one under the step"`, `MESSAGE_MANUAL_CHECKBOX = "step has a checkbox; remove it so OpenSpec does not count it as a task"`.
-- **`parseManualSteps(markdown): {step, check}[]`** lives next to `lintManual` and uses the same step and fence rules. `step` is the item text after the marker and any checkbox, trimmed. `check` is the text after the first `Check:` of the block, trimmed, or `''` when there is none. Steps keep file order.
+- **`parseManualSteps(markdown): {step, check}[]`** lives next to `lintManual` and uses the same step and fence rules (`openingFence` and `closesFence`; the opening fence line is not part of any step block). `step` is the item text after the marker and any checkbox, trimmed. `check` comes from the first continuation line of the step block that matches `CHECK_LINE`: the text after its `Check:`, trimmed. When no line matches, `check` is `''`. Steps keep file order.
 - **`formatFinding(change, finding, fileName = C.FILE_NAME)`.** Existing callers keep their output.
 - **Callers.**
   - `runLintTasks` and `lintChanges` lint `tasks.md` as today, then `manual.md` when it exists, and print a change's `tasks.md` findings before its `manual.md` findings, each in line order, changes in `--changes` order.
+  - The facade gets a private `manualPath(ctx, change)` next to `tasksPath`, built from `TASKS_LINT_CONSTANTS.MANUAL_FILE_NAME`. `lintChanges` and `execute()` both use it.
   - A missing `manual.md` is not an error. A missing `tasks.md` keeps its current handling (usage error in the CLI, skipped in preflight), and then `manual.md` is not linted.
-  - `FATAL_HEADER` becomes `"lint-tasks failed; fix these findings before running:"`.
-- **End-of-run listing (v1 only).** In `execute()`, after each change's status line, for each step of that change's `manual.md`, the report gets the line `  manual: <step> — check: <check>` (two leading spaces, an em dash). Not in dry runs, which return earlier. No file is written in this change; `run-outcome` decides where a summary file goes.
+  - `FATAL_HEADER` becomes `"lint-tasks failed; fix these findings before running:"`. No existing test asserts the old header text.
+  - JSDoc follows the new behavior: the module doc and `formatFinding` in `src/sdd/tasks_lint.ts`, the module doc of `src/cli/lint_tasks.ts`, and `lintChanges`.
+- **End-of-run listing (v1 only).** In `execute()`, after each change's status line, for each step of that change's `manual.md`, the report gets the line `  manual: <step> — check: <check>` (two leading spaces, an em dash). Not in dry runs, which return earlier. The report is one `say()` message with embedded newlines, so tests split it on `"\n"` before asserting line order. No file is written in this change; `run-outcome` decides where a summary file goes.
+- **Lint constraints on the new code.** ESLint `no-magic-numbers` ignores only `-1`, `0` and `1`, so any other number goes into `TASKS_LINT_CONSTANTS`. Exported functions need explicit return types.
 
 ## Alternatives Considered
 
@@ -69,5 +73,5 @@ See [proposal.md](proposal.md). Unchecked tasks in `tasks.md` sometimes ask for 
 
 - [False positive on a legitimate agent task] → Risky phrases are narrowed ("check in the console", not "in the console"; "the user must run", not "the user must"; "deploy to staging", not "deploy to"). The message says how to fix it: move the step to `manual.md`, rephrase as an outcome, or put a literal phrase in backticks.
 - [False negative: new phrasing or an unlisted inflection slips through] → The list grows with findings from real runs. The Greptile notes from `run-outcome` are one source.
-- [Rollout: in-flight changes whose open tasks use manual phrasing will fail preflight after this merges] → Before merging, run `lint-tasks` over every open change in `openspec/changes/` and fix or move the findings.
+- [Rollout: in-flight changes whose open tasks use manual phrasing will fail preflight after this merges] → Before merging, run `lint-tasks` over every open change in `openspec/changes/` and fix or move the findings. One is known: task 5.1 of `openspec/changes/run-outcome/tasks.md` contains the bare phrase "manual steps"; this change puts it in backticks.
 - No security or scalability impact: the change only parses local markdown files.

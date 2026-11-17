@@ -4,7 +4,9 @@
 
 Defines which commands the harness runs to decide that a task is verified: the commands read from the task's Verify segment, the defaults, and the project-wide checks added to every task in v1 runs.
 
-In the scenarios, a task is written as its tasks.md lines; a line that starts with two spaces is a continuation line. Unless a scenario says otherwise, checks are computed without a repo root or config, as `cascade.test.ts` does.
+In the scenarios, a task is written as its tasks.md lines; a line that starts with two spaces is a continuation line. Unless a scenario says otherwise, checks are computed without a repo root or config, as `cascade.test.ts` does. Scenarios that set `alwaysVerify` compute the merged checks for a config loaded from a directory without `package.json`.
+
+In a v1 run that is not a dry run, the tasks.md preflight rejects every unchecked task without an indented Verify line before any session, so the inline marker and tasks without a marker are reached only by dry-run plans and direct callers.
 
 ## ADDED Requirements
 
@@ -51,8 +53,8 @@ When a task has a Verify marker, the harness SHALL build its checks only from th
 - **THEN** the task's checks are exactly ["bunx nuxi prepare", "bun test", "bun run lint", "bunx tsc --noEmit -p .nuxt/tsconfig.server.json", "bunx tsc --noEmit -p .nuxt/tsconfig.app.json", "bun run build", "bun run test:e2e"], the same as before this change
 
 #### Scenario: Task without Verify and without full verification
-- **WHEN** a task has neither a Verify marker nor "full verification", and `alwaysVerify` is empty
-- **THEN** the task has no checks, and only its checkbox decides that it is done, as before this change
+- **WHEN** a task is only "- [ ] 1.1 Change the title." and `alwaysVerify` is empty
+- **THEN** `verifyCommands` returns [] and the merged checks are [], as before this change. In a v1 run the tasks.md preflight rejects such an unchecked task before any session, so only dry-run plans and direct callers see this case
 
 ### Requirement: Full verification with a Verify segment
 "full verification" and `--full-gate` SHALL be detected in the whole task text. When a task has both "full verification" and a Verify segment, the harness SHALL add the full verify commands only when the segment's backtick scan finds no command, and SHALL ignore commands before the marker. Such a task SHALL never be shortened by the docs-only fast-track.
@@ -66,49 +68,34 @@ When a task has a Verify marker, the harness SHALL build its checks only from th
 - **THEN** the task's checks are exactly ["bun test"], and the docs-only fast-track skips none of them
 
 ### Requirement: Ignored commands are reported
-When a task has a Verify marker, the harness SHALL list every backticked package-manager command written before the marker as ignored. In a v1 run it SHALL write a `verify_ignored` run-log event with the task id and the commands. In a dry run it SHALL show them on the task's plan line.
+When a task has a Verify marker, the harness SHALL list as ignored every backticked package-manager command written before the marker, as written. In a v1 run it SHALL write a `verify_ignored` run-log event with the change, the task id and the commands. In a dry run it SHALL show them as an `ignored=[...]` flag after the `verify=[...]` flag of the task's plan line.
 
 #### Scenario: Command before the marker is reported
 - **WHEN** a task is "- [ ] 1.1 Run `bun test test/a.test.ts` and see it fail." followed by "  Verify: `bun run typecheck` passes"
-- **THEN** the ignored commands are exactly ["bun test test/a.test.ts"], the run log has a `verify_ignored` event for task 1.1 with that list, and the dry-run plan line for 1.1 contains "ignored=[bun test test/a.test.ts]"
+- **THEN** the ignored commands are exactly ["bun test test/a.test.ts"], the run log has a `verify_ignored` event for task 1.1 with that list, and the dry-run plan line for 1.1 contains "verify=[bun run typecheck] ignored=[bun test test/a.test.ts]"
 
 #### Scenario: Nothing to report
-- **WHEN** a task has no Verify marker, or no backticked package-manager command before it
+- **WHEN** a task is "- [ ] 1.1 Verify: `bun test`. Commit `feat(api)`", whose marker starts its text
 - **THEN** the ignored commands are empty, no `verify_ignored` event is written, and the plan line has no "ignored=" flag
 
 ### Requirement: Project-wide checks in v1 runs
 In a v1 run, the harness SHALL add every command in the project setting `alwaysVerify` to the checks of every task, after the task's own checks, each command at most once. The merged list SHALL be the one shown to the agent, gated, passed to the docs-only fast-track and shown in the dry-run plan. `alwaysVerify` commands SHALL run exactly as written. When `alwaysVerify` is empty, checks SHALL be as without it.
 
 #### Scenario: Architecture check on a task with Verify
-- **WHEN** `alwaysVerify` is ["bun run arch:check"] and a task's Verify segment names `bun test`
+- **WHEN** `alwaysVerify` is ["bun run arch:check"] and a task is "- [ ] 1.1 Create the module." followed by "  Verify: `bun test` passes"
 - **THEN** the task's checks are exactly ["bun test", "bun run arch:check"], and the agent's prompt and the dry-run plan show both
 
 #### Scenario: Duplicate command
-- **WHEN** `alwaysVerify` is ["bun run arch:check"] and a task's Verify segment also names `bun run arch:check`
+- **WHEN** `alwaysVerify` is ["bun run arch:check"] and a task is "- [ ] 1.1 Create the module." followed by "  Verify: `bun run arch:check` passes"
 - **THEN** the task's checks are exactly ["bun run arch:check"]
 
 #### Scenario: Commands run as written
-- **WHEN** `alwaysVerify` is ["bunx tsc --noEmit", "bun audit"] and a task's Verify segment names `bun test`
+- **WHEN** `alwaysVerify` is ["bunx tsc --noEmit", "bun audit"] and a task is "- [ ] 1.1 Create the module." followed by "  Verify: `bun test` passes"
 - **THEN** the task's checks are exactly ["bun test", "bunx tsc --noEmit", "bun audit"], with no Nuxt expansion and no `bun audit` exclusion
 
 #### Scenario: Empty setting
-- **WHEN** `alwaysVerify` is absent or empty
-- **THEN** every task's checks are the same as before this change
-
-### Requirement: Tasks with only project-wide checks
-When a task has no checks of its own and `alwaysVerify` is not empty, the harness SHALL mark the task done only when the agent has checked its box and every `alwaysVerify` check exits 0. If the box is unchecked, the harness SHALL ask the agent to finish and mark it, and SHALL NOT mark it itself.
-
-#### Scenario: Box checked and checks pass
-- **WHEN** `alwaysVerify` is ["bun run arch:check"], a task has no Verify marker, the agent checks its box and the check exits 0
-- **THEN** the task is done, and the run output shows that `bun run arch:check` ran
-
-#### Scenario: Checks pass but the box is unchecked
-- **WHEN** `alwaysVerify` is ["bun run arch:check"], a task has no Verify marker, the check exits 0 and the agent never checks the box
-- **THEN** the task is not done, the next prompt says the task is still unchecked, and the task fails when its attempts run out
-
-#### Scenario: Box checked but a check fails
-- **WHEN** `alwaysVerify` is ["bun run arch:check"], a task has no Verify marker, the agent checks its box and the check exits 1
-- **THEN** the task is not done and the agent gets the check failure in its next prompt
+- **WHEN** `alwaysVerify` is [] and a task is "- [ ] 1.1 Create the module." followed by "  Verify: `bun test` passes"
+- **THEN** the task's checks are exactly ["bun test"], the same as before this change
 
 ### Requirement: alwaysVerify configuration
 `alwaysVerify` SHALL be a list of strings set only in `.openspec-cascade.json` or programmatic overrides, with an empty default, and no CLI flag or environment variable. A list with a command that contains a shell operator SHALL fail to load with an error that names the first such command, for both the file and overrides.
@@ -130,7 +117,7 @@ When a task has no checks of its own and `alwaysVerify` is not empty, the harnes
 - **THEN** loading fails with a configuration error whose message contains "bun test | tee out.txt"
 
 ### Requirement: alwaysVerify baseline before the first task
-Before the first task of a v1 run that is not a dry run, when `alwaysVerify` is not empty, the harness SHALL run every `alwaysVerify` command once. If any exits non-zero, the run SHALL stop with the fail-closed exit code before any engine session, with a message that names each failing command.
+Before the first task of a v1 run that is not a dry run, when `alwaysVerify` is not empty, the harness SHALL run every `alwaysVerify` command once. If any exits non-zero, the run SHALL stop with the fail-closed exit code before any engine session, with a message that starts with the baseline-failure text and names each failing command. The baseline SHALL NOT print per-command check lines.
 
 #### Scenario: Baseline fails
 - **WHEN** `alwaysVerify` is ["bun run arch:check"] and that script exits 1 on the starting state

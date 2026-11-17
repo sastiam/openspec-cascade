@@ -5,7 +5,7 @@ hash: e47d95c4b3530d167fa36d2e29cb1d2722d52e6bc6d947c875fc5d978d40c5a9
 ---
 # Review: verify-contract (EGM stage 7: design, structural, style)
 
-Status: findings open, pending triage.
+Status: triaged; all findings addressed or withdrawn.
 
 ## Blockers
 - `alwaysVerify` is only merged in v1 `runTask`; v2 (`v2_pipeline.ts:230,360`) never applies it, so the spec's "every task" fails in v2 mode.
@@ -21,3 +21,17 @@ Status: findings open, pending triage.
 
 ## Nits
 - No Alternatives section; `alwaysVerify` entries run as written (no Nuxt/tsc rewrites); line references will go stale; name helpers and the exact expected lists in tasks.
+
+## Stage 9 (implementation readiness, codebase details, style)
+
+Findings were applied to the artifacts on 2026-11-17. Main points:
+- Regression-guard tests are exempt from the red-first rule; behavior-changing tests must fail first.
+- Every subcommand or flag is documented in the same task that adds it (docs-parity test), and the last code task runs the whole suite.
+- Verify lines use only commands the harness runs (`bun ...`); doc content checks use `bun -e`, not grep.
+- Exact literals, fixtures and helper names are given in design.md and tasks.md; ESLint rules (no magic numbers, explicit return types) are stated.
+
+## Triage resolution
+
+- Stage 7 decisions taken by the author on 2026-11-17: v1 only (v2 is being deprecated); read-only investigation with a declared AWS profile and MCP read verbs; manifest with `profile` and `hosts`; doctor runs project checks only with `--run-project-checks`; manifest validated loosely during runs; explore runs propose inline; narrowed manual-step phrases.
+- Decision "checkbox plus checks for tasks without Verify" was withdrawn: the preflight lint already rejects such tasks, so the case cannot occur in real runs.
+- All remaining findings were addressed in the artifacts; none were declined.

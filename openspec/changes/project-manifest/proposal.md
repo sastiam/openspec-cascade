@@ -31,8 +31,9 @@ Today nothing records this. Each explore session relies on the user remembering 
     It merges candidates by (`name`, `type`) and marks which are already in the manifest. It reads names only, never values.
   - `add` and `remove` write one entry to the project or global layer.
   - `show` prints the merged manifest, as text or JSON.
-  - `rules` prints suggested `rules` for `openspec/config.yaml`, and with `--write` adds them when the file has no `rules` key. The rules say three things: tasks must be things an agent can do and verify; investigate read-only before delegating to a human; and design.md states layers and dependency injection.
+  - `rules` prints suggested `rules` for `openspec/config.yaml`, and with `--write` adds them when the file has no `rules` key. The rules say four things: tasks must be things an agent can do and verify, with steps only a person can do in `manual.md`; investigate read-only before delegating to a human; name a manifest helper in a task when it applies; and design.md states layers and dependency injection.
 - **`/cascade:setup`**, a Claude Code plugin command in `plugins/cascade/commands/setup.md`. It runs `discover`, proposes what to include, lets the user choose and write a `whenToUse` for each, asks whether any helper is missing (claude.ai connectors cannot be discovered), calls `add`, and then offers `rules`. OpenCode users run the same `setup` actions from the CLI.
+- **Errors.** A manifest that fails to load gives one message that starts with `global layer:` or `project layer:` and names the entry. `setup` exits 2 on it, including in `discover` and `show`.
 - **`doctor`** reports each manifest entry. It runs the `check` of global entries by default, and the `check` of project entries only with `--run-project-checks`, because the project layer comes from the repository. Failing required entries are `fail`, failing optional entries are `warn`. A manifest that fails to load is one failing `manifest` check, not a crash.
 
 ## Capabilities
@@ -46,10 +47,11 @@ None.
 
 ## Impact
 
-- New: `src/manifest/` (types, load and merge, discovery, JSONC reader, rules template), `src/cli/setup.ts`, `plugins/cascade/commands/setup.md`, tests under `test/manifest/`, `test/cli/setup.test.ts` and `test/plugin/setup_command.test.ts`.
+- New: `src/manifest/` (types, load and merge, discovery, JSONC reader, rules template, a small synchronous atomic writer), `src/cli/setup.ts`, `plugins/cascade/commands/setup.md`, tests under `test/manifest/`, `test/cli/setup.test.ts` and `test/plugin/setup_command.test.ts`.
 - Modified:
   - `src/config/schemas.ts`: an optional `manifest` key accepted as any value, so runs never fail on it.
   - `src/config/constants.ts`: the `setup` subcommand and a `MANIFEST_CONSTANTS` block (paths, CLI tool list, check timeout, limits).
   - `src/cli/commands.ts`: dispatch, injected manifest paths, doctor checks and `--run-project-checks`.
-  - `docs/cli.md`, `README.md`.
+  - `docs/cli.md`, `README.md`: the `setup` subcommand, which the docs parity test requires as soon as it is registered, and the manifest docs.
+  - `test/e2e/helpers/cli_runner.ts`: the isolated environment sets `XDG_CONFIG_HOME` to a temporary folder, so `doctor` in end-to-end tests never reads the real global manifest.
 - No change to runs: nothing in a run reads the manifest. The only readers are `doctor` and `cascade-explore`, a later change in the same PR that consumes `setup show --json`.
