@@ -108,9 +108,9 @@
     "semantic_hash": "4eee7b31488a1df40d31bd559b0ffdd3"
   },
   "README.md": {
-    "mtime": 1794921481.732637,
-    "seen": 1794921571.482358,
-    "ast_hash": "2078b1edc0ae55c8200ec986e4609518",
+    "mtime": 1794921827.5480218,
+    "seen": 1794921920.922521,
+    "ast_hash": "0f8460c8be5ed331431ae62a2b90004f",
     "semantic_hash": ""
   },
   "docs/README.md": {
@@ -120,9 +120,9 @@
     "semantic_hash": "61e5e0f0c625233cd0ea342b1064f03e"
   },
   "docs/cli.md": {
-    "mtime": 1794921481.7324877,
-    "seen": 1794921571.482361,
-    "ast_hash": "80274914eccc37b7d5acddef07298084",
+    "mtime": 1794921825.0619645,
+    "seen": 1794921920.922524,
+    "ast_hash": "6e142100ce1c59d34c526f45ce383ed0",
     "semantic_hash": ""
   },
   "openspec/changes/add-antigravity-engine/.openspec.yaml": {
@@ -2040,10 +2040,10 @@
     "semantic_hash": "01f8b9d7923823bb05c5085de8014636"
   },
   "test/plugin/egm_commands.test.ts": {
-    "mtime": 1794918807.6070602,
-    "seen": 1794920695.0938392,
-    "ast_hash": "51c65e00784e02f832699dade8d998df",
-    "semantic_hash": "51c65e00784e02f832699dade8d998df"
+    "mtime": 1794921802.4338336,
+    "seen": 1794921920.922501,
+    "ast_hash": "a838448ab642e42045ed7d85814a4248",
+    "semantic_hash": ""
   },
   "test/runtime/no_direct_bun_api.test.ts": {
     "mtime": 1794918807.607148,
@@ -2604,10 +2604,10 @@
     "semantic_hash": "a0cd8cdea61a28795e149b29bfbb0e8b"
   },
   "plugins/cascade/commands/cascade-spec-brainstorm.md": {
-    "mtime": 1794918807.5895433,
-    "seen": 1794920695.093958,
-    "ast_hash": "89c15ebefc06683824e9047ddec07812",
-    "semantic_hash": "89c15ebefc06683824e9047ddec07812"
+    "mtime": 1794921795.4589396,
+    "seen": 1794921920.922633,
+    "ast_hash": "cfd6be56a1b39b1188605996f0d16d7b",
+    "semantic_hash": ""
   },
   "plugins/cascade/commands/cascade-spec-drift.md": {
     "mtime": 1794918807.5896082,
@@ -2616,10 +2616,10 @@
     "semantic_hash": "c3b41e02411156984192351010ac760b"
   },
   "plugins/cascade/commands/cascade-spec-review.md": {
-    "mtime": 1794918807.5896573,
-    "seen": 1794920695.0939589,
-    "ast_hash": "bc6afc32d1002d6b00c80b2384441fa2",
-    "semantic_hash": "bc6afc32d1002d6b00c80b2384441fa2"
+    "mtime": 1794921795.4690585,
+    "seen": 1794921920.922634,
+    "ast_hash": "516715b155d079bb18c86c9d8557d82d",
+    "semantic_hash": ""
   },
   "plugins/cascade/commands/cascade.md": {
     "mtime": 1794918807.5897126,
@@ -2820,9 +2820,9 @@
     "semantic_hash": ""
   },
   "openspec/changes/cascade-explore/tasks.md": {
-    "mtime": 1794918807.5724432,
-    "seen": 1794920695.093879,
-    "ast_hash": "864b2150708b78b04ff39a1fafbc248c",
+    "mtime": 1794921870.0138228,
+    "seen": 1794921920.9225469,
+    "ast_hash": "1760cc808c370f734b7fb7f2e59c47df",
     "semantic_hash": ""
   },
   "openspec/changes/project-manifest/design.md": {
@@ -3063,6 +3063,12 @@
     "mtime": 1794921438.740957,
     "seen": 1794921571.482471,
     "ast_hash": "e6eb4ee4f57b8cce0316fae1fc5831b3",
+    "semantic_hash": ""
+  },
+  "plugins/cascade/commands/explore.md": {
+    "mtime": 1794921765.270603,
+    "seen": 1794921920.922635,
+    "ast_hash": "e9c8af50a54208ebe18d6d98c03022cf",
     "semantic_hash": ""
   }
 }
