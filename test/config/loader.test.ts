@@ -1,9 +1,9 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runCli, verifyCommands, type Task } from "../../cascade";
-import { ConfigValidationError, loadConfig, parseCliArgs } from "../../config";
+import { ConfigValidationError, loadConfig, parseCliArgs, VERIFY_CONSTANTS } from "../../config";
 import { hasLockfile, isNuxtProject, tryDetectPackageManager } from "../../platform";
 
 const tempDirs: string[] = [];
@@ -217,6 +217,16 @@ describe("Layered Dynamic Stack Config Loader & Lazy CLI (F04)", () => {
     ]);
   });
 
+  test("loads a config file whose manifest key is broken without validating it", () => {
+    const repoDir = makeTempDir("cascade-broken-manifest-");
+    writeFileSync(
+      join(repoDir, ".openspec-cascade.json"),
+      JSON.stringify({ changes: ["file-change-1"], manifest: { entries: 5 } }),
+    );
+
+    expect(loadConfig({ argv: [], env: {}, cwd: repoDir }).changes).toEqual(["file-change-1"]);
+  });
+
   test("rejects empty --repo, CASCADE_REPO, overrides.repo, and --log-dir before path normalization", () => {
     const dir = makeTempDir("cascade-empty-repo-");
 
@@ -261,5 +271,80 @@ describe("Layered Dynamic Stack Config Loader & Lazy CLI (F04)", () => {
     expect(existsSync(logDirEmptyEnvRepo)).toBe(false);
 
     expect(await runCli(["--repo", repoDir, "--changes", "demo", "--log-dir", ""], {})).toBe(2);
+  });
+});
+
+describe("alwaysVerify", () => {
+  function writeConfigFile(dir: string, content: Record<string, unknown>): void {
+    writeFileSync(join(dir, ".openspec-cascade.json"), JSON.stringify(content));
+  }
+
+  function loadFrom(dir: string) {
+    return loadConfig({ argv: [], env: {}, cwd: dir });
+  }
+
+  function thrownMessage(action: () => unknown): string {
+    try {
+      action();
+    } catch (error) {
+      expect(error).toBeInstanceOf(ConfigValidationError);
+      return (error as Error).message;
+    }
+    throw new Error("expected loading to throw");
+  }
+
+  test("defaults to an empty list when the key is absent", () => {
+    const dir = makeTempDir("cascade-always-absent-");
+    writeConfigFile(dir, { engine: "claude" });
+    expect(loadFrom(dir).alwaysVerify).toEqual([]);
+  });
+
+  test("loads a valid list exactly, in order", () => {
+    const dir = makeTempDir("cascade-always-valid-");
+    writeConfigFile(dir, { alwaysVerify: ["bun run arch:check", "bun test"] });
+    expect(loadFrom(dir).alwaysVerify).toEqual(["bun run arch:check", "bun test"]);
+  });
+
+  test("rejects an unsafe command in the config file and names it", () => {
+    const dir = makeTempDir("cascade-always-unsafe-file-");
+    writeConfigFile(dir, { alwaysVerify: ["bun run arch:check", "bun run lint && rm -rf dist"] });
+    expect(thrownMessage(() => loadFrom(dir))).toContain("bun run lint && rm -rf dist");
+  });
+
+  test("rejects an unsafe command in overrides and names it", () => {
+    const dir = makeTempDir("cascade-always-unsafe-overrides-");
+    const message = thrownMessage(() =>
+      loadConfig({ argv: [], env: {}, cwd: dir, overrides: { alwaysVerify: ["bun test | tee out.txt"] } }),
+    );
+    expect(message).toContain("bun test | tee out.txt");
+  });
+
+  test("warns once in v2 mode when alwaysVerify is not empty", () => {
+    const dir = makeTempDir("cascade-always-v2-");
+    writeConfigFile(dir, { mode: "v2", alwaysVerify: ["bun run arch:check"] });
+    const warn = spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      const config = loadFrom(dir);
+      expect(config.alwaysVerify).toEqual(["bun run arch:check"]);
+      expect(warn).toHaveBeenCalledTimes(1);
+      const text = String(warn.mock.calls[0]?.[0]);
+      expect(text).toBe(VERIFY_CONSTANTS.ALWAYS_VERIFY_V2_WARNING);
+      expect(text).toContain("alwaysVerify");
+      expect(text).toContain("v2");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  test("does not warn in v1 mode", () => {
+    const dir = makeTempDir("cascade-always-v1-");
+    writeConfigFile(dir, { mode: "v1", alwaysVerify: ["bun run arch:check"] });
+    const warn = spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      expect(loadFrom(dir).alwaysVerify).toEqual(["bun run arch:check"]);
+      expect(warn).toHaveBeenCalledTimes(0);
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

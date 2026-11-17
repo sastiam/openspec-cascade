@@ -15,13 +15,18 @@ Full CLI reference (Spanish): [`docs/cli.md`](docs/cli.md).
 - **Cascade:** changes run in the order given; a change finishes before the next one starts.
 - **One fresh session per task.** State lives in `tasks.md` and git, so an interrupted run resumes at the first
   unchecked task.
-- **Checks are the oracle.** A task containing `Verify:` or "full verification" gets its commands run by the
-  harness (backticked `bun …` spans plus shorthand like "lint", "build", "both tsc", "E2E"). Up to 3 attempts per
-  task; each retry receives the failing output.
+- **Checks are the oracle.** Only a task's Verify segment produces checks: it starts at the indented
+  `Verify:` line (optional list marker; the same rule `lint-tasks` enforces), or, as a compatibility fallback, at
+  the first `Verify:` on the task line outside backticks. Backticked `bun …` spans there (plus shorthand like
+  "lint", "build", "both tsc", "E2E") are run by the harness; commands written before the marker are ignored and
+  reported in the run log and the dry-run plan. Up to 3 attempts per task; each retry receives the failing output.
+  `alwaysVerify` (config file only, empty by default, v1 only) lists extra commands such as an architecture
+  check; they run exactly as written (shell operators are rejected at load) and once as a baseline before the
+  first task.
 - **Commits:** a task that names a type (``Commit `fix(deps)` ``) is committed with that type. In changes that
   name no types, one commit per section. The agent can never commit, push, reset, checkout, stash or run
   migrations.
-- **Human tasks** (opening a PR, deciding delivery) are skipped and listed at the end. A real
+- **Human tasks** (opening a PR, deciding delivery) are skipped and listed at the end. Human-only steps go in `manual.md` (each with an indented `Check:` line, no checkbox); the `manual-step` rule rejects them in `tasks.md`, and they are listed at the end of a v1 run. A real
   `BLOCKED: <reason>` from the agent stops the cascade.
 - **In-repo skills & directives:** automatically discovers skills in `.agents/skills/` and `.claude/skills/`,
   plus root directive files (`AGENTS.md`, `CLAUDE.md`), injecting an indexed catalog and project constraints
@@ -40,8 +45,13 @@ Full CLI reference (Spanish): [`docs/cli.md`](docs/cli.md).
 - **Self-improvement:** failures are recorded (secrets redacted) in `.cascade/telemetry/*.jsonl`; recurring
   failure signatures become up to 5 remediation directives injected into later prompts.
 - **Spec review with EGM (optional):** with the [EGM plugin](https://github.com/google/elephant-goldfish-model)
-  installed, `/cascade-spec-brainstorm`, `/cascade-spec-review` and `/cascade-spec-drift` add fresh-context
+  installed, `/cascade:explore`, `/cascade:cascade-spec-review` and `/cascade:cascade-spec-drift` add fresh-context
   reviewers before and after a run, and `spec-gate check` refuses changes whose review is open or stale.
+  `/cascade:explore <change> <idea>` investigates, writes the brief, runs propose and ends with a readiness
+  check; re-running it on a change that has `tasks.md` goes straight to that check.
+  `/cascade:cascade-spec-brainstorm` is a deprecated alias. Read-only investigation is a prompt rule; the hard
+  limits are the IAM policy of the declared AWS profile and the sandbox. In OpenCode, run `@openspec-propose`,
+  then `openspec validate <change> --strict` and `openspec-cascade lint-tasks --changes <change>`.
   See [`docs/cli.md`](docs/cli.md).
 - **Pre-PR review:** `review --base <branch>` runs a Greptile review on a shadow snapshot of your working tree,
   auto-fixes mechanical findings and stops on risky ones, bounded to 3 rounds.
@@ -106,6 +116,7 @@ node --import ./scripts/node_ts_register.mjs cascade.ts --repo <path> --changes 
 
 # Integration subcommands
 bun run cascade.ts doctor --repo <path>
+bun run cascade.ts setup discover --repo <path>
 bun run cascade.ts review --repo <path> --base main
 bun run cascade.ts catalog --sync --owner <org> --project <n> --owner-type organization
 bun run cascade.ts drift --catalog projects/agnostic_looper/tasks_catalog.json --owner <org> --project <n>
@@ -139,6 +150,29 @@ All flags, environment variables and subcommands: `--help` or [`docs/cli.md`](do
 Refuses to run on `stable`, `main` or `master` (except `--dry-run`). Change ids must be plain directory names
 (`[A-Za-z0-9][A-Za-z0-9._-]*`), and task `Verify:` commands containing shell operators (`;`, `&`, `|`, `$(`,
 redirections) are ignored.
+
+### Helper manifest (`setup`)
+
+The manifest records which helpers (MCP servers, skills, plugins, CLI tools) a project can use and when. `setup` discovers and registers them; it never installs anything. Runs do not read it: only `doctor` and `/cascade:explore` do.
+
+```bash
+bun run cascade.ts setup discover --json --repo <path>
+bun run cascade.ts setup add --scope project --name stitch --type mcp --when "Before UI tasks, fetch the screen design" --host opencode
+bun run cascade.ts setup remove --scope project --name stitch --type mcp
+bun run cascade.ts setup show --json --repo <path>
+bun run cascade.ts setup rules --write --repo <path>
+```
+
+- **Actions.** `discover [--json]`, `add --scope project|global --name --type --when [--required] [--check] [--profile] [--host]...` (upsert by name and type; `--host` repeats), `remove --scope --name --type`, `show [--json]`, `rules [--write]` (appends suggested `rules` to `openspec/config.yaml` only if it has no `rules` key; otherwise exit 1). Exit `2` on usage errors or an invalid manifest.
+- **Two layers.** Global: `$XDG_CONFIG_HOME/openspec-cascade/manifest.json` (default `~/.config/openspec-cascade/manifest.json`). Project: the `manifest` key of `.openspec-cascade.json`. Both hold `{"entries": [...]}`; a project entry replaces the global one with the same (`name`, `type`). No secrets, only names.
+- **Entry fields.** `name`; `type` (`mcp`, `skill`, `plugin`, `cli`); `whenToUse` (required, one line, max 200 chars); `required` (boolean, default false); `check` (optional single command); `profile` (optional non-secret name, e.g. an AWS profile, passed as `--profile`); `hosts` (optional, `claude-code` and/or `opencode`).
+- **`show --json`.** `{"entries":[{name, type, whenToUse, required, check?, profile?, hosts?, layer}]}`, sorted by name then type; `layer` is `global` or `project`; unset optional fields are omitted.
+- **`discover --json`.** `{"candidates":[{name, type, sources, hosts, inManifest}], "skipped":[{source, reason}]}`; `inManifest` is `null`, `global` or `project`. Only names are read, never values.
+- **`doctor`.** Adds one check per entry. It runs the `check` of global entries by default and the `check` of project entries only with `--run-project-checks`, because the project layer comes from the repository. A failing required entry is `fail`, an optional one `warn`; an invalid manifest is one failing `manifest` check.
+- **Read-only is not enforced.** A `check` runs exactly as written; keeping it read-only is up to whoever writes it.
+- **claude.ai connectors** cannot be discovered; register them by hand with `setup add`.
+- **Claude Code:** run `/cascade:setup`. It runs `discover`, proposes helpers, lets you pick them and write a `whenToUse` for each, asks about missing ones, calls `add`, and offers `rules`.
+- **OpenCode:** there is no command file; run the CLI actions above directly (`discover`, `add`, `show`, `rules`).
 
 ### Logs
 

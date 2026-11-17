@@ -5,13 +5,29 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { CONSTANTS, FULL_VERIFY, RUNTIME_CONSTANTS, VERIFY_CONSTANTS, type CascadeConfig } from "../../config";
-import { HARDENING_CONSTANTS } from "../config/constants";
+import { HARDENING_CONSTANTS, TASKS_LINT_CONSTANTS } from "../config/constants";
 import { normalizeLines } from "../sdd/tasks_lint";
 import { isNuxtProject, resolvePackageCommands, tryDetectPackageManager } from "../../platform";
 import { runVerificationPhase } from "../../qa";
 import { discoverDirectives, discoverSkills, formatDirectivesPrompt, formatSkillsPrompt } from "../../skills";
 
-export type Task = { id: string; done: boolean; text: string; section: string; line: number };
+export type Task = {
+  id: string;
+  done: boolean;
+  text: string;
+  section: string;
+  line: number;
+  verifyStart?: number | null;
+};
+
+function inlineVerifyStart(text: string): number | null {
+  const visible = text.replace(/`[^`]*`/g, (span) => " ".repeat(span.length));
+  const index = visible.search(/\bVerify:/);
+  return index === -1 ? null : index;
+}
+
+const BACKTICK_SPAN = /`([^`]+)`/g;
+const PM_COMMAND_PATTERN = /^(?:(?:bunx?|npm|pnpm|yarn)\s+|tsc\s+--noEmit$)/;
 
 export interface VerifyCommandsOptions {
   repoRoot?: string;
@@ -25,6 +41,7 @@ export function parseTasks(markdown: string): Task[] {
   const tasks: Task[] = [];
   let section = "";
   let current: Task | undefined;
+  let hasContinuationMarker = false;
   for (const [index, line] of normalizeLines(markdown).entries()) {
     const heading = line.match(/^#{2,}\s+(.*)$/);
     if (heading) {
@@ -34,15 +51,44 @@ export function parseTasks(markdown: string): Task[] {
     }
     const item = line.match(/^- \[([ xX])\] (?:\*\*)?([A-Z]*\d+(?:\.\d+)*)(?:\*\*)?:?\s+(.*)$/);
     if (item) {
-      current = { id: item[2]!, done: item[1] !== " ", text: item[3]!, section, line: index };
+      const text = item[3]!;
+      current = { id: item[2]!, done: item[1] !== " ", text, section, line: index, verifyStart: inlineVerifyStart(text) };
+      hasContinuationMarker = false;
       tasks.push(current);
     } else if (current && /^\s+\S/.test(line)) {
+      const start = current.text.length + 1;
       current.text += ` ${line.trim()}`;
+      if (!hasContinuationMarker && TASKS_LINT_CONSTANTS.VERIFY_LINE.test(line)) {
+        current.verifyStart = start;
+        hasContinuationMarker = true;
+      }
     } else {
       current = undefined;
     }
   }
   return tasks;
+}
+
+/**
+ * Returns the Verify segment of a task: the text from its Verify marker to the end, or undefined without a marker.
+ */
+export function verifySegment(task: Task): string | undefined {
+  const start = task.verifyStart === undefined ? inlineVerifyStart(task.text) : task.verifyStart;
+  return start === null ? undefined : task.text.slice(start);
+}
+
+/**
+ * Returns the backticked package-manager commands written before the Verify marker, as written.
+ */
+export function ignoredCommands(task: Task): string[] {
+  const start = task.verifyStart === undefined ? inlineVerifyStart(task.text) : task.verifyStart;
+  if (start === null) return [];
+  const ignored = new Set<string>();
+  for (const [, span] of task.text.slice(0, start).matchAll(BACKTICK_SPAN)) {
+    const command = span!.trim();
+    if (PM_COMMAND_PATTERN.test(command)) ignored.add(command);
+  }
+  return [...ignored];
 }
 
 /**
@@ -81,7 +127,9 @@ export function verifyCommands(
 ): string[] {
   const isFull = /\bfull verification\b/i.test(task.text);
   const gated = fullGate && commitTypeOf(task) !== undefined;
-  if (!/\bVerify:/.test(task.text) && !isFull && !gated) return [];
+  const segment = verifySegment(task);
+  if (segment === undefined && !isFull && !gated) return [];
+  const source = segment ?? task.text;
 
   const pm = options?.repoRoot ? tryDetectPackageManager(options.repoRoot) : null;
   const cmds = pm ? resolvePackageCommands(pm) : undefined;
@@ -92,11 +140,10 @@ export function verifyCommands(
     (cmds && !useNuxt ? [cmds.typecheck, cmds.lint, cmds.test, cmds.build] : FULL_VERIFY);
 
   const commands = new Set<string>();
-  const pmCommandPattern = /^(?:(?:bunx?|npm|pnpm|yarn)\s+|tsc\s+--noEmit$)/;
 
-  for (const [, span] of task.text.matchAll(/`([^`]+)`/g)) {
+  for (const [, span] of source.matchAll(BACKTICK_SPAN)) {
     const command = span!.trim();
-    if (!pmCommandPattern.test(command)) continue;
+    if (!PM_COMMAND_PATTERN.test(command)) continue;
     if (!isSafeVerifyCommand(command)) continue;
     if (/^bun audit\b/.test(command)) continue;
     if (/^(?:bunx\s+)?tsc --noEmit$/.test(command)) {
@@ -114,10 +161,10 @@ export function verifyCommands(
   if (gated) fallbackFullVerify.forEach((c) => commands.add(c));
   if (isFull && !commands.size) fallbackFullVerify.forEach((c) => commands.add(c));
 
-  const prose = task.text.replace(/`[^`]*`/g, " ");
+  const prose = source.replace(/`[^`]*`/g, " ");
   if (/\blint\b/i.test(prose)) commands.add(cmds ? cmds.lint : "bun run lint");
   if (/\bbuild\b/i.test(prose)) commands.add(cmds ? cmds.build : "bun run build");
-  if (/\bboth\s+`?(?:bunx\s+)?tsc\b/i.test(task.text)) {
+  if (/\bboth\s+`?(?:bunx\s+)?tsc\b/i.test(source)) {
     if (useNuxt) {
       commands.add(CONSTANTS.TSC_SERVER);
       commands.add(CONSTANTS.TSC_APP);
@@ -129,6 +176,14 @@ export function verifyCommands(
 
   const list = commands.size ? [...commands] : [...fallbackDefaultVerify];
   return useNuxt && list.some((c) => c.includes("tsc")) ? [VERIFY_CONSTANTS.NUXT_PREPARE_CMD, ...list] : list;
+}
+
+/**
+ * Returns the task's own checks followed by the project-wide `alwaysVerify` commands, de-duplicated, as written.
+ */
+export function taskChecks(task: Task, config: CascadeConfig): string[] {
+  const own = verifyCommands(task, config.fullGate, { repoRoot: config.repo, config });
+  return [...new Set([...own, ...config.alwaysVerify])];
 }
 
 /**

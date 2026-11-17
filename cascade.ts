@@ -51,11 +51,13 @@ export {
   blockedReason,
   commitsPerSection,
   commitTypeOf,
+  ignoredCommands,
   isLastOfSection,
   parseTasks,
   runChecks,
   taskPrompt,
   verifyCommands,
+  verifySegment,
   type Task,
   type VerifyCommandsOptions,
 } from "./src/facade/tasks";

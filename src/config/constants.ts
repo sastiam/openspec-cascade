@@ -252,6 +252,10 @@ export const VERIFY_CONSTANTS = {
   TSC_SERVER: "bunx tsc --noEmit -p .nuxt/tsconfig.server.json",
   TSC_APP: "bunx tsc --noEmit -p .nuxt/tsconfig.app.json",
   NUXT_PREPARE_CMD: "bunx nuxi prepare",
+  ALWAYS_VERIFY: [] as readonly string[],
+  ALWAYS_VERIFY_V2_WARNING: "alwaysVerify is ignored in v2 mode; it applies to v1 runs only.",
+  ALWAYS_VERIFY_BASELINE_FAILED:
+    "alwaysVerify fails before the first task; fix the project or the alwaysVerify setting. Failing commands:",
   NO_NEW_MIGRATION:
     'bun run db:generate || exit 1; if git status --porcelain --untracked-files=all | grep -q "migrations/"; then echo "db:generate produced a new migration"; exit 1; fi',
 } as const;
@@ -488,7 +492,7 @@ export const PRE_PR_CONSTANTS = {
  * Integration subcommands dispatched by `cascade.ts` before regular flag parsing.
  */
 export const CLI_COMMAND_CONSTANTS = {
-  SUBCOMMANDS: ["doctor", "catalog", "drift", "review", "spec-gate", "lint-tasks"] as const,
+  SUBCOMMANDS: ["doctor", "catalog", "drift", "review", "spec-gate", "lint-tasks", "setup"] as const,
   ENGINE_BINARIES: { claude: "claude", opencode: "opencode", antigravity: "agy", jules: "jules" } as const,
   DEFAULT_OWNER_TYPE: "user" as const,
   OWNER_TYPES: ["user", "organization"] as const,
@@ -532,7 +536,39 @@ export const SPEC_GATE_CONSTANTS = {
 } as const;
 
 /**
- * Static checks on a change's tasks.md: code blocks and unchecked tasks without a `Verify:` line.
+ * Phrases of the `manual-step` rule. Each phrase is inserted into a regex unescaped (spaces become `\s+`),
+ * so a phrase must not contain regex metacharacters.
+ */
+const MANUAL_STEP_PHRASES: readonly string[] = [
+  "manually",
+  "manual step",
+  "manual steps",
+  "by hand",
+  "the user must run",
+  "the user must approve",
+  "the user should run",
+  "ask the user",
+  "deploy to staging",
+  "deploy to production",
+  "deploy to prod",
+  "check in the console",
+  "set in the console",
+  "you must run",
+  "manualmente",
+  "a mano",
+  "el usuario debe",
+  "pide al usuario",
+  "despliega en",
+  "desplegar en",
+  "revisa en la consola",
+  "configura en la consola",
+  "ejecuta tú",
+];
+
+/**
+ * Static checks on a change's tasks.md and manual.md. tasks.md: `no-code-block`, `missing-verify`
+ * (unchecked task without a `Verify:` line) and `manual-step` (task that asks for a human action).
+ * manual.md: `missing-check` (step without a `Check:` line) and `manual-checkbox` (step with a checkbox).
  */
 export const TASKS_LINT_CONSTANTS = {
   FILE_NAME: "tasks.md",
@@ -550,8 +586,25 @@ export const TASKS_LINT_CONSTANTS = {
   VERIFY_LINE: /^\s+(?:[-*]\s+)?Verify:\s*\S/,
   BLANK_LINE: /^\s*$/,
   INDENTED_LINE: /^\s/,
+  CODE_SPAN: /`[^`]*`/g,
+  MANUAL_FILE_NAME: "manual.md",
+  RULE_MISSING_CHECK: "missing-check",
+  RULE_MANUAL_CHECKBOX: "manual-checkbox",
+  MESSAGE_MISSING_CHECK: "step has no indented Check: line with text; add one under the step",
+  MESSAGE_MANUAL_CHECKBOX: "step has a checkbox; remove it so OpenSpec does not count it as a task",
+  MANUAL_STEP_ITEM: /^(?:[-*]|\d+\.)\s+/,
+  MANUAL_CHECKBOX: /^(?:[-*]|\d+\.)\s+\[[ xX]\]/,
+  CHECK_LINE: /^\s+(?:[-*]\s+)?Check:\s*\S/,
+  CHECKBOX_PREFIX: /^\[[ xX]\]\s*/,
+  CHECK_PREFIX: /^\s*(?:[-*]\s+)?Check:/,
+  RULE_MANUAL_STEP: "manual-step",
+  MESSAGE_MANUAL_STEP:
+    "task asks for a human action; move it to manual.md or describe the outcome the agent produces (text in backticks is ignored)",
+  MANUAL_STEP_PATTERNS: MANUAL_STEP_PHRASES.map(
+    (phrase) => new RegExp(`(?<![\\p{L}\\p{N}_])${phrase.replace(/ /g, "\\s+")}(?![\\p{L}\\p{N}_])`, "iu"),
+  ),
   OK_PREFIX: "lint-tasks: ok",
-  FATAL_HEADER: "tasks.md failed lint-tasks; fix these findings before running:",
+  FATAL_HEADER: "lint-tasks failed; fix these findings before running:",
   USAGE_PREFIX: "USAGE: cascade lint-tasks",
 } as const;
 
@@ -564,6 +617,22 @@ export const HARDENING_CONSTANTS = {
   SHELL_CONTROL_PATTERN: /[;&|`<>\n\r]|\$\(|\$\{/,
   TRAILING_DOTS_AND_SPACES: /[.\s]+$/,
   TEST_FRAMEWORK_MODULES: ["bun:test", "vitest", "@jest/globals"] as const,
+} as const;
+
+/**
+ * Project manifest: where helpers (MCP servers, skills, plugins, CLI tools) are recorded and how entries are validated.
+ */
+export const MANIFEST_CONSTANTS = {
+  GLOBAL_DIR: "openspec-cascade",
+  GLOBAL_FILE: "manifest.json",
+  PROJECT_KEY: "manifest",
+  ENTRY_TYPES: ["mcp", "skill", "plugin", "cli"] as const,
+  HOSTS: ["claude-code", "opencode"] as const,
+  WHEN_TO_USE_MAX_LENGTH: 200,
+  PROFILE_PATTERN: /^[A-Za-z0-9._-]+$/,
+  CHECK_TIMEOUT_MS: 15000,
+  JSON_INDENT: 2,
+  KNOWN_CLI_TOOLS: ["rtk", "gh", "aws", "greptile", "opencode", "engram", "codebase-memory-mcp", "openspec", "docker", "bun"] as const,
 } as const;
 
 /**

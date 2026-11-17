@@ -759,6 +759,8 @@ export function loadConfig(
 
   const stackVerify = resolveDefaultVerifyCommands(repo);
 
+  const alwaysVerify = overrides.alwaysVerify ?? fileConfig.alwaysVerify ?? VERIFY_CONSTANTS.ALWAYS_VERIFY;
+
   const candidateConfig: CascadeConfig = {
     repo,
     changes,
@@ -800,6 +802,7 @@ export function loadConfig(
     tscApp: overrides.tscApp ?? fileConfig.tscApp ?? VERIFY_CONSTANTS.TSC_APP,
     fullVerify: overrides.fullVerify ?? fileConfig.fullVerify ?? stackVerify.fullVerify,
     noNewMigration: overrides.noNewMigration ?? fileConfig.noNewMigration ?? VERIFY_CONSTANTS.NO_NEW_MIGRATION,
+    alwaysVerify,
     defaultAntigravityModel:
       overrides.defaultAntigravityModel ?? fileConfig.defaultAntigravityModel ?? ENGINE_CONSTANTS.DEFAULT_ANTIGRAVITY_MODEL,
     defaultOpenCodeModel:
@@ -809,7 +812,11 @@ export function loadConfig(
     telemetry: { ...DEFAULT_TELEMETRY_CONFIG, ...fileConfig.telemetry, ...overrides.telemetry },
   };
 
-  return parseWithConfigError(CascadeConfigSchema, candidateConfig, "Configuration validation failed");
+  const config = parseWithConfigError(CascadeConfigSchema, candidateConfig, "Configuration validation failed");
+  if (config.mode === "v2" && config.alwaysVerify.length > 0) {
+    console.warn(VERIFY_CONSTANTS.ALWAYS_VERIFY_V2_WARNING);
+  }
+  return config;
 }
 
 /**

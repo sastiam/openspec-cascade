@@ -25,9 +25,9 @@ import { startKeepAlive, type KeepAliveController, type KeepAliveOptions } from 
 import { selectVerifyChecks } from "../../fast_track";
 import { runVerificationPhase } from "../../qa";
 import { Fatal, RollbackStateBuffer, TaskFailureError } from "../../resilience";
-import { OPENSPEC_PROPOSE_HINT, TASKS_LINT_CONSTANTS, V2_PIPELINE_CONSTANTS } from "../config/constants";
+import { OPENSPEC_PROPOSE_HINT, TASKS_LINT_CONSTANTS, V2_PIPELINE_CONSTANTS, VERIFY_CONSTANTS } from "../config/constants";
 import { ResilientEngineDecorator, type ResilienceOptions } from "../decorators/resilient_engine";
-import { formatFinding, lintTasks } from "../sdd/tasks_lint";
+import { formatFinding, lintManual, lintTasks, parseManualSteps } from "../sdd/tasks_lint";
 import {
   summarizeTelemetry,
   TelemetryMetricsDecorator,
@@ -46,8 +46,9 @@ import {
   isLastOfSection,
   markDone,
   readTasks,
+  ignoredCommands,
+  taskChecks,
   taskPrompt,
-  verifyCommands,
   type Task,
 } from "./tasks";
 import { V2Pipeline, type V2ChangeReport, type V2RunHooks } from "./v2_pipeline";
@@ -333,10 +334,12 @@ export class CascadeFacade {
         this.output.info(`\nusage: ${ctx.usage ? JSON.stringify(ctx.usage) : "unavailable (API key or token without user:profile scope)"}`);
         return;
       }
+      await this.checkAlwaysVerifyBaseline(ctx);
       const report: string[] = [];
       for (const changeReport of ctx.changes) {
         const skipped = await this.runChange(ctx, changeReport);
         report.push(`${changeReport.change}: done${skipped.length ? `, human tasks pending: ${skipped.join(", ")}` : ""}`);
+        report.push(...this.manualReportLines(ctx, changeReport.change));
       }
       this.say(
         ctx,
@@ -345,6 +348,26 @@ export class CascadeFacade {
     } finally {
       this.keepAliveController.stop();
     }
+  }
+
+  private manualReportLines(ctx: RunContext, change: string): string[] {
+    const manualPath = this.manualPath(ctx, change);
+    if (!existsSync(manualPath)) return [];
+    return parseManualSteps(readFileSync(manualPath, "utf8")).map(({ step, check }) => `  manual: ${step} — check: ${check}`);
+  }
+
+  private async checkAlwaysVerifyBaseline(ctx: RunContext): Promise<void> {
+    if (ctx.config.alwaysVerify.length === 0) return;
+    const baseline = await runVerificationPhase({
+      commands: [...ctx.config.alwaysVerify],
+      cwd: ctx.config.repo,
+      timeoutMs: ctx.config.commandTimeoutMs,
+      stopOnFirstFailure: false,
+      hooks: { log: (event, data) => this.log(ctx, event, data) },
+    });
+    if (baseline.success) return;
+    const commands = baseline.failures.map((failure) => failure.command).join(", ");
+    throw new Fatal(`${VERIFY_CONSTANTS.ALWAYS_VERIFY_BASELINE_FAILED} ${commands}`);
   }
 
   private v2Pipeline(directives: readonly RemediationDirective[]): V2Pipeline {
@@ -406,7 +429,7 @@ export class CascadeFacade {
   }
 
   /**
-   * Lints the tasks.md of every listed change before any session starts; a dry run starts no session, so it is not linted.
+   * Lints the tasks.md, and manual.md when it exists, of every listed change before any session starts; a dry run starts no session, so it is not linted.
    * A listed change without tasks.md is left to the existing missing-file handling.
    */
   private lintChanges(ctx: RunContext): void {
@@ -414,7 +437,13 @@ export class CascadeFacade {
     const findings = ctx.config.changes.flatMap((change) => {
       const tasksPath = this.tasksPath(ctx, change);
       if (!existsSync(tasksPath)) return [];
-      return lintTasks(readFileSync(tasksPath, "utf8")).map((finding) => formatFinding(change, finding));
+      const tasksFindings = lintTasks(readFileSync(tasksPath, "utf8")).map((finding) => formatFinding(change, finding));
+      const manualPath = this.manualPath(ctx, change);
+      if (!existsSync(manualPath)) return tasksFindings;
+      const manualFindings = lintManual(readFileSync(manualPath, "utf8")).map((finding) =>
+        formatFinding(change, finding, TASKS_LINT_CONSTANTS.MANUAL_FILE_NAME),
+      );
+      return [...tasksFindings, ...manualFindings];
     });
     if (findings.length > 0) throw new Fatal(`${TASKS_LINT_CONSTANTS.FATAL_HEADER}\n${findings.join("\n")}`);
   }
@@ -465,6 +494,10 @@ export class CascadeFacade {
     return join(ctx.config.repo, "openspec", "changes", change, "tasks.md");
   }
 
+  private manualPath(ctx: RunContext, change: string): string {
+    return join(ctx.config.repo, "openspec", "changes", change, TASKS_LINT_CONSTANTS.MANUAL_FILE_NAME);
+  }
+
   private printPlan(ctx: RunContext): void {
     for (const changeReport of ctx.changes) {
       const tasksPath = this.tasksPath(ctx, changeReport.change);
@@ -479,7 +512,8 @@ export class CascadeFacade {
       const perSection = commitsPerSection(tasks);
       this.output.info(`\n${changeReport.change}: ${pending.length} pending${perSection ? " (one commit per section)" : ""}`);
       for (const task of pending) {
-        const verify = verifyCommands(task, ctx.config.fullGate, { repoRoot: ctx.config.repo, config: ctx.config });
+        const verify = taskChecks(task, ctx.config);
+        const ignored = ignoredCommands(task);
         const flags = [
           CONSTANTS.HUMAN_TASK_REGEX.test(task.text) ? "HUMAN-SKIP" : "",
           commitTypeOf(task)
@@ -488,6 +522,7 @@ export class CascadeFacade {
               ? "commit=agent"
               : "",
           verify.length ? `verify=[${verify.join(" | ")}]` : "",
+          ignored.length ? `ignored=[${ignored.join(" | ")}]` : "",
         ].filter(Boolean);
         this.output.info(`  ${task.id} ${flags.join(" ")}`);
       }
@@ -604,7 +639,9 @@ export class CascadeFacade {
     task: Task,
     sectionCommit: boolean,
   ): Promise<void> {
-    const verify = verifyCommands(task, ctx.config.fullGate, { repoRoot: ctx.config.repo, config: ctx.config });
+    const verify = taskChecks(task, ctx.config);
+    const ignored = ignoredCommands(task);
+    if (ignored.length) this.log(ctx, "verify_ignored", { change, taskId: task.id, commands: ignored });
     const commitType = commitTypeOf(task);
     if (ctx.lastVerifiedSha === undefined) {
       const head = await this.git(ctx, ["rev-parse", "HEAD"]);

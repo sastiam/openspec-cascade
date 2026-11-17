@@ -1,12 +1,14 @@
 /**
- * Integration subcommands for the cascade CLI: `doctor`, `catalog`, `drift` and `review`.
+ * Integration subcommands for the cascade CLI: `doctor`, `catalog`, `drift`, `review`, `spec-gate`,
+ * `lint-tasks` and `setup`.
  *
  * Exit codes: 0 success, 1 findings/drift/unhealthy, 2 invalid input or fail-closed errors.
  */
 import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { CLI_COMMAND_CONSTANTS, EXIT_CODE_CONSTANTS, PRE_PR_CONSTANTS } from "../config/constants";
+import { CLI_COMMAND_CONSTANTS, EXIT_CODE_CONSTANTS, MANIFEST_CONSTANTS, PRE_PR_CONSTANTS } from "../config/constants";
 import { PrePrReviewLoop } from "../core/pre_pr_loop";
 import { SelfImprover } from "../core/self_improver";
 import { readCatalogJson } from "../integration/catalog_model";
@@ -18,10 +20,13 @@ import { GreptileReviewBridge } from "../integration/greptile/bridge";
 import { EngineFactory } from "../pal/factory";
 import { detectRuntime } from "../runtime/base_spawner";
 import { getDefaultSpawner } from "../runtime/spawner";
-import type { ISpawner } from "../runtime/types";
+import { SpawnError, type ISpawner } from "../runtime/types";
 import { SDD_HOOK_CONSTANTS, serializeSddHookRules } from "../sdd/hook_rules";
+import { loadManifest, resolveManifestPaths } from "../manifest/load";
+import type { ManifestPaths, MergedEntry } from "../manifest/types";
 import type { CliOutput } from "./change_args";
 import { runLintTasks } from "./lint_tasks";
+import { runSetup } from "./setup";
 import { runSpecGate } from "./spec_gate";
 
 export type CliSubcommand = (typeof CLI_COMMAND_CONSTANTS.SUBCOMMANDS)[number];
@@ -33,6 +38,11 @@ export interface SubcommandDependencies {
   readonly output?: CliOutput;
   readonly greptileClient?: IGreptileClient;
   readonly engineFactory?: EngineFactory;
+  readonly manifestPaths?: ManifestPaths;
+}
+
+export interface DoctorOptions {
+  readonly runProjectChecks?: boolean;
 }
 
 type CheckStatus = typeof CLI_COMMAND_CONSTANTS.STATUS_OK | typeof CLI_COMMAND_CONSTANTS.STATUS_WARN | typeof CLI_COMMAND_CONSTANTS.STATUS_FAIL;
@@ -85,10 +95,50 @@ function parseOwnerType(value: string | boolean | undefined): ProjectOwnerType {
   return candidate as ProjectOwnerType;
 }
 
+async function runManifestCheck(entry: MergedEntry, repo: string, spawner: ISpawner): Promise<{ passed: boolean; detail: string }> {
+  const argv = (entry.check ?? "").trim().split(/\s+/);
+  try {
+    const result = await spawner.run(argv, {
+      cwd: repo,
+      timeoutMs: MANIFEST_CONSTANTS.CHECK_TIMEOUT_MS,
+      env: { ...process.env, AWS_PAGER: "" },
+    });
+    if (result.timedOut) return { passed: false, detail: "timed out" };
+    if (result.exitCode === EXIT_CODE_CONSTANTS.EXIT_CODE_SUCCESS) return { passed: true, detail: "check passed" };
+    return { passed: false, detail: `exit ${result.exitCode}` };
+  } catch (error) {
+    if (error instanceof SpawnError) return { passed: false, detail: "not found" };
+    throw error;
+  }
+}
+
+async function manifestChecks(repo: string, spawner: ISpawner, dependencies: SubcommandDependencies, options: DoctorOptions): Promise<DoctorCheck[]> {
+  let entries: MergedEntry[];
+  try {
+    entries = loadManifest(dependencies.manifestPaths ?? resolveManifestPaths(process.env, homedir()), repo);
+  } catch (error) {
+    return [{ name: "manifest", status: CLI_COMMAND_CONSTANTS.STATUS_FAIL, detail: error instanceof Error ? error.message : String(error) }];
+  }
+  const checks: DoctorCheck[] = [];
+  for (const entry of entries) {
+    const name = `manifest:${entry.layer}:${entry.name} (${entry.type})`;
+    if (entry.check === undefined) {
+      checks.push({ name, status: CLI_COMMAND_CONSTANTS.STATUS_OK, detail: "declared, no check" });
+    } else if (entry.layer === "project" && options.runProjectChecks !== true) {
+      checks.push({ name, status: CLI_COMMAND_CONSTANTS.STATUS_OK, detail: "check not run; use --run-project-checks" });
+    } else {
+      const outcome = await runManifestCheck(entry, repo, spawner);
+      const failed = entry.required ? CLI_COMMAND_CONSTANTS.STATUS_FAIL : CLI_COMMAND_CONSTANTS.STATUS_WARN;
+      checks.push({ name, status: outcome.passed ? CLI_COMMAND_CONSTANTS.STATUS_OK : failed, detail: outcome.detail });
+    }
+  }
+  return checks;
+}
+
 /**
  * Runs environment diagnostics for a repository.
  */
-export async function runDoctor(repo: string, dependencies: SubcommandDependencies = {}): Promise<DoctorCheck[]> {
+export async function runDoctor(repo: string, dependencies: SubcommandDependencies = {}, options: DoctorOptions = {}): Promise<DoctorCheck[]> {
   const spawner = dependencies.spawner ?? getDefaultSpawner();
   const checks: DoctorCheck[] = [];
   const runtime = detectRuntime();
@@ -144,13 +194,14 @@ export async function runDoctor(repo: string, dependencies: SubcommandDependenci
   }
   const history = new SelfImprover({ rootDir: repo }).loadHistory();
   checks.push({ name: "telemetry", status: CLI_COMMAND_CONSTANTS.STATUS_OK, detail: `${history.length} record(s)` });
+  checks.push(...(await manifestChecks(repo, spawner, dependencies, options)));
   return checks;
 }
 
 async function doctorCommand(argv: readonly string[], output: CliOutput, dependencies: SubcommandDependencies): Promise<number> {
-  const values = parse(argv, { repo: { type: "string" } });
+  const values = parse(argv, { repo: { type: "string" }, "run-project-checks": { type: "boolean" } });
   const repo = resolve(typeof values.repo === "string" ? values.repo : process.cwd());
-  const checks = await runDoctor(repo, dependencies);
+  const checks = await runDoctor(repo, dependencies, { runProjectChecks: values["run-project-checks"] === true });
   for (const check of checks) output.info(`${check.status.padEnd(CLI_COMMAND_CONSTANTS.STATUS_WARN.length)} ${check.name}: ${check.detail}`);
   return checks.some((check) => check.status === CLI_COMMAND_CONSTANTS.STATUS_FAIL)
     ? EXIT_CODE_CONSTANTS.EXIT_CODE_ERROR
@@ -259,6 +310,8 @@ export async function runSubcommand(
         return runSpecGate(argv, output);
       case "lint-tasks":
         return runLintTasks(argv, output);
+      case "setup":
+        return runSetup(argv, output);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

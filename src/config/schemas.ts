@@ -170,6 +170,16 @@ const nonEmptyStringSchema = (label: string): z.ZodString =>
 
 const stringListSchema = z.array(z.string());
 
+const safeCommandListSchema = stringListSchema.readonly().superRefine((commands, ctx) => {
+  const unsafe = commands.find((command) => HARDENING_CONSTANTS.SHELL_CONTROL_PATTERN.test(command));
+  if (unsafe !== undefined) {
+    ctx.addIssue({
+      code: "custom",
+      message: `alwaysVerify command contains a shell operator: ${unsafe}`,
+    });
+  }
+});
+
 /**
  * OpenSpec change ids are directory names: no separators, no parent segments, no leading dot.
  */
@@ -382,6 +392,7 @@ export interface CascadeConfig {
   tscApp: string;
   fullVerify: readonly string[];
   noNewMigration: string;
+  alwaysVerify: readonly string[];
 
   defaultAntigravityModel: string;
   defaultOpenCodeModel: string;
@@ -462,6 +473,7 @@ export const CascadeConfigSchema: z.ZodType<CascadeConfig> = z.object({
   tscApp: z.string(),
   fullVerify: stringListSchema.readonly(),
   noNewMigration: z.string(),
+  alwaysVerify: safeCommandListSchema,
 
   defaultAntigravityModel: EngineConfigSchema.shape.defaultAntigravityModel,
   defaultOpenCodeModel: EngineConfigSchema.shape.defaultOpenCodeModel,
@@ -493,6 +505,7 @@ export const CascadeFileConfigSchema = z.strictObject({
   logDir: RuntimeConfigSchema.shape.logDir.optional(),
   settings: RuntimeConfigSchema.shape.settings,
   mode: RuntimeConfigSchema.shape.mode.optional(),
+  manifest: z.unknown().optional(),
 
   usageLimitPercent: EngineConfigSchema.shape.usageLimitPercent.optional(),
   resetMarginMs: EngineConfigSchema.shape.resetMarginMs.optional(),
@@ -517,6 +530,7 @@ export const CascadeFileConfigSchema = z.strictObject({
   tscApp: nonEmptyStringSchema("tscApp").optional(),
   fullVerify: stringListSchema.readonly().optional(),
   noNewMigration: nonEmptyStringSchema("noNewMigration").optional(),
+  alwaysVerify: safeCommandListSchema.optional(),
 
   defaultAntigravityModel: EngineConfigSchema.shape.defaultAntigravityModel.optional(),
   defaultOpenCodeModel: EngineConfigSchema.shape.defaultOpenCodeModel.optional(),
@@ -562,6 +576,7 @@ export const DEFAULT_RUNTIME_VALUES = {
   tscServer: VERIFY_CONSTANTS.TSC_SERVER,
   tscApp: VERIFY_CONSTANTS.TSC_APP,
   noNewMigration: VERIFY_CONSTANTS.NO_NEW_MIGRATION,
+  alwaysVerify: VERIFY_CONSTANTS.ALWAYS_VERIFY,
   defaultAntigravityModel: ENGINE_CONSTANTS.DEFAULT_ANTIGRAVITY_MODEL,
   defaultOpenCodeModel: ENGINE_CONSTANTS.DEFAULT_OPENCODE_MODEL,
   graphifyCommand: DIAGRAM_CONSTANTS.GRAPHIFY_COMMAND,

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CONSTANTS } from "./config";
 import {
@@ -18,7 +19,7 @@ describe("discoverArchifyTargets", () => {
   });
 
   test("discovers valid candidate.json in subdirectories of .archify", () => {
-    const tempDir = join("/tmp", `test-archify-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    const tempDir = join(tmpdir(), `test-archify-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     const subDir = join(tempDir, ".archify", "my-architecture");
     mkdirSync(subDir, { recursive: true });
 
@@ -42,7 +43,7 @@ describe("discoverArchifyTargets", () => {
   });
 
   test("discovers candidate.archify.md and maps to explainer diagram", () => {
-    const tempDir = join("/tmp", `test-archify-md-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    const tempDir = join(tmpdir(), `test-archify-md-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     const subDir = join(tempDir, ".archify", "system-overview");
     mkdirSync(subDir, { recursive: true });
     writeFileSync(join(subDir, "candidate.archify.md"), "# System Overview");
@@ -57,7 +58,7 @@ describe("discoverArchifyTargets", () => {
   });
 
   test("handles corrupted candidate.json gracefully without crashing", () => {
-    const tempDir = join("/tmp", `test-archify-bad-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    const tempDir = join(tmpdir(), `test-archify-bad-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     const subDir = join(tempDir, ".archify", "broken-diag");
     mkdirSync(subDir, { recursive: true });
     writeFileSync(join(subDir, "candidate.json"), "invalid json content { [");
@@ -69,7 +70,7 @@ describe("discoverArchifyTargets", () => {
   });
 
   test("discovers root .archify/candidate.json if present", () => {
-    const tempDir = join("/tmp", `test-archify-root-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    const tempDir = join(tmpdir(), `test-archify-root-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     const archifyDir = join(tempDir, ".archify");
     mkdirSync(archifyDir, { recursive: true });
 

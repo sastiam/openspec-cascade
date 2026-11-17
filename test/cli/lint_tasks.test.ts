@@ -17,6 +17,10 @@ const NO_VERIFY = ["# Tasks", "- [ ] 1.1 Do it", ""].join("\n");
 const WITH_FENCE = ["# Tasks", "- [x] 1.1 Done", "```", "code", "```", ""].join("\n");
 const OLD_STYLE = ["# Tasks", "- [ ] 1.1 Build it; verify with the unit tests", "- [ ] 1.2 Wire it; verify with the e2e run", ""].join("\n");
 
+const CLEAN_MANUAL = ["- Approve the release", "  Check: the release shows Approved", ""].join("\n");
+const MANUAL_NO_CHECK = ["- Approve the release", ""].join("\n");
+const MANUAL_FINDING = "demo: manual.md:1: missing-check step has no indented Check: line with text; add one under the step";
+
 const dirs: string[] = [];
 afterEach(() => {
   while (dirs.length > 0) rmSync(dirs.pop() ?? "", { recursive: true, force: true });
@@ -31,13 +35,15 @@ function capture(): CliOutput & { out: string[]; err: string[] } {
 /**
  * Builds a repository with one folder per change; an `undefined` content leaves the change without a tasks.md.
  */
-function makeRepo(changes: Record<string, string | undefined>): string {
+function makeRepo(changes: Record<string, string | undefined>, manuals: Record<string, string> = {}): string {
   const repo = mkdtempSync(join(tmpdir(), "lint-tasks-"));
   dirs.push(repo);
   for (const [change, tasks] of Object.entries(changes)) {
     const dir = join(repo, "openspec", "changes", change);
     mkdirSync(dir, { recursive: true });
     if (tasks !== undefined) writeFileSync(join(dir, "tasks.md"), tasks);
+    const manual = manuals[change];
+    if (manual !== undefined) writeFileSync(join(dir, "manual.md"), manual);
   }
   return repo;
 }
@@ -107,5 +113,41 @@ describe("lint-tasks", () => {
     expect(code).toBe(USAGE);
     expect(output.err[0]).toStartWith(USAGE_PREFIX);
     expect(output.err[0]).toContain("missing");
+  });
+
+  describe("manual.md", () => {
+    test("a clean manual.md keeps exit 0 and the ok line", () => {
+      const repo = makeRepo({ demo: CLEAN }, { demo: CLEAN_MANUAL });
+      const { code, output } = lint(["--repo", repo, "--changes", "demo"]);
+      expect(code).toBe(OK);
+      expect(output.out).toEqual(["lint-tasks: ok (demo)"]);
+      expect(output.err).toEqual([]);
+    });
+
+    test("manual.md findings follow the tasks.md findings of the same change", () => {
+      const repo = makeRepo({ demo: NO_VERIFY }, { demo: MANUAL_NO_CHECK });
+      const { code, output } = lint(["--repo", repo, "--changes", "demo"]);
+      expect(code).toBe(FINDINGS);
+      expect(output.err).toHaveLength(2);
+      expect(output.err[0]).toStartWith("demo: tasks.md:2: missing-verify ");
+      expect(output.err[1]).toBe(MANUAL_FINDING);
+    });
+
+    test("without manual.md only the tasks.md finding is printed", () => {
+      const repo = makeRepo({ demo: NO_VERIFY });
+      const { code, output } = lint(["--repo", repo, "--changes", "demo"]);
+      expect(code).toBe(FINDINGS);
+      expect(output.err).toHaveLength(1);
+      expect(output.err[0]).toStartWith("demo: tasks.md:2: missing-verify ");
+    });
+
+    test("a manual.md without tasks.md exits 2 and is not linted", () => {
+      const repo = makeRepo({ demo: undefined }, { demo: MANUAL_NO_CHECK });
+      const { code, output } = lint(["--repo", repo, "--changes", "demo"]);
+      expect(code).toBe(USAGE);
+      expect(output.err).toHaveLength(1);
+      expect(output.err[0]).toStartWith(USAGE_PREFIX);
+      expect(output.err.join("\n")).not.toContain("manual.md:");
+    });
   });
 });
