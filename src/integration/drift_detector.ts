@@ -618,11 +618,14 @@ export function formatDriftMarkdownReport(
       lines.push("\n| Field | Severity | Local State | Remote State | Discrepancy Detail |");
       lines.push("|---|---|---|---|---|");
 
+      const escapeMarkdownTableCell = (value: string): string =>
+        value.replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
+
       for (const diff of td.diffs) {
         const localStr = typeof diff.localValue === "object" ? JSON.stringify(diff.localValue) : String(diff.localValue ?? "-");
         const remoteStr = typeof diff.remoteValue === "object" ? JSON.stringify(diff.remoteValue) : String(diff.remoteValue ?? "-");
         lines.push(
-          `| \`${diff.field}\` | \`${diff.severity}\` | ${localStr.replace(/\|/g, "\\|")} | ${remoteStr.replace(/\|/g, "\\|")} | ${diff.message.replace(/\|/g, "\\|")} |`
+          `| \`${diff.field}\` | \`${diff.severity}\` | ${escapeMarkdownTableCell(localStr)} | ${escapeMarkdownTableCell(remoteStr)} | ${escapeMarkdownTableCell(diff.message)} |`
         );
       }
       lines.push("");
