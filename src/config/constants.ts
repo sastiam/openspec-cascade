@@ -581,6 +581,16 @@ export const TASKS_LINT_CONSTANTS = {
   BLANK_LINE: /^\s*$/,
   INDENTED_LINE: /^\s/,
   CODE_SPAN: /`[^`]*`/g,
+  MANUAL_FILE_NAME: "manual.md",
+  RULE_MISSING_CHECK: "missing-check",
+  RULE_MANUAL_CHECKBOX: "manual-checkbox",
+  MESSAGE_MISSING_CHECK: "step has no indented Check: line with text; add one under the step",
+  MESSAGE_MANUAL_CHECKBOX: "step has a checkbox; remove it so OpenSpec does not count it as a task",
+  MANUAL_STEP_ITEM: /^(?:[-*]|\d+\.)\s+/,
+  MANUAL_CHECKBOX: /^(?:[-*]|\d+\.)\s+\[[ xX]\]/,
+  CHECK_LINE: /^\s+(?:[-*]\s+)?Check:\s*\S/,
+  CHECKBOX_PREFIX: /^\[[ xX]\]\s*/,
+  CHECK_PREFIX: /^\s*(?:[-*]\s+)?Check:/,
   RULE_MANUAL_STEP: "manual-step",
   MESSAGE_MANUAL_STEP:
     "task asks for a human action; move it to manual.md or describe the outcome the agent produces (text in backticks is ignored)",
@@ -588,7 +598,7 @@ export const TASKS_LINT_CONSTANTS = {
     (phrase) => new RegExp(`(?<![\\p{L}\\p{N}_])${phrase.replace(/ /g, "\\s+")}(?![\\p{L}\\p{N}_])`, "iu"),
   ),
   OK_PREFIX: "lint-tasks: ok",
-  FATAL_HEADER: "tasks.md failed lint-tasks; fix these findings before running:",
+  FATAL_HEADER: "lint-tasks failed; fix these findings before running:",
   USAGE_PREFIX: "USAGE: cascade lint-tasks",
 } as const;
 

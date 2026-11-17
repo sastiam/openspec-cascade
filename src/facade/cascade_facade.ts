@@ -27,7 +27,7 @@ import { runVerificationPhase } from "../../qa";
 import { Fatal, RollbackStateBuffer, TaskFailureError } from "../../resilience";
 import { OPENSPEC_PROPOSE_HINT, TASKS_LINT_CONSTANTS, V2_PIPELINE_CONSTANTS, VERIFY_CONSTANTS } from "../config/constants";
 import { ResilientEngineDecorator, type ResilienceOptions } from "../decorators/resilient_engine";
-import { formatFinding, lintTasks } from "../sdd/tasks_lint";
+import { formatFinding, lintManual, lintTasks } from "../sdd/tasks_lint";
 import {
   summarizeTelemetry,
   TelemetryMetricsDecorator,
@@ -422,7 +422,7 @@ export class CascadeFacade {
   }
 
   /**
-   * Lints the tasks.md of every listed change before any session starts; a dry run starts no session, so it is not linted.
+   * Lints the tasks.md, and manual.md when it exists, of every listed change before any session starts; a dry run starts no session, so it is not linted.
    * A listed change without tasks.md is left to the existing missing-file handling.
    */
   private lintChanges(ctx: RunContext): void {
@@ -430,7 +430,13 @@ export class CascadeFacade {
     const findings = ctx.config.changes.flatMap((change) => {
       const tasksPath = this.tasksPath(ctx, change);
       if (!existsSync(tasksPath)) return [];
-      return lintTasks(readFileSync(tasksPath, "utf8")).map((finding) => formatFinding(change, finding));
+      const tasksFindings = lintTasks(readFileSync(tasksPath, "utf8")).map((finding) => formatFinding(change, finding));
+      const manualPath = this.manualPath(ctx, change);
+      if (!existsSync(manualPath)) return tasksFindings;
+      const manualFindings = lintManual(readFileSync(manualPath, "utf8")).map((finding) =>
+        formatFinding(change, finding, TASKS_LINT_CONSTANTS.MANUAL_FILE_NAME),
+      );
+      return [...tasksFindings, ...manualFindings];
     });
     if (findings.length > 0) throw new Fatal(`${TASKS_LINT_CONSTANTS.FATAL_HEADER}\n${findings.join("\n")}`);
   }
@@ -479,6 +485,10 @@ export class CascadeFacade {
 
   private tasksPath(ctx: RunContext, change: string): string {
     return join(ctx.config.repo, "openspec", "changes", change, "tasks.md");
+  }
+
+  private manualPath(ctx: RunContext, change: string): string {
+    return join(ctx.config.repo, "openspec", "changes", change, TASKS_LINT_CONSTANTS.MANUAL_FILE_NAME);
   }
 
   private printPlan(ctx: RunContext): void {

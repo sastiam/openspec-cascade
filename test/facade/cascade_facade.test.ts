@@ -320,6 +320,24 @@ describe("CascadeFacade", () => {
       expect(engine.prompts).toHaveLength(0);
     });
 
+    test("a manual.md finding stops the run before any engine session", async () => {
+      const repo = await createTempGitRepo();
+      repos.push(repo);
+      writeFileSync(join(repo.repoDir, "package.json"), JSON.stringify({ scripts: { build: "echo built" } }));
+      addOpenSpecChange(repo.repoDir, "demo", { tasksMarkdown: VERIFIED });
+      writeFileSync(join(repo.repoDir, "openspec", "changes", "demo", "manual.md"), "- Approve the release\n");
+      await commitFixture(repo);
+      const engine = new WorkingEngine(completeTask("demo"));
+      const result = await new CascadeFacade({ engine, output: captureOutput() }).run(configFor(repo, "demo"));
+      expect(result.exitCode).toBe(2);
+      expect(result.errorKind).toBe("fail_closed");
+      expect(result.error).toStartWith("lint-tasks failed; fix these findings before running:");
+      expect(result.error).toContain(
+        "demo: manual.md:1: missing-check step has no indented Check: line with text; add one under the step",
+      );
+      expect(engine.prompts).toHaveLength(0);
+    });
+
     test("findings of every listed change are reported, grouped by change", async () => {
       const repo = await repoWith({ a: UNVERIFIED, b: UNVERIFIED });
       const result = await new CascadeFacade({ engine: new WorkingEngine(completeTask("a")), output: captureOutput() }).run(

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { parseTasks } from "../../src/facade/tasks";
-import { formatFinding, lintTasks, normalizeLines } from "../../src/sdd/tasks_lint";
+import { formatFinding, lintManual, lintTasks, normalizeLines, parseManualSteps } from "../../src/sdd/tasks_lint";
 
 const MIN_FENCE_LENGTH = 3; // shortest run of backticks or tildes that opens a fence
 const LONG_FENCE_LENGTH = MIN_FENCE_LENGTH + 1;
@@ -304,5 +304,89 @@ describe("lintTasks: manual-step", () => {
     expect(formatFinding("demo", finding as NonNullable<typeof finding>)).toBe(
       "demo: tasks.md:1: manual-step task asks for a human action; move it to manual.md or describe the outcome the agent produces (text in backticks is ignored)",
     );
+  });
+});
+
+const MISSING_CHECK = "missing-check";
+const MANUAL_CHECKBOX = "manual-checkbox";
+const CHECK = "  Check: it shows Approved";
+
+function manualFound(markdown: string): Array<{ line: number; rule: string }> {
+  return lintManual(markdown).map((finding) => ({ line: finding.line, rule: finding.rule }));
+}
+
+describe("lintManual: missing-check", () => {
+  test("valid manual.md", () => {
+    expect(manualFound(doc("- Approve", CHECK, "- Deploy", "  - Check: it is live"))).toEqual([]);
+  });
+
+  test("step without Check", () => {
+    expect(manualFound(doc("- Approve", CHECK, "", "- Deploy"))).toEqual([{ line: 4, rule: MISSING_CHECK }]);
+  });
+
+  test("other list markers", () => {
+    expect(manualFound(doc("* Approve", "1. Deploy"))).toEqual([
+      { line: 1, rule: MISSING_CHECK },
+      { line: 2, rule: MISSING_CHECK },
+    ]);
+  });
+
+  test("check form", () => {
+    for (const lines of [
+      ["- Step", "  check: lowercase"],
+      ["- Step", "  Check:"],
+      ["- Step", "", "  Check: after blank"],
+    ]) {
+      expect(manualFound(doc(...lines))).toEqual([{ line: 1, rule: MISSING_CHECK }]);
+    }
+  });
+
+  test("list item inside a fence", () => {
+    expect(manualFound(doc(TICKS, "- no check", TICKS))).toEqual([]);
+  });
+});
+
+describe("lintManual: manual-checkbox", () => {
+  test("checkbox with a Check line", () => {
+    expect(manualFound(doc("- [ ] Approve", CHECK))).toEqual([{ line: 1, rule: MANUAL_CHECKBOX }]);
+  });
+
+  test("checkbox without a Check line", () => {
+    expect(manualFound(doc("- [x] Approve"))).toEqual([
+      { line: 1, rule: MANUAL_CHECKBOX },
+      { line: 1, rule: MISSING_CHECK },
+    ]);
+  });
+
+  test("formatFinding with the manual.md file name", () => {
+    const lines = lintManual(doc("# Manual", "", "- [x] Approve")).map((f) => formatFinding("demo", f, "manual.md"));
+    expect(lines).toEqual([
+      "demo: manual.md:3: manual-checkbox step has a checkbox; remove it so OpenSpec does not count it as a task",
+      "demo: manual.md:3: missing-check step has no indented Check: line with text; add one under the step",
+    ]);
+  });
+});
+
+describe("parseManualSteps", () => {
+  test("pairs in file order, marker and checkbox dropped, texts trimmed", () => {
+    const steps = parseManualSteps(doc("- [ ]   Approve  ", "  Check:   shows Approved  ", "1. Deploy", "* [X] Verify", "  - Check: ok"));
+    expect(steps).toEqual([
+      { step: "Approve", check: "shows Approved" },
+      { step: "Deploy", check: "" },
+      { step: "Verify", check: "ok" },
+    ]);
+  });
+
+  test("first matching continuation line wins", () => {
+    expect(parseManualSteps(doc("- Step", "  note", "  Check: one", "  Check: two"))).toEqual([
+      { step: "Step", check: "one" },
+    ]);
+  });
+
+  test("ignores list items inside a fence", () => {
+    expect(parseManualSteps(doc("- A", CHECK, TICKS, "- hidden", TICKS, "- B"))).toEqual([
+      { step: "A", check: "it shows Approved" },
+      { step: "B", check: "" },
+    ]);
   });
 });
