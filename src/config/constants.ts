@@ -252,6 +252,10 @@ export const VERIFY_CONSTANTS = {
   TSC_SERVER: "bunx tsc --noEmit -p .nuxt/tsconfig.server.json",
   TSC_APP: "bunx tsc --noEmit -p .nuxt/tsconfig.app.json",
   NUXT_PREPARE_CMD: "bunx nuxi prepare",
+  ALWAYS_VERIFY: [] as readonly string[],
+  ALWAYS_VERIFY_V2_WARNING: "alwaysVerify is ignored in v2 mode; it applies to v1 runs only.",
+  ALWAYS_VERIFY_BASELINE_FAILED:
+    "alwaysVerify fails before the first task; fix the project or the alwaysVerify setting. Failing commands:",
   NO_NEW_MIGRATION:
     'bun run db:generate || exit 1; if git status --porcelain --untracked-files=all | grep -q "migrations/"; then echo "db:generate produced a new migration"; exit 1; fi',
 } as const;
