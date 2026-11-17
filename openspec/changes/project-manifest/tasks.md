@@ -22,7 +22,7 @@
 
 ## 2. Discovery
 
-- [ ] 2.1 Test first, then implement. Create `src/manifest/discover.ts` exporting the synchronous `discover(paths, deps)`, with `paths` `{home, xdgConfigHome, repo}` and `deps` `{which(binary): string | null, gitCommonDir(repo): string | undefined}`, one source function per source in design.md, the merge by `name` and `type`, and `inManifest` from `loadManifest`. In `test/manifest/discover.test.ts`, write fixtures into a temporary home, a temporary repository and a temporary main worktree folder `<main>`:
+- [x] 2.1 Test first, then implement. Create `src/manifest/discover.ts` exporting the synchronous `discover(paths, deps)`, with `paths` `{home, xdgConfigHome, repo}` and `deps` `{which(binary): string | null, gitCommonDir(repo): string | undefined}`, one source function per source in design.md, the merge by `name` and `type`, and `inManifest` from `loadManifest`. In `test/manifest/discover.test.ts`, write fixtures into a temporary home, a temporary repository and a temporary main worktree folder `<main>`:
   - a `.claude.json` with a top-level MCP server `watson` whose `env` holds `FAKE_TOKEN_1`; a `projects` key that is a real symlink to the repository, created with `symlinkSync` inside the temporary folder, with MCP server `stitch`; a `projects` key `<main>` with its own MCP server; and a stale `projects` key for a folder that does not exist, with MCP server `ghost`;
   - a project `.mcp.json`; global and project Claude skills;
   - `enabledPlugins` in the global `settings.json`, the project `.claude/settings.json` and `.claude/settings.local.json`, including one plugin disabled by the project;
