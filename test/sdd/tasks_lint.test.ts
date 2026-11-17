@@ -174,6 +174,7 @@ describe("lint and parseTasks agree", () => {
       for (const task of unchecked) {
         const lintAccepts = !flagged.has(task.line + LINE_NUMBER_BASE);
         expect(lintAccepts).toBe(task.text.includes("Verify:"));
+        expect(task.verifyStart !== null).toBe(lintAccepts);
       }
     });
   }

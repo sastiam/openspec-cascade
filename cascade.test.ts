@@ -12,6 +12,7 @@ import {
   Fatal,
   formatVerificationFeedback,
   isKeepAliveEnabled,
+  ignoredCommands,
   isLastOfSection,
   parseTasks,
   resolveEngine,
@@ -23,6 +24,7 @@ import {
   TaskFailureError,
   taskPrompt,
   verifyCommands,
+  verifySegment,
   type Task,
 } from "./cascade";
 
@@ -88,6 +90,78 @@ describe("verifyCommands", () => {
     const commands = verifyCommands(parseTasks(bold)[0]!);
     expect(commands).toContain("bun run test:e2e");
     expect(commands).toContain("bunx tsc --noEmit -p .nuxt/tsconfig.server.json");
+  });
+});
+
+describe("verifyCommands reads only the Verify segment", () => {
+  const checksOf = (markdown: string): string[] => verifyCommands(parseTasks(markdown)[0]!);
+  const fullSuite = [
+    "bunx nuxi prepare",
+    "bun test",
+    "bun run lint",
+    "bunx tsc --noEmit -p .nuxt/tsconfig.server.json",
+    "bunx tsc --noEmit -p .nuxt/tsconfig.app.json",
+    "bun run build",
+    "bun run test:e2e",
+  ];
+
+  test("keywords in the instructions are not checks", () => {
+    const markdown = [
+      "- [ ] 1.1 Update the build docs and fix the lint warnings about E2E runs; both tsc programs stay as they are.",
+      "  Verify: `bun test` passes",
+    ].join("\n");
+    expect(checksOf(markdown)).toEqual(["bun test"]);
+  });
+
+  test("keywords in the Verify segment are checks (regression guard)", () => {
+    const markdown = ["- [ ] 1.1 Add the page.", "  Verify: the build passes and both tsc programs pass"].join("\n");
+    expect(checksOf(markdown)).toEqual([
+      "bunx nuxi prepare",
+      "bun run build",
+      "bunx tsc --noEmit -p .nuxt/tsconfig.server.json",
+      "bunx tsc --noEmit -p .nuxt/tsconfig.app.json",
+    ]);
+  });
+
+  test("a Verify segment without a recognized command uses the defaults (regression guard)", () => {
+    const markdown = ["- [ ] 1.1 Change the title.", "  Verify: the page renders the new title"].join("\n");
+    expect(checksOf(markdown)).toEqual(["bun test", "bun run lint"]);
+  });
+
+  test("full verification without a Verify marker is the full suite (regression guard)", () => {
+    expect(checksOf("- [ ] T013 Framework batch. Run full verification.")).toEqual(fullSuite);
+  });
+
+  test("a task without Verify and without full verification has no checks (regression guard)", () => {
+    expect(checksOf("- [ ] 1.1 Change the title.")).toEqual([]);
+  });
+
+  test("full verification and a segment without commands", () => {
+    const markdown = [
+      "- [ ] 1.1 Run full verification. Earlier notes mention `bun run db:check`.",
+      "  Verify: the suite is green",
+    ].join("\n");
+    expect(checksOf(markdown)).toEqual(fullSuite);
+  });
+
+  test("full verification and a segment with a command (regression guard)", () => {
+    const markdown = ["- [ ] 1.1 Run full verification.", "  Verify: `bun test` passes"].join("\n");
+    expect(checksOf(markdown)).toEqual(["bun test"]);
+  });
+});
+
+describe("ignoredCommands", () => {
+  test("reports a command written before the marker", () => {
+    const markdown = [
+      "- [ ] 1.1 Run `bun test test/a.test.ts` and see it fail.",
+      "  Verify: `bun run typecheck` passes",
+    ].join("\n");
+    expect(ignoredCommands(parseTasks(markdown)[0]!)).toEqual(["bun test test/a.test.ts"]);
+  });
+
+  test("reports nothing when the marker starts the text", () => {
+    const task = parseTasks("- [ ] 1.1 Verify: `bun test`. Commit `feat(api)`")[0]!;
+    expect(ignoredCommands(task)).toEqual([]);
   });
 });
 
@@ -422,5 +496,46 @@ describe("describeToolInput in cascade", () => {
     expect(describeToolInput({ pattern: "antigravity" })).toBe("antigravity");
     expect(describeToolInput("bun run lint")).toBe("bun run lint");
     expect(describeToolInput(null)).toBe("");
+  });
+});
+
+describe("Verify marker", () => {
+  const taskOf = (...lines: string[]): Task => parseTasks(`## 1. Docs\n${lines.join("\n")}`)[0]!;
+
+  test("Marker on a continuation line", () => {
+    const task = taskOf(
+      "- [ ] 1.1 Add the parser. Run `bun test test/a.test.ts` and see the new tests fail.",
+      "  Verify: `bun run typecheck` passes",
+    );
+    expect(verifyCommands(task)).toEqual(["bun run typecheck"]);
+    expect(verifySegment(task)?.startsWith("Verify: `bun run typecheck` passes")).toBe(true);
+  });
+
+  test("Marker mentioned inside the instructions", () => {
+    const task = taskOf(
+      "- [ ] 1.1 Teach the guide that `Verify:` starts the checks; run `bun run docs:gen`.",
+      "  Then mention Verify: in the summary and run `bun run docs:check`.",
+      "  Verify: `bun test` passes",
+    );
+    expect(verifyCommands(task)).toEqual(["bun test"]);
+  });
+
+  test("Mention without a marker", () => {
+    const task = taskOf("- [ ] 1.1 Teach the guide that `Verify:` starts the checks; run `bun run docs:gen`.");
+    expect(verifyCommands(task)).toEqual([]);
+    expect(verifySegment(task)).toBeUndefined();
+  });
+
+  test("Inline marker on the task line", () => {
+    const task = taskOf("- [ ] 1.1 Run `bun run gen` first. Verify: `bun test` passes.");
+    expect(verifyCommands(task)).toEqual(["bun test"]);
+  });
+
+  test("Continuation marker wins over an inline marker", () => {
+    const task = taskOf(
+      "- [ ] 1.1 Write the guide. Verify: `bun run docs:old` is gone.",
+      "  Verify: `bun test` passes",
+    );
+    expect(verifyCommands(task)).toEqual(["bun test"]);
   });
 });
