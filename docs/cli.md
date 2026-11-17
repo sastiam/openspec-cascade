@@ -144,7 +144,7 @@ Códigos de salida de los subcomandos: `0` éxito, `1` hallazgos/drift/estado no
 
 ### Manifiesto de helpers (`setup`)
 
-El manifiesto registra qué helpers puede usar cada proyecto y cuándo. `setup` descubre y registra; nunca instala. Ninguna ejecución (`run`) lee el manifiesto: solo lo leen `doctor` y `cascade-explore`.
+El manifiesto registra qué helpers puede usar cada proyecto y cuándo. `setup` descubre y registra; nunca instala. Ninguna ejecución (`run`) lee el manifiesto: solo lo leen `doctor` y `/cascade:explore`.
 
 **Dos capas.**
 
@@ -260,7 +260,7 @@ Con `telemetry.enabled` (por defecto), cada sesión y cada fallo de verificació
 
 ## 9. Plugin de Claude Code
 
-`node bin/install.mjs` registra el marketplace y el plugin `cascade` (agentes, comandos `/cascade`, `/cascade:setup`, `/cascade:explore`, `/cascade:cascade-looper`, `/cascade:cascade-spec-review` y `/cascade:cascade-spec-drift`, skills y el hook `PreToolUse`). El hook (`sdd_gate.mjs` / `sdd_gate.cjs`, lógica en `sdd_gate_core.cjs`) lee `sdd_rules.json`, generado desde `SDD_CONSTANTS` con `bun run scripts/sync_plugin.ts`; `--check` falla si está desactualizado.
+`node bin/install.mjs` registra el marketplace y el plugin `cascade` (agentes, comandos `/cascade:cascade`, `/cascade:setup`, `/cascade:explore`, `/cascade:cascade-looper`, `/cascade:cascade-spec-review` y `/cascade:cascade-spec-drift`, skills y el hook `PreToolUse`). El hook (`sdd_gate.mjs` / `sdd_gate.cjs`, lógica en `sdd_gate_core.cjs`) lee `sdd_rules.json`, generado desde `SDD_CONSTANTS` con `bun run scripts/sync_plugin.ts`; `--check` falla si está desactualizado.
 
 ---
 

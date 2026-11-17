@@ -81,7 +81,7 @@ Investigation may run only this:
   - secret-bearing calls: anything under `secretsmanager`, `ssm` with `--with-decryption`, `kms decrypt`;
   - credential-minting calls: any operation containing `authorization-token` or `login-password`, any `sts get-` call, `sts assume-role`;
   - environment-returning calls: `lambda get-function`, `lambda get-function-configuration`, `ecs describe-task-definition`;
-  - file-writing calls: `s3api get-object` and any call with an output-file argument.
+  - file-writing calls: `s3api get-object` and any call that writes a local file (for example one with an output-file argument).
 
   Without an aws entry that has a profile, make no AWS calls and record that in the brief. When a needed call is excluded, record the gap in the brief.
 - MCP tools whose names start with `get_`, `list_`, `search_`, `read_`, `fetch`, `query` or `view`. Never call write tools, for example `create_issue`.

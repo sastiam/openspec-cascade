@@ -69,6 +69,26 @@ describe.each(COMMANDS)("$name", (command) => {
       expect(text).not.toContain("disable-model-invocation");
     });
 
+    test("AWS exclusion covers any call that writes a local file", () => {
+      expect(text).toContain("writes a local file");
+    });
+
+    test("drift guards: write tools, review paths and manual steps", () => {
+      for (const literal of [
+        "Never call write tools",
+        "create_issue",
+        "When the user declines",
+        "without running reviewers",
+        "do not offer the review",
+        "record why in the brief",
+        "continue without the review",
+        "a `manual-step` finding moves the step to `manual.md`",
+        "write no `manual.md`",
+      ]) {
+        expect(text).toContain(literal);
+      }
+    });
+
     test("has the section headings as whole lines in order", () => {
       const headings = [
         "## Usage",

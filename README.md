@@ -153,7 +153,7 @@ redirections) are ignored.
 
 ### Helper manifest (`setup`)
 
-The manifest records which helpers (MCP servers, skills, plugins, CLI tools) a project can use and when. `setup` discovers and registers them; it never installs anything. Runs do not read it: only `doctor` and `cascade-explore` do.
+The manifest records which helpers (MCP servers, skills, plugins, CLI tools) a project can use and when. `setup` discovers and registers them; it never installs anything. Runs do not read it: only `doctor` and `/cascade:explore` do.
 
 ```bash
 bun run cascade.ts setup discover --json --repo <path>

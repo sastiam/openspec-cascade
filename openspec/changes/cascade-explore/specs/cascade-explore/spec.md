@@ -28,11 +28,18 @@ The command SHALL stop when the project has no OpenSpec root, and SHALL stop nam
 - **THEN** the command continues and the brief says no manifest was found
 
 ### Requirement: Review tooling checked late
-The command SHALL check the EGM brainstorm glob at the readiness gate, before offering the Goldfish review. When it does not match, the command SHALL NOT offer the review, SHALL suggest `claude plugin install egm@egm`, SHALL record why in the brief and SHALL continue. When it matches, it SHALL read the plugin's `docs/claude.md` and then `skills/egm-brainstorm/SKILL.md`. It SHALL check subagent support only after the user accepts the review.
+The command SHALL check the EGM brainstorm glob at the readiness gate, before offering the Goldfish review. When it does not match, the command SHALL NOT offer the review, SHALL suggest `claude plugin install egm@egm`, SHALL record why in the brief and SHALL continue. When it matches, it SHALL read the plugin's `docs/claude.md` and then `skills/egm-brainstorm/SKILL.md`.
 
 #### Scenario: EGM not installed
 - **WHEN** the EGM brainstorm glob does not match at the gate
 - **THEN** the command does not offer the review, suggests `claude plugin install egm@egm`, records why in the brief and continues
+
+### Requirement: Subagent support checked after acceptance
+The command SHALL check subagent support only after the user accepts the review. When subagents are not available, it SHALL say so and continue without the review.
+
+#### Scenario: No subagents
+- **WHEN** the user accepts the review and the session cannot create subagents
+- **THEN** the command says so and writes the brief without the review
 
 ### Requirement: Precedence of instructions
 The command SHALL apply cascade overrides first, then the EGM brainstorm skill, then the `openspec-propose` skill, then the `openspec-explore` skill. Its overrides SHALL allow a fixed brief format, allow `brief.md` and `manual.md` as non-schema files in the change, use a single readiness gate, and run propose inline. It SHALL read these skills, never edit them, and never invoke EGM through the Skill tool.
@@ -120,7 +127,7 @@ The command SHALL prefer bounded output (`--limit`, `--log-failed`, AWS `--query
 - **THEN** the brief refers to the resource by name with the ARN redacted
 
 ### Requirement: Brief format
-The brief SHALL be `openspec/changes/<change>/brief.md`, in English unless `openspec/config.yaml` `context` says otherwise, with these sections in order: Overview, Sources consulted, Findings, Deploy and CI risks, Manual steps, Goals and Non-Goals, Alternatives weighed, Decisions, Open questions. The command file SHALL give them as one fenced template in its "Write brief.md" section.
+The brief SHALL be `openspec/changes/<change>/brief.md`, in English unless `openspec/config.yaml` `context` says otherwise, with these sections in order: Overview, Sources consulted, Findings, Deploy and CI risks, Manual steps, Goals and Non-Goals, Alternatives weighed, Decisions, Open questions. The command file SHALL give them as one fenced template in its "Write brief.md" section. Every section SHALL be present; a section that does not apply SHALL say "Not applicable" with a one-line reason.
 
 #### Scenario: Brief sections
 - **WHEN** the command writes a brief
@@ -134,11 +141,15 @@ The command SHALL summarize the working hypothesis and SHALL offer the EGM Goldf
 - **THEN** the command writes the brief without running reviewers and says so in the brief
 
 ### Requirement: Propose in the same thread
-After the brief, the command SHALL read and follow the installed `openspec-propose` skill in the same thread, continuing the existing change without asking and skipping its creation step. It SHALL NOT stop after the artifacts and SHALL NOT present propose's apply prompt. During that step it SHALL write `manual.md` from the brief's manual steps: top-level list items, each with an indented `Check:` line, no checkboxes.
+After the brief, the command SHALL read and follow the installed `openspec-propose` skill in the same thread, continuing the existing change without asking and skipping its creation step. It SHALL NOT stop after the artifacts and SHALL NOT present propose's apply prompt. During that step it SHALL write `manual.md` from the brief's manual steps: top-level list items, each with an indented `Check:` line, no checkboxes. When the brief has no manual steps, it SHALL NOT write `manual.md`.
 
 #### Scenario: Brief with a manual step
 - **WHEN** the brief lists a manual step
 - **THEN** `manual.md` has it as a top-level item with an indented `Check:` line, and `tasks.md` does not
+
+#### Scenario: Brief without manual steps
+- **WHEN** the brief's "Manual steps" section has no steps
+- **THEN** the change has no `manual.md`
 
 #### Scenario: Propose finishes its artifacts
 - **WHEN** the propose skill would stop and offer to start the apply workflow
@@ -168,6 +179,13 @@ When `openspec-cascade lint-tasks` exits 2 or is not found, the command SHALL st
 #### Scenario: Old binary during the readiness check
 - **WHEN** `openspec-cascade lint-tasks` is not found during the readiness check
 - **THEN** the command stops with the tooling problem and the upgrade sentence, without a fix round
+
+### Requirement: Report
+At the end, the command SHALL report the files it wrote, the readiness result, the open questions and manual steps, and the next gate.
+
+#### Scenario: Ready change
+- **WHEN** both readiness commands exit 0
+- **THEN** the report lists the files written, says the change is ready, lists the open questions and manual steps, and names `/cascade:cascade-spec-review`
 
 ### Requirement: Brainstorm alias
 `cascade-spec-brainstorm.md` SHALL keep its `name`, `category` and `tags`, SHALL have the description "Deprecated alias for /cascade:explore", and its body SHALL be one sentence, with no headings, that runs `/cascade:explore $ARGUMENTS` and does nothing else.

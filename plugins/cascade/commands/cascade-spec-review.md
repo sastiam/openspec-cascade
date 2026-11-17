@@ -5,14 +5,14 @@ category: Planning
 tags: [cascade, openspec, egm, review]
 ---
 
-# /cascade-spec-review — Goldfish review of an OpenSpec change
+# /cascade:cascade-spec-review — Goldfish review of an OpenSpec change
 
 Reviews the planning artifacts of one OpenSpec change with the EGM (Elephant-Goldfish Model) reviewers, so weak specs are fixed before `tasks.md` is executed. OpenSpec stays the source of truth: the report lives inside the change.
 
 ## Usage
 
 ```text
-/cascade-spec-review <change>
+/cascade:cascade-spec-review <change>
 ```
 
 `<change>` is required and must match a folder under `openspec/changes/`.
