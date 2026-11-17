@@ -102,6 +102,7 @@ describe("ShadowCommitManager", () => {
     const dir = mkdtempSync(join(tmpdir(), "cascade-shadow-empty-"));
     try {
       await runGitCommand(dir, ["init", "-q"]);
+      await runGitCommand(dir, ["config", "commit.gpgsign", "false"]);
       writeFileSync(join(dir, "first.ts"), "export {};\n");
       const sha = await new ShadowCommitManager().withShadowCommit(dir, async (shadowSha, snapshot) => {
         expect(snapshot.parentSha).toBeNull();

@@ -104,7 +104,9 @@ export function cleanupTempDir(dirPath: string): void {
 
 /**
  * Creates an isolated temporary git repository with initial commit, local author config,
- * optional lockfiles, skills, directives, and dirty files.
+ * optional lockfiles, skills, directives, and dirty files. Fixture commits are unsigned
+ * (`commit.gpgsign false`) so they do not depend on the developer's signing key, which is
+ * unreadable inside the night-run sandbox.
  */
 export async function createTempGitRepo(
   options: TempGitRepoOptions = {},
@@ -125,6 +127,7 @@ export async function createTempGitRepo(
     await runGitOrThrow(repoDir, ["checkout", "-B", branch]);
     await runGitOrThrow(repoDir, ["config", "user.name", E2E_CONSTANTS.DEFAULT_GIT_USER_NAME]);
     await runGitOrThrow(repoDir, ["config", "user.email", E2E_CONSTANTS.DEFAULT_GIT_USER_EMAIL]);
+    await runGitOrThrow(repoDir, ["config", "commit.gpgsign", "false"]);
 
     writeRelativeFile(repoDir, "README.md", "# E2E Fixture Repository\n");
 
