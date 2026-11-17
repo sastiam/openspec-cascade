@@ -1,5 +1,6 @@
 /**
- * Integration subcommands for the cascade CLI: `doctor`, `catalog`, `drift` and `review`.
+ * Integration subcommands for the cascade CLI: `doctor`, `catalog`, `drift`, `review`, `spec-gate`,
+ * `lint-tasks` and `setup`.
  *
  * Exit codes: 0 success, 1 findings/drift/unhealthy, 2 invalid input or fail-closed errors.
  */

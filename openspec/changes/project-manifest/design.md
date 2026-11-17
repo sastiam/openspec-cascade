@@ -87,7 +87,7 @@ See [proposal.md](proposal.md). Planning has no record of which helpers (MCP ser
   - `rules [--write]`.
   - Exit codes: 0 success, 1 refused write (rules already present), 2 usage error or invalid manifest (including on `discover` and `show`).
   - Errors: `runSetup` never throws. A `CliUsageError` prints `USAGE: cascade setup: <message>` on stderr. Any other failure, including `ManifestError` and an invalid `.openspec-cascade.json`, prints `STOPPED: setup: <message>` on stderr, like `runSubcommand`. Both exit 2.
-- **JSON outputs.** Both are sorted so tests and `cascade-explore` get stable text.
+- **JSON outputs.** Both are sorted so tests and `cascade-explore` get stable text, and printed with `MANIFEST_CONSTANTS.JSON_INDENT` (two spaces).
   - `show --json`: `{"entries":[{name, type, whenToUse, required, check?, profile?, hosts?, layer}]}`. `layer` is `global` or `project`. `required` is always present; unset optional fields are left out.
   - `discover --json`: `{"candidates":[{name, type, sources, hosts, inManifest}], "skipped":[{source, reason}]}`. `sources` and `hosts` are sorted lists. `inManifest` is `null`, `global` or `project` (project when both layers have it).
 - **Plain-text outputs.** On stdout unless noted. Tests assert the lines that have an example below:
@@ -97,7 +97,7 @@ See [proposal.md](proposal.md). Planning has no record of which helpers (MCP ser
   - `remove`: `removed <name> (<type>) from the <scope> layer`.
   - `rules` without `--write`: the `SUGGESTED_RULES_YAML` text, unchanged.
   - `rules --write`: `wrote rules to openspec/config.yaml`. A refusal prints `REFUSED: openspec/config.yaml already has a rules key` on stderr and exits 1. A missing file prints `STOPPED: setup: openspec/config.yaml not found; run openspec init first` on stderr and exits 2.
-- **Discovery sources and parsing.** Each source is a small function that returns `{candidates, skipped}`. A missing file or folder is ignored. A file that cannot be read or parsed becomes one `skipped` item with a fixed reason (`unreadable`, `invalid JSON`, `invalid JSONC`, `unexpected shape`). The parser's own message is never shown, because it can quote file content. A source is shown as a path with `~` for the home folder and `<repo>` for the repository, or `PATH`. The sources are:
+- **Discovery sources and parsing.** Each source is a small function that returns `{candidates, skipped}`. A missing file or folder is ignored. A file that cannot be read or parsed becomes one `skipped` item with a fixed reason (`unreadable`, `invalid JSON`, `invalid JSONC`, `unexpected shape`). The parser's own message is never shown, because it can quote file content. A source is shown as a path with `~` for the home folder and `<repo>` for the repository, or `PATH`. Global OpenCode labels are built from `paths.xdgConfigHome`: `~/…` when it is inside `paths.home`, its absolute path otherwise. The sources are:
   - **Claude Code MCP** (host `claude-code`).
     - The keys of top-level `mcpServers` in `~/.claude.json`.
     - The keys of `projects[key].mcpServers` for every `key` whose real path equals the real path of the repository or of the main worktree root. The main worktree root is the parent folder of `gitCommonDir(repo)`; when `gitCommonDir` returns `undefined`, only the repository is matched. A `key` whose real path cannot be resolved (for example a deleted folder) is ignored silently, without a `skipped` item.

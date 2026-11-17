@@ -1,5 +1,6 @@
 /**
- * `setup` subcommand: discovers helpers, shows the project manifest and prints suggested OpenSpec rules.
+ * `setup` subcommand: `discover` lists helpers, `add` and `remove` edit a manifest layer, `show` prints the
+ * merged manifest, and `rules` prints or writes the suggested OpenSpec rules.
  *
  * Exit codes: 0 success, 1 refused write, 2 usage error or invalid manifest.
  */

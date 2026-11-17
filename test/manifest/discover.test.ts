@@ -127,7 +127,23 @@ describe("discover", () => {
   test("same helper in two hosts merges hosts and sources", () => {
     const watson = find(discover(paths, fakeDeps(join(main, ".git"))), "watson", "mcp");
     expect(watson?.hosts).toEqual(["claude-code", "opencode"]);
-    expect(watson?.sources).toEqual(["~/.claude.json", "~/.config/opencode/opencode.json"]);
+    expect(watson?.sources).toEqual([join(root, "cfg", "opencode", "opencode.json"), "~/.claude.json"]);
+  });
+
+  test("XDG outside home: global OpenCode sources use the absolute path", () => {
+    const result = discover(paths, fakeDeps(join(main, ".git")));
+    expect(find(result, "watson", "mcp")?.sources).toContain(join(paths.xdgConfigHome, "opencode", "opencode.json"));
+    expect(find(result, "oskill", "skill")?.sources).toEqual([join(paths.xdgConfigHome, "opencode", "skill")]);
+    expect(JSON.stringify(result)).not.toContain("~/.config/opencode");
+  });
+
+  test("XDG inside home: global OpenCode sources use ~", () => {
+    const inside = { ...paths, xdgConfigHome: join(home, ".config") };
+    put(join(inside.xdgConfigHome, "opencode", "opencode.json"), { mcp: { watson: {} } });
+    put(join(inside.xdgConfigHome, "opencode", "skills", "hskill", "SKILL.md"), "x");
+    const result = discover(inside, fakeDeps(join(main, ".git")));
+    expect(find(result, "watson", "mcp")?.sources).toContain("~/.config/opencode/opencode.json");
+    expect(find(result, "hskill", "skill")?.sources).toEqual(["~/.config/opencode/skills"]);
   });
 
   test("inManifest comes from the global layer", () => {
@@ -153,7 +169,7 @@ describe("discover", () => {
   test("unreadable source is skipped with a fixed reason and no values", () => {
     put(join(paths.xdgConfigHome, "opencode", "opencode.json"), `{ "token": "${TOKEN_TWO}" `);
     const result = discover(paths, fakeDeps(join(main, ".git")));
-    expect(result.skipped).toEqual([{ source: "~/.config/opencode/opencode.json", reason: "invalid JSON" }]);
+    expect(result.skipped).toEqual([{ source: join(root, "cfg", "opencode", "opencode.json"), reason: "invalid JSON" }]);
     expect(Object.keys(result.skipped[0] ?? {}).sort()).toEqual(["reason", "source"]);
     expect(find(result, "docs", "mcp")).toBeDefined();
     expect(JSON.stringify(result)).not.toContain(TOKEN_TWO);

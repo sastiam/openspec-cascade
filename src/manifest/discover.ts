@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join, relative, sep } from "node:path";
 import { MANIFEST_CONSTANTS } from "../config/constants";
 import { stripJsonc } from "./jsonc";
 import { loadManifest } from "./load";
@@ -213,15 +213,23 @@ function opencodeMcpIn(dir: string, label: string): SourceResult {
   return mcpFromObject(file, `${label}/${name}`, !useJson, OPENCODE, (root) => root.mcp);
 }
 
+/** Label of the global OpenCode folder: `~/…` when `xdgConfigHome` is inside home, its absolute path otherwise. */
+function globalOpencodeLabel(paths: DiscoveryPaths): string {
+  const dir = join(paths.xdgConfigHome, "opencode");
+  const rel = relative(paths.home, dir);
+  const inside = rel !== "" && !rel.startsWith("..") && !isAbsolute(rel);
+  return inside ? `${HOME_PREFIX}/${rel.split(sep).join("/")}` : dir;
+}
+
 export function opencodeMcpSource(paths: DiscoveryPaths): SourceResult {
-  const global = opencodeMcpIn(join(paths.xdgConfigHome, "opencode"), `${HOME_PREFIX}/.config/opencode`);
+  const global = opencodeMcpIn(join(paths.xdgConfigHome, "opencode"), globalOpencodeLabel(paths));
   const project = opencodeMcpIn(paths.repo, REPO_PREFIX);
   return { candidates: [...global.candidates, ...project.candidates], skipped: [...global.skipped, ...project.skipped] };
 }
 
 export function opencodeSkillsSource(paths: DiscoveryPaths): SourceResult {
   const places = [
-    { dir: join(paths.xdgConfigHome, "opencode"), label: `${HOME_PREFIX}/.config/opencode` },
+    { dir: join(paths.xdgConfigHome, "opencode"), label: globalOpencodeLabel(paths) },
     { dir: join(paths.repo, ".opencode"), label: `${REPO_PREFIX}/.opencode` },
   ];
   const candidates: RawCandidate[] = [];

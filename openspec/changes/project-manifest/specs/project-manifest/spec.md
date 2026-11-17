@@ -135,7 +135,7 @@ When the git common folder of the repository cannot be found, discovery SHALL ma
 - **THEN** discovery lists `gh` of type `cli` and does not list `docker`
 
 ### Requirement: Discovery output
-`setup discover --json` SHALL print `{"candidates":[...],"skipped":[...]}`. Each candidate SHALL have `name`, `type`, `sources`, `hosts` and `inManifest` (`null`, `global` or `project`), merged by `name` and `type`. Each skipped item SHALL have `source` and `reason`.
+`setup discover --json` SHALL print, as JSON indented with two spaces, `{"candidates":[...],"skipped":[...]}`. Each candidate SHALL have `name`, `type`, `sources`, `hosts` and `inManifest` (`null`, `global` or `project`), merged by `name` and `type`. Each skipped item SHALL have `source` and `reason`.
 
 #### Scenario: Same helper in two hosts
 - **WHEN** MCP server `watson` is in `~/.claude.json` and in the global `opencode.json`
@@ -148,6 +148,13 @@ When the git common folder of the repository cannot be found, discovery SHALL ma
 #### Scenario: Invalid manifest on discover
 - **WHEN** the global manifest has an entry of type `service` and `setup discover` runs
 - **THEN** it exits 2 and names the global layer
+
+### Requirement: Discovery source labels
+Each discovery source SHALL be shown as a path with `~` for the home folder and `<repo>` for the repository, or `PATH`. A global OpenCode source SHALL be shown under `~` only when `$XDG_CONFIG_HOME` is inside the home folder, and as its absolute path otherwise.
+
+#### Scenario: XDG outside home
+- **WHEN** `XDG_CONFIG_HOME` is `/tmp/cfg` and `/tmp/cfg/opencode/opencode.json` declares MCP server `watson`
+- **THEN** the source of `watson` is `/tmp/cfg/opencode/opencode.json`
 
 ### Requirement: Discovery reads names, never values
 Discovery SHALL NOT print environment values, headers, URLs or command arguments of MCP servers, including in error reasons. A source that cannot be read or parsed SHALL be reported as skipped with a fixed reason and SHALL NOT fail the command. A missing source SHALL be ignored.
@@ -194,14 +201,14 @@ Discovery SHALL NOT claim to find claude.ai connectors. The `/cascade:setup` com
 - **THEN** the folder and `manifest.json` are created with that entry
 
 ### Requirement: setup writes
-Every file written by `setup` SHALL be written atomically, through a temporary file in the same folder renamed over the target, as two-space JSON with a final line break. When the target file is invalid JSON or holds an invalid manifest, `setup add` and `setup remove` SHALL exit 2 and leave it unchanged.
+Every JSON file written by `setup` (`.openspec-cascade.json` and the global manifest) SHALL be written atomically, through a temporary file in the same folder renamed over the target, as two-space JSON with a final line break. `setup rules --write` SHALL write `openspec/config.yaml` atomically in the same way, as its existing text followed by the rules block. When the target file is invalid JSON or holds an invalid manifest, `setup add` and `setup remove` SHALL exit 2 and leave it unchanged.
 
 #### Scenario: Invalid project file
 - **WHEN** `.openspec-cascade.json` is not valid JSON and `setup add --scope project ...` runs
 - **THEN** it exits 2 and the file is unchanged
 
 ### Requirement: setup show
-`setup show --json` SHALL print `{"entries":[...]}`, each entry with its fields and `layer` (`global` or `project`), sorted by name then type. `required` SHALL always be present. Without `--json` it SHALL print one line per entry, `<layer> <type> <name>: <whenToUse>`. An invalid manifest SHALL exit 2.
+`setup show --json` SHALL print, as JSON indented with two spaces, `{"entries":[...]}`, each entry with its fields and `layer` (`global` or `project`), sorted by name then type. `required` SHALL always be present. Without `--json` it SHALL print one line per entry, `<layer> <type> <name>: <whenToUse>`. An invalid manifest SHALL exit 2.
 
 #### Scenario: Show merged JSON
 - **WHEN** `setup show --json` runs with entries in both layers

@@ -50,3 +50,12 @@
   Verify: `bun test test/plugin` passes, `bun run typecheck` passes and `bun run lint` passes.
 - [x] 4.3 Complete the docs in `docs/cli.md` (Spanish) and `README.md` (English): the `setup` actions and flags, the two manifest layers, every entry field, the `show --json` and `discover --json` shapes, doctor and `--run-project-checks`, the statement that read-only behavior of a check is not enforced, the claude.ai connector limit, `/cascade:setup` for Claude Code, and the CLI flow for OpenCode users. Then run the full verification of the repository.
   Verify: `bun -e "process.exit(require('fs').readFileSync('README.md','utf8').includes('cascade:setup') ? 0 : 1)"` succeeds, `bun -e "process.exit(require('fs').readFileSync('docs/cli.md','utf8').includes('run-project-checks') ? 0 : 1)"` succeeds, `bun test` passes with zero failures, `bun run typecheck` passes and `bun run lint` passes.
+
+## 5. Drift fixes
+
+From the drift triage in `drift.md`.
+
+- [x] 5.1 Test first, then implement. In `src/manifest/discover.ts`, build the global OpenCode source labels (MCP and skills) from `paths.xdgConfigHome`: `~/…` when it is inside `paths.home`, its absolute path otherwise, as design.md describes. In `test/manifest/discover.test.ts`, cover "XDG outside home" and fix the expectations that assume `~/.config/opencode` while the fixture's `xdgConfigHome` is `<root>/cfg`.
+  Verify: `bun test test/manifest/discover.test.ts` passes, `bun run typecheck` passes and `bun run lint` passes.
+- [x] 5.2 Update the header comments: `src/cli/setup.ts` lists every action (`discover`, `add`, `remove`, `show`, `rules`), and `src/cli/commands.ts` lists `spec-gate`, `lint-tasks` and `setup` among its subcommands.
+  Verify: `bun -e "const h=require('fs').readFileSync('src/cli/setup.ts','utf8').split('\n').slice(0,5).join(' ');process.exit(h.includes('remove')&&h.includes('add')?0:1)"` succeeds, `bun run typecheck` passes and `bun run lint` passes.
